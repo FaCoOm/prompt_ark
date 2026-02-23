@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Agent / AI tools
+.agent/
+.gemini/
+
+# Temp / Scripts
+scripts/
+*.log
+
+# Source images (not needed in extension)
+horses.jpg
+generate-icons.html

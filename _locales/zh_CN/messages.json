@@ -1,0 +1,53 @@
+{
+  "appName": {
+    "message": "Prompt Ark"
+  },
+  "appDesc": {
+    "message": "管理并自动填入Prompt到AI平台"
+  },
+  "contextMenuAddPrompt": {
+    "message": "添加到 Prompt Ark"
+  },
+  "contextMenuSaveSuccess": {
+    "message": "已添加到 Prompt Ark ✓"
+  },
+  "insertSuccess": {
+    "message": "Prompt 已填入"
+  },
+  "inputNotFound": {
+    "message": "未找到输入框"
+  },
+  "extensionReload": {
+    "message": "扩展已更新，请刷新页面"
+  },
+  "qaRewriteLabel": {
+    "message": "重写润色"
+  },
+  "qaRewritePrompt": {
+    "message": "请用更专业、清晰的语言重新写一遍上面这段文字。"
+  },
+  "qaSummarizeLabel": {
+    "message": "内容总结"
+  },
+  "qaSummarizePrompt": {
+    "message": "请提供以上文本的简明摘要，提取核心观点。"
+  },
+  "qaExpandLabel": {
+    "message": "扩写细节"
+  },
+  "qaExpandPrompt": {
+    "message": "请针对上方提供的信息展开详细补充说明，提供更多细节。"
+  },
+  "qaTranslateLabel": {
+    "message": "译为英文"
+  },
+  "qaTranslatePrompt": {
+    "message": "请将上面的文本翻译为专业、地道的英文表达。"
+  },
+  "qaExplainLabel": {
+    "message": "简单解释"
+  },
+  "qaExplainPrompt": {
+    "message": "请用通俗易懂的语言简单解释一下上方文本传达的概念。"
+  }
+}

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="appName">Prompt Ark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+  <style>
+    /* Import Modal Styles */
+    .import-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .import-tab {
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .import-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    .import-area {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .import-area.hidden {
+      display: none;
+    }
+
+    .url-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .url-input-group input {
+      flex: 1;
+    }
+
+    .url-preview {
+      background: var(--bg-secondary);
+      margin-top: 12px;
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    .preview-status {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+
+    .preview-item {
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-item:last-child {
+      border-bottom: none;
+    }
+
+    .preview-item .score-badge {
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 10px;
+      color: white;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .preview-item .act {
+      font-weight: 500;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-item .prompt {
+      color: var(--text-secondary);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .scan-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .filter-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .scan-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .preview-legend {
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.high {
+      background: #10b981;
+    }
+
+    .dot.mid {
+      background: #f59e0b;
+    }
+
+    .dot.low {
+      background: #ef4444;
+    }
+
+    .ai-enhance-section {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 32px;
+    }
+
+    .ai-progress {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 2px;
+    }
+
+    .ai-progress progress {
+      width: 100%;
+      height: 6px;
+    }
+
+    .ai-progress span {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .category-badge {
+      font-size: 9px;
+      padding: 1px 4px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      margin-right: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="popup-container">
+    <!-- 头部 -->
+    <header class="header">
+      <div class="header-left">
+        <img src="icons/icon48.png" alt="Logo" class="header-logo">
+        <h1 data-i18n="appName">AI Prompt Manager</h1>
+      </div>
+      <div class="header-right">
+        <button id="settingsBtn" class="btn-icon header-btn" data-i18n-title="settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M12.22 2h-.44a2 2 0 0 1-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+        <button id="addPromptBtn" class="btn btn-primary">
+          <span class="icon">+</span> <span data-i18n="newPrompt">新建</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 设置面板 -->
+    <div id="settingsPanel" class="settings-panel hidden">
+      <!-- 标签页导航 -->
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="settings-general" data-i18n="tabGeneral">常规</button>
+        <button class="settings-tab" data-tab="settings-models" data-i18n="tabModels">模型</button>
+
+        <button class="settings-tab" data-tab="settings-sync" data-i18n="tabSync">同步</button>
+      </div>
+
+      <!-- 面板：常规 -->
+      <div id="settings-general" class="settings-tab-pane active">
+
+        <div class="settings-card">
+          <div class="settings-group">
+            <label data-i18n="language">语言</label>
+            <select id="languageSelect">
+              <option value="zh_CN">中文 (简体)</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+
+          <div class="settings-section-header" style="margin-top: 16px;">
+            <label data-i18n="defaultPlatform">🌐 默认 AI 平台</label>
+          </div>
+          <div class="form-row">
+            <select id="defaultPlatformSelect" class="settings-input">
+              <option value="chatgpt">ChatGPT</option>
+              <option value="claude">Claude</option>
+              <option value="gemini">Gemini</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="kimi">Kimi</option>
+              <option value="doubao">豆包</option>
+              <option value="qwen">通义千问</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 面板：模型 -->
+      <div id="settings-models" class="settings-tab-pane">
+        <div class="settings-card">
+          <div class="settings-section-header">
+            <label data-i18n="aiModels">AI 模型</label>
+            <button id="addProviderBtn" class="btn-icon-small" title="添加">+</button>
+          </div>
+          <div id="providerList" class="provider-list">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Provider Add/Edit Form (hidden) -->
+          <div id="providerForm" class="provider-form hidden">
+            <input type="hidden" id="providerEditId">
+            <div class="form-row">
+              <label data-i18n="providerName">名称</label>
+              <input type="text" id="providerNameInput" class="settings-input" placeholder="我的 AI 提供商">
+            </div>
+            <div class="form-row">
+              <label data-i18n="providerType">类型</label>
+              <select id="providerTypeSelect" class="settings-input">
+                <option value="gemini">Gemini API</option>
+                <option value="gemini-web" data-i18n="providerTypeGeminiWeb">Gemini Web (免 Key)</option>
+                <option value="openai" data-i18n="providerTypeOpenai">OpenAI 兼容</option>
+              </select>
+            </div>
+            <div id="providerApiUrlRow" class="form-row hidden">
+              <label>API URL</label>
+              <input type="url" id="providerApiUrlInput" class="settings-input" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="form-row">
+              <label>API Key</label>
+              <input type="password" id="providerApiKeyInput" class="settings-input" placeholder="sk-... / AIza...">
+            </div>
+            <div class="form-row">
+              <label data-i18n="providerModel">模型</label>
+              <input type="text" id="providerModelInput" class="settings-input"
+                placeholder="gemini-2.0-flash / gpt-4o-mini">
+            </div>
+            <div class="provider-form-actions">
+              <button id="cancelProviderBtn" class="btn btn-secondary btn-small" data-i18n="cancel">取消</button>
+              <button id="saveProviderBtn" class="btn btn-primary btn-small" data-i18n="save">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- 面板：同步 -->
+      <div id="settings-sync" class="settings-tab-pane">
+        <!-- Section 1: Sync Engine Selection -->
+        <div class="settings-card">
+          <div class="settings-section-header">
+            <label data-i18n="syncEngine">☁️ 数据同步引擎 (Sync Engine)</label>
+          </div>
+          <div class="settings-group-vertical">
+            <div class="radio-group" style="display: flex; gap: 16px; margin: 4px 0;">
+              <label class="radio-label">
+                <input type="radio" name="syncBackend" value="chrome" checked>
+                <span data-i18n="chromeSync">Chrome Sync (默认, 已压缩)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="syncBackend" value="gist">
+                <span data-i18n="gistSync">GitHub Gist (无容量上限)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="syncBackend" value="webdav">
+                <span data-i18n="webdavSync">WebDAV (国内网盘)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Gist Config (shown when Gist selected) -->
+          <div class="settings-group-vertical hidden" id="gistIdContainer"
+            style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+            <label data-i18n="gistId">Gist ID (留空可自动创建)</label>
+            <input type="text" id="gistIdInput" class="settings-input" placeholder="e.g. 5ab...cfe">
+            <div class="settings-actions" style="margin-top: 8px;">
+              <button id="forceSyncGistBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncGist">立刻同步
+                Gist</button>
+            </div>
+          </div>
+
+          <!-- WebDAV Config (shown when WebDAV selected) -->
+          <div class="settings-group-vertical hidden" id="webdavContainer"
+            style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+            <label data-i18n="webdavUrl">WebDAV 服务器地址</label>
+            <input type="text" id="webdavUrlInput" class="settings-input" placeholder="https://dav.jianguoyun.com/dav/">
+            <label data-i18n="webdavUser" style="margin-top: 8px;">账号邮箱 (User)</label>
+            <input type="text" id="webdavUserInput" class="settings-input" placeholder="your_email@example.com">
+            <label data-i18n="webdavPassword" style="margin-top: 8px;">应用密码 (App Password)</label>
+            <input type="password" id="webdavPasswordInput" class="settings-input" placeholder="********">
+            <div class="settings-actions" style="margin-top: 8px;">
+              <button id="forceSyncWebdavBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncWebdav">立刻同步
+                WebDAV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: GitHub Token (always visible — used for sync, sharing, and import) -->
+        <div class="settings-card" style="margin-top: 12px;">
+          <div class="settings-group-vertical">
+            <label data-i18n="githubToken">🔑 GitHub Token</label>
+            <span style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;" data-i18n="githubTokenHint">用于
+              Gist 同步、分享功能、以及 GitHub 导入（提升速率至 5000次/小时）</span>
+            <input type="password" id="githubTokenInput" class="settings-input"
+              data-i18n-placeholder="githubTokenPlaceholder" placeholder="ghp_xxxxxxxxxxxx">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索 Prompt...">
+    </div>
+
+    <!-- Smart Filters -->
+    <div class="smart-filters" id="smartFilters">
+      <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites" title="收藏">⭐</button>
+      <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed" title="常用">🔥</button>
+      <button class="smart-filter-btn" data-filter="recent" data-i18n-title="recentlyUsed" title="最近使用">🕐</button>
+    </div>
+
+    <!-- 分类标签 -->
+    <div class="categories" id="categories">
+      <button class="category-tag active" data-category="all" data-i18n="categoryAll">全部</button>
+    </div>
+
+    <!-- Prompt列表 -->
+    <div class="prompt-list" id="promptList">
+      <!-- 动态生成 -->
+    </div>
+
+    <!-- 底部工具栏 -->
+    <footer class="footer">
+      <button id="importBtn" class="btn btn-secondary btn-small" data-i18n="import">导入</button>
+      <button id="exportBtn" class="btn btn-secondary btn-small" data-i18n="export">导出</button>
+      <button id="packBtn" class="btn btn-secondary btn-small" title="Share Prompt Pack">📦</button>
+      <span class="shortcut-hint" data-i18n="shortcutHint">Ctrl+Shift+P 快捷插入</span>
+    </footer>
+  </div>
+
+  <!-- 编辑/新建模态框 -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle" data-i18n="newPrompt">新建 Prompt</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <form id="promptForm">
+        <input type="hidden" id="promptId">
+
+        <div class="form-group">
+          <label for="titleInput" data-i18n="title">标题</label>
+          <input type="text" id="titleInput" data-i18n-placeholder="titlePlaceholder" placeholder="留空则 AI 自动生成">
+        </div>
+
+        <div class="form-group">
+          <label for="categoryInput" data-i18n="category">分类</label>
+          <input type="text" id="categoryInput" list="categoryList">
+          <datalist id="categoryList"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="shortcutInput">
+            <span data-i18n="shortcut">快捷命令</span>
+            <span class="hint" data-i18n="shortcutFieldHint">输入 /命令 即可快速插入</span>
+          </label>
+          <input type="text" id="shortcutInput" placeholder="例如 code-review">
+        </div>
+
+
+
+        <div class="form-group">
+          <label for="contentInput">
+            <span data-i18n="content">Prompt 内容</span>
+            <span class="hint" data-i18n="contentHint">使用 {{变量名}} 创建动态变量</span>
+            <span class="hint">Markdown ✓</span>
+            <button type="button" id="historyBtn" class="btn-history hidden" title="版本历史">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </button>
+          </label>
+          <textarea id="contentInput" rows="8" required></textarea>
+          <div id="mdPreview" class="md-preview hidden"></div>
+          <button type="button" id="previewToggle" class="btn-preview-toggle" data-i18n="preview">Preview</button>
+          <button type="button" id="optimizeBtn" class="btn-optimize" data-i18n="optimize">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+            </svg>
+            优化
+          </button>
+          <!-- Provider dropdown for optimize -->
+          <div class="optimize-provider-wrapper">
+            <button type="button" id="optimizeProviderBtn" class="btn-optimize-provider" data-i18n-title="selectModel"
+              title="选择模型">▾</button>
+            <div id="optimizeProviderMenu" class="optimize-provider-menu hidden">
+              <!-- dynamically populated -->
+            </div>
+          </div>
+          <!-- Optimization Diff Panel (inside form-group so it replaces textarea visually) -->
+          <div id="optimizeDiffPanel" class="optimize-diff-panel hidden">
+            <div class="optimize-diff-header">
+              <span data-i18n="optimizeDiffTitle">✨ 优化结果</span>
+              <div id="variantTabs" class="variant-tabs hidden"></div>
+            </div>
+            <div id="optimizeDiffContent" class="optimize-diff-content"></div>
+            <div class="optimize-diff-actions">
+              <button type="button" id="optimizeAcceptBtn" class="btn btn-primary btn-small"
+                data-i18n="optimizeAccept">✅ 采纳</button>
+              <button type="button" id="optimizeRejectBtn" class="btn btn-secondary btn-small"
+                data-i18n="optimizeReject">❌ 放弃</button>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
+          <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="importModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="import">导入</h2>
+        <button class="modal-close" id="closeImportModal">&times;</button>
+      </div>
+      <div class="import-tabs">
+        <button class="import-tab active" data-tab="paste" data-i18n="tabPaste">粘贴文本</button>
+        <button class="import-tab" data-tab="url" data-i18n="tabUrl">从 URL 导入</button>
+      </div>
+      <div class="import-content">
+        <!-- Paste Tab -->
+        <div id="importPasteArea" class="import-area">
+          <p data-i18n="pasteHint">支持 JSON, CSV, Markdown 等格式</p>
+          <textarea id="importData" rows="10" data-i18n-placeholder="pastePlaceholder"
+            placeholder="在此粘贴内容..."></textarea>
+        </div>
+        <!-- URL Tab -->
+        <div id="importUrlArea" class="import-area hidden">
+          <p data-i18n="urlHint">输入 GitHub Repo URL 或 Raw 文件链接</p>
+          <div class="url-input-group">
+            <input type="url" id="importUrlInput" placeholder="https://github.com/owner/repo" class="settings-input">
+            <button id="scanBtn" class="btn btn-primary" data-i18n="scan">扫描</button>
+          </div>
+
+          <div class="scan-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="deepScan" checked>
+              <span data-i18n="deepScan">深度扫描</span>
+            </label>
+            <div class="score-filter">
+              <span data-i18n="minScore">最低分</span>
+              <input type="range" id="scoreFilter" min="0" max="100" value="50">
+              <span id="scoreValue" class="score-value">50</span>
+            </div>
+          </div>
+
+          <div id="scanStatus" class="scan-status hidden"></div>
+
+          <div id="aiProgress" class="ai-progress hidden">
+            <span data-i18n="aiAnalyzing">AI 分析中</span>
+            <div class="ai-progress-bar-track">
+              <div class="ai-progress-bar-indeterminate"></div>
+            </div>
+          </div>
+
+          <div id="urlPreview" class="url-preview hidden">
+            <div class="preview-header">
+              <div class="preview-status">
+                <strong><span id="previewCount">0</span></strong>
+                <span data-i18n="promptsFiltered">个 Prompt（已筛选）</span>
+              </div>
+              <div class="preview-legend">
+                <span class="dot high"></span><span data-i18n="qualityHigh">高</span>
+                <span class="dot mid"></span><span data-i18n="qualityMid">中</span>
+                <span class="dot low"></span><span data-i18n="qualityLow">低</span>
+              </div>
+            </div>
+            <div id="previewList" class="preview-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="import-footer">
+        <button class="btn btn-secondary" id="cancelImportBtn" data-i18n="cancel">取消</button>
+        <button class="btn btn-primary" id="confirmImportBtn" data-i18n="confirmImportBtn">导入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史版本模态框 -->
+  <div id="historyModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="promptHistory">版本历史</h2>
+        <button class="modal-close" id="closeHistoryModal">&times;</button>
+      </div>
+      <div class="history-container">
+        <div id="historyList" class="history-list">
+          <!-- 动态生成版本列表 -->
+        </div>
+        <div id="historyDiff" class="history-diff">
+          <div class="diff-header">
+            <span data-i18n="versionPreview">版本预览</span>
+            <button id="restoreBtn" class="btn btn-primary btn-small" data-i18n="restore">还原</button>
+          </div>
+          <div id="diffContent" class="diff-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Panel (contextual floating menu) -->
+  <div id="sharePanelBackdrop" class="share-panel-backdrop hidden"></div>
+  <div id="sharePanel" class="share-panel hidden">
+    <div class="share-panel-header">
+      <span id="sharePanelTitle" data-i18n="sharePrompt">分享</span>
+      <button id="sharePanelClose" class="share-panel-close">✕</button>
+    </div>
+    <div class="share-panel-options">
+      <button class="share-option" data-platform="twitter">
+        <span class="share-option-icon">𝕏</span>
+        <span data-i18n="shareToX">分享到 X</span>
+      </button>
+      <button class="share-option" data-platform="reddit">
+        <span class="share-option-icon">📱</span>
+        <span data-i18n="shareToReddit">分享到 Reddit</span>
+      </button>
+      <button class="share-option" data-platform="copy">
+        <span class="share-option-icon">🔗</span>
+        <span data-i18n="copyLink">复制链接</span>
+      </button>
+      <button class="share-option" data-platform="json">
+        <span class="share-option-icon">📦</span>
+        <span data-i18n="copyAsJson">复制为 JSON</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pack Selection Toolbar (bottom bar during selection mode) -->
+  <div id="packToolbar" class="pack-toolbar hidden">
+    <div class="pack-toolbar-info">
+      <span id="packSelectedCount">0</span> <span data-i18n="selected">已选</span>
+    </div>
+    <div class="pack-toolbar-actions">
+      <input type="text" id="packTitleInput" class="pack-title-input" data-i18n-placeholder="packTitlePlaceholder"
+        placeholder="合集标题">
+      <button id="packShareBtn" class="btn btn-primary btn-small" disabled data-i18n="packShare">📦
+        分享合集</button>
+      <button id="packCancelBtn" class="btn btn-small" data-i18n="cancel">取消</button>
+    </div>
+  </div>
+
+  <script src="lib/marked.min.js"></script>
+  <script src="popup.js" type="module"></script>
+</body>
+
+</html>
