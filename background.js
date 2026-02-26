@@ -866,7 +866,7 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(shareData, null, 2),
           token
         );
-        const hubUrl = `https://keyonzeng.github.io/prompt_ark/hub/index.html?gist=${result.gistId}`;
+        const hubUrl = `https://keyonzeng.github.io/prompt_ark/index.html?gist=${result.gistId}`;
         sendResponse({ success: true, url: hubUrl });
         break;
       }
@@ -904,7 +904,7 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(packData, null, 2),
           token
         );
-        const packHubUrl = `https://keyonzeng.github.io/prompt_ark/hub/index.html?gist=${packResult.gistId}`;
+        const packHubUrl = `https://keyonzeng.github.io/prompt_ark/index.html?gist=${packResult.gistId}`;
         sendResponse({ success: true, url: packHubUrl });
         break;
       }
