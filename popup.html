@@ -255,6 +255,15 @@
               <option value="qwen">通义千问</option>
             </select>
           </div>
+
+          <div class="settings-section-header" style="margin-top: 16px;">
+            <label data-i18n="githubToken">🔑 GitHub Token</label>
+          </div>
+          <span class="settings-hint" data-i18n="githubTokenHint">用于 Gist 同步、分享功能、以及 GitHub 导入</span>
+          <div class="form-row">
+            <input type="password" id="githubTokenInput" class="settings-input"
+              data-i18n-placeholder="githubTokenPlaceholder" placeholder="ghp_xxxxxxxxxxxx">
+          </div>
         </div>
       </div>
 
@@ -308,63 +317,84 @@
 
       <!-- 面板：同步 -->
       <div id="settings-sync" class="settings-tab-pane">
-        <!-- Section 1: Sync Engine Selection -->
-        <div class="settings-card">
-          <div class="settings-section-header">
-            <label data-i18n="syncEngine">☁️ 数据同步引擎 (Sync Engine)</label>
-          </div>
-          <div class="settings-group-vertical">
-            <div class="radio-group" style="display: flex; gap: 16px; margin: 4px 0;">
-              <label class="radio-label">
-                <input type="radio" name="syncBackend" value="chrome" checked>
-                <span data-i18n="chromeSync">Chrome Sync (默认, 已压缩)</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="syncBackend" value="gist">
-                <span data-i18n="gistSync">GitHub Gist (无容量上限)</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="syncBackend" value="webdav">
-                <span data-i18n="webdavSync">WebDAV (国内网盘)</span>
-              </label>
-            </div>
-          </div>
 
-          <!-- Gist Config (shown when Gist selected) -->
-          <div class="settings-group-vertical hidden" id="gistIdContainer"
-            style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+        <!-- Sync Mode Dropdown -->
+        <div class="settings-card">
+          <div class="settings-group">
+            <label data-i18n="syncEngine">☁️ 数据同步</label>
+            <select id="syncBackendSelect" class="settings-input">
+              <option value="none" data-i18n="noSync">不同步（仅本地）</option>
+              <option value="chrome" data-i18n="chromeSync">Chrome Sync</option>
+              <option value="gist" data-i18n="gistSync">GitHub Gist</option>
+              <option value="webdav" data-i18n="webdavSync">WebDAV</option>
+              <option value="obsidian" data-i18n="obsidianSync">Obsidian Vault (WebDAV)</option>
+              <option value="obsidian-local" data-i18n="obsidianLocalSync">Obsidian Local (Plugin)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Gist Config -->
+        <div class="settings-card sync-config-panel hidden" id="gistIdContainer">
+          <div class="settings-group-vertical">
             <label data-i18n="gistId">Gist ID (留空可自动创建)</label>
             <input type="text" id="gistIdInput" class="settings-input" placeholder="e.g. 5ab...cfe">
-            <div class="settings-actions" style="margin-top: 8px;">
+            <div class="settings-actions">
               <button id="forceSyncGistBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncGist">立刻同步
                 Gist</button>
             </div>
           </div>
+        </div>
 
-          <!-- WebDAV Config (shown when WebDAV selected) -->
-          <div class="settings-group-vertical hidden" id="webdavContainer"
-            style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+        <!-- WebDAV Config -->
+        <div class="settings-card sync-config-panel hidden" id="webdavContainer">
+          <div class="settings-group-vertical">
             <label data-i18n="webdavUrl">WebDAV 服务器地址</label>
             <input type="text" id="webdavUrlInput" class="settings-input" placeholder="https://dav.jianguoyun.com/dav/">
-            <label data-i18n="webdavUser" style="margin-top: 8px;">账号邮箱 (User)</label>
+            <label data-i18n="webdavUser">账号邮箱 (User)</label>
             <input type="text" id="webdavUserInput" class="settings-input" placeholder="your_email@example.com">
-            <label data-i18n="webdavPassword" style="margin-top: 8px;">应用密码 (App Password)</label>
+            <label data-i18n="webdavPassword">应用密码 (App Password)</label>
             <input type="password" id="webdavPasswordInput" class="settings-input" placeholder="********">
-            <div class="settings-actions" style="margin-top: 8px;">
+            <div class="settings-actions">
               <button id="forceSyncWebdavBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncWebdav">立刻同步
                 WebDAV</button>
             </div>
           </div>
         </div>
 
-        <!-- Section 2: GitHub Token (always visible — used for sync, sharing, and import) -->
-        <div class="settings-card" style="margin-top: 12px;">
+        <!-- Obsidian Vault (WebDAV) Config -->
+        <div class="settings-card sync-config-panel hidden" id="obsidianContainer">
           <div class="settings-group-vertical">
-            <label data-i18n="githubToken">🔑 GitHub Token</label>
-            <span style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;" data-i18n="githubTokenHint">用于
-              Gist 同步、分享功能、以及 GitHub 导入（提升速率至 5000次/小时）</span>
-            <input type="password" id="githubTokenInput" class="settings-input"
-              data-i18n-placeholder="githubTokenPlaceholder" placeholder="ghp_xxxxxxxxxxxx">
+            <label data-i18n="obsidianWebdavUrl">WebDAV 服务器地址</label>
+            <input type="text" id="obsidianWebdavUrlInput" class="settings-input"
+              placeholder="https://dav.jianguoyun.com/dav/">
+            <label data-i18n="obsidianWebdavUser">账号 (User)</label>
+            <input type="text" id="obsidianWebdavUserInput" class="settings-input" placeholder="your_email@example.com">
+            <label data-i18n="obsidianWebdavPassword">应用密码 (App Password)</label>
+            <input type="password" id="obsidianWebdavPasswordInput" class="settings-input" placeholder="********">
+            <label data-i18n="obsidianFolder">Vault 子文件夹</label>
+            <input type="text" id="obsidianFolderInput" class="settings-input" placeholder="prompts">
+            <div class="settings-actions">
+              <button id="forceSyncObsidianBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncObsidian">立刻同步
+                Obsidian</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Obsidian Local (Plugin) Config -->
+        <div class="settings-card sync-config-panel hidden" id="obsidianLocalContainer">
+          <div class="settings-group-vertical">
+            <label data-i18n="obsidianLocalPort">端口</label>
+            <input type="number" id="obsidianLocalPortInput" class="settings-input" placeholder="27123" value="27123">
+            <label data-i18n="obsidianLocalApiKey">API Key (optional)</label>
+            <input type="password" id="obsidianLocalApiKeyInput" class="settings-input"
+              placeholder="Leave empty for no auth">
+            <div id="obsidianLocalStatus" class="settings-hint"></div>
+            <div class="settings-actions">
+              <button id="testObsidianLocalBtn" class="btn btn-secondary btn-small"
+                data-i18n="testConnection">测试连接</button>
+              <button id="forceSyncObsidianLocalBtn" class="btn btn-secondary btn-small"
+                data-i18n="forceSyncObsidianLocal">立刻同步</button>
+            </div>
           </div>
         </div>
       </div>

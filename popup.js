@@ -43,10 +43,21 @@ class PopupManager {
     // Listen for async AI enrichment updates from background
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === 'PROMPTS_UPDATED') {
-        this.loadPrompts().then(() => {
-          this.renderCategories();
-          this.renderPrompts();
-        });
+        if (msg.prompt) {
+          // Fast path: targeted in-memory patch for a single enriched prompt
+          const idx = this.prompts.findIndex(p => p.id === msg.prompt.id);
+          if (idx >= 0) {
+            this.prompts[idx] = { ...this.prompts[idx], ...msg.prompt };
+            this.renderCategories();
+            this.renderPrompts();
+          }
+        } else {
+          // Full reload fallback (e.g. force-sync from remote)
+          this.loadPrompts().then(() => {
+            this.renderCategories();
+            this.renderPrompts();
+          });
+        }
       }
     });
   }
@@ -85,8 +96,8 @@ class PopupManager {
 
     // Load Sync Settings
     const syncResp = await chrome.runtime.sendMessage({ type: 'GET_SYNC_SETTINGS' });
-    const syncRadio = document.querySelector(`input[name="syncBackend"][value="${syncResp.syncBackend || 'chrome'}"]`);
-    if (syncRadio) syncRadio.checked = true;
+    const syncSelect = document.getElementById('syncBackendSelect');
+    if (syncSelect) syncSelect.value = syncResp.syncBackend || 'none';
 
     const gistIdInput = document.getElementById('gistIdInput');
     if (gistIdInput && syncResp.gistId) gistIdInput.value = syncResp.gistId;
@@ -98,12 +109,31 @@ class PopupManager {
     const webdavPasswordInput = document.getElementById('webdavPasswordInput');
     if (webdavPasswordInput && syncResp.webdavPassword) webdavPasswordInput.value = syncResp.webdavPassword;
 
+    // Obsidian Vault settings
+    const obsidianWebdavUrlInput = document.getElementById('obsidianWebdavUrlInput');
+    if (obsidianWebdavUrlInput && syncResp.obsidianWebdavUrl) obsidianWebdavUrlInput.value = syncResp.obsidianWebdavUrl;
+    const obsidianWebdavUserInput = document.getElementById('obsidianWebdavUserInput');
+    if (obsidianWebdavUserInput && syncResp.obsidianWebdavUser) obsidianWebdavUserInput.value = syncResp.obsidianWebdavUser;
+    const obsidianWebdavPasswordInput = document.getElementById('obsidianWebdavPasswordInput');
+    if (obsidianWebdavPasswordInput && syncResp.obsidianWebdavPassword) obsidianWebdavPasswordInput.value = syncResp.obsidianWebdavPassword;
+    const obsidianFolderInput = document.getElementById('obsidianFolderInput');
+    if (obsidianFolderInput) obsidianFolderInput.value = syncResp.obsidianFolder || 'prompts';
+
+    // Obsidian Local settings
+    const obsidianLocalPortInput = document.getElementById('obsidianLocalPortInput');
+    if (obsidianLocalPortInput) obsidianLocalPortInput.value = syncResp.obsidianLocalPort || 27123;
+    const obsidianLocalApiKeyInput = document.getElementById('obsidianLocalApiKeyInput');
+    if (obsidianLocalApiKeyInput && syncResp.obsidianLocalApiKey) obsidianLocalApiKeyInput.value = syncResp.obsidianLocalApiKey;
+
     this.toggleSyncUI(syncResp.syncBackend);
   }
 
   toggleSyncUI(backend) {
-    document.getElementById('gistIdContainer')?.classList.toggle('hidden', backend !== 'gist');
-    document.getElementById('webdavContainer')?.classList.toggle('hidden', backend !== 'webdav');
+    document.querySelectorAll('.sync-config-panel').forEach(el => el.classList.add('hidden'));
+    if (backend === 'gist') document.getElementById('gistIdContainer')?.classList.remove('hidden');
+    if (backend === 'webdav') document.getElementById('webdavContainer')?.classList.remove('hidden');
+    if (backend === 'obsidian') document.getElementById('obsidianContainer')?.classList.remove('hidden');
+    if (backend === 'obsidian-local') document.getElementById('obsidianLocalContainer')?.classList.remove('hidden');
   }
 
   async saveSettings() {
@@ -116,18 +146,24 @@ class PopupManager {
     const platform = document.getElementById('defaultPlatformSelect')?.value || 'chatgpt';
     await chrome.runtime.sendMessage({ type: 'SET_DEFAULT_PLATFORM', platform });
 
-    // Save GitHub token
+    // Save GitHub token — only if non-empty to avoid overwriting a valid token
     const ghToken = document.getElementById('githubTokenInput')?.value?.trim();
-    if (ghToken !== undefined) {
+    if (ghToken) {
       await chrome.runtime.sendMessage({ type: 'SAVE_GITHUB_TOKEN', token: ghToken });
     }
 
     // Save Sync Settings
-    const syncBackend = document.querySelector('input[name="syncBackend"]:checked')?.value || 'chrome';
+    const syncBackend = document.getElementById('syncBackendSelect')?.value || 'none';
     const gistId = document.getElementById('gistIdInput')?.value?.trim() || '';
     const webdavUrl = document.getElementById('webdavUrlInput')?.value?.trim() || '';
     const webdavUser = document.getElementById('webdavUserInput')?.value?.trim() || '';
     const webdavPassword = document.getElementById('webdavPasswordInput')?.value?.trim() || '';
+
+    // Obsidian Vault fields
+    const obsidianWebdavUrl = document.getElementById('obsidianWebdavUrlInput')?.value?.trim() || '';
+    const obsidianWebdavUser = document.getElementById('obsidianWebdavUserInput')?.value?.trim() || '';
+    const obsidianWebdavPassword = document.getElementById('obsidianWebdavPasswordInput')?.value?.trim() || '';
+    const obsidianFolder = document.getElementById('obsidianFolderInput')?.value?.trim() || 'prompts';
 
     await chrome.runtime.sendMessage({
       type: 'SAVE_SYNC_SETTINGS',
@@ -135,7 +171,13 @@ class PopupManager {
       gistId: gistId,
       webdavUrl,
       webdavUser,
-      webdavPassword
+      webdavPassword,
+      obsidianWebdavUrl,
+      obsidianWebdavUser,
+      obsidianWebdavPassword,
+      obsidianFolder,
+      obsidianLocalPort: parseInt(document.getElementById('obsidianLocalPortInput')?.value) || 27123,
+      obsidianLocalApiKey: document.getElementById('obsidianLocalApiKeyInput')?.value?.trim() || ''
     });
 
     this.showToast(i18n.t('settingsSaved'));
@@ -600,10 +642,8 @@ class PopupManager {
       }
     });
 
-    // Sync Settings Listeners
-    document.getElementsByName('syncBackend').forEach(radio => {
-      radio.addEventListener('change', (e) => this.toggleSyncUI(e.target.value));
-    });
+    // Sync Backend select
+    document.getElementById('syncBackendSelect')?.addEventListener('change', (e) => this.toggleSyncUI(e.target.value));
 
     document.getElementById('forceSyncGistBtn')?.addEventListener('click', async (e) => {
       const btn = e.target;
@@ -618,8 +658,10 @@ class PopupManager {
 
       if (resp.success) {
         this.showToast(i18n.t(resp.message) || resp.message || 'Gist Sync Successful');
+        await this.loadPrompts();
         this.currentPage = 1;
-        this.renderPrompts(); // Refresh UI to show fetched data
+        this.renderCategories();
+        this.renderPrompts();
       } else {
         const errorKey = resp.error || 'Unknown';
         const errorMsg = i18n.t(errorKey) || errorKey;
@@ -640,12 +682,98 @@ class PopupManager {
 
       if (resp.success) {
         this.showToast(i18n.t(resp.message) || resp.message || 'WebDAV Sync Successful');
+        await this.loadPrompts();
         this.currentPage = 1;
+        this.renderCategories();
         this.renderPrompts();
       } else {
         const errorKey = resp.error || 'Unknown';
         const errorMsg = i18n.t(errorKey) || errorKey;
         this.showToast('❌ ' + errorMsg, 4000);
+      }
+    });
+
+    document.getElementById('forceSyncObsidianBtn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const originalText = btn.textContent;
+      btn.textContent = 'Syncing...';
+      btn.disabled = true;
+
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'FORCE_OBSIDIAN_SYNC' });
+        btn.textContent = originalText;
+        btn.disabled = false;
+
+        if (resp.success) {
+          this.showToast(i18n.t(resp.message) || resp.message || 'Obsidian Vault Sync Successful');
+          await this.loadPrompts();
+          this.currentPage = 1;
+          this.renderCategories();
+          this.renderPrompts();
+        } else {
+          const errorKey = resp.error || 'Unknown';
+          const errorMsg = i18n.t(errorKey) || errorKey;
+          this.showToast('❌ ' + errorMsg, 4000);
+        }
+      } catch (err) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        this.showToast('❌ ' + err.message, 4000);
+      }
+    });
+
+    // Obsidian Local: Test Connection
+    document.getElementById('testObsidianLocalBtn')?.addEventListener('click', async () => {
+      const port = document.getElementById('obsidianLocalPortInput')?.value || 27123;
+      const apiKey = document.getElementById('obsidianLocalApiKeyInput')?.value?.trim() || '';
+      const statusEl = document.getElementById('obsidianLocalStatus');
+
+      try {
+        const headers = {};
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+        const resp = await fetch(`http://127.0.0.1:${port}/prompt-ark/health`, { headers });
+        const data = await resp.json();
+
+        if (data.status === 'ok') {
+          if (statusEl) statusEl.innerHTML = `🟢 Connected — Vault: <strong>${data.vault}</strong>, Folder: <code>${data.promptFolder}</code>`;
+          this.showToast('✅ Obsidian plugin connected!');
+        } else {
+          if (statusEl) statusEl.textContent = '🔴 Unexpected response';
+        }
+      } catch (e) {
+        if (statusEl) statusEl.textContent = '🔴 Cannot reach Obsidian plugin. Is it running?';
+        this.showToast('❌ Cannot reach Obsidian plugin', 4000);
+      }
+    });
+
+    // Obsidian Local: Force Sync
+    document.getElementById('forceSyncObsidianLocalBtn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const originalText = btn.textContent;
+      btn.textContent = 'Syncing...';
+      btn.disabled = true;
+
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'FORCE_OBSIDIAN_LOCAL_SYNC' });
+        btn.textContent = originalText;
+        btn.disabled = false;
+
+        if (resp.success) {
+          this.showToast(i18n.t(resp.message) || resp.message || 'Obsidian Local Sync Successful');
+          await this.loadPrompts();
+          this.currentPage = 1;
+          this.renderCategories();
+          this.renderPrompts();
+        } else {
+          const errorKey = resp.error || 'Unknown';
+          const errorMsg = i18n.t(errorKey) || errorKey;
+          this.showToast('❌ ' + errorMsg, 4000);
+        }
+      } catch (err) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        this.showToast('❌ ' + err.message, 4000);
       }
     });
 
@@ -1009,28 +1137,39 @@ class PopupManager {
   async deletePrompt(id) {
     if (!confirm(i18n.t('deleteConfirm'))) return;
 
+    // Optimistic: remove from memory and re-render immediately
+    const removed = this.prompts.find(p => p.id === id);
+    this.prompts = this.prompts.filter(p => p.id !== id);
+    this.renderCategories();
+    this.renderPrompts();
+
+    // Background: persist the deletion
     try {
       const response = await chrome.runtime.sendMessage({ type: 'DELETE_PROMPT', id });
-      if (response?.success) {
-        await this.loadPrompts();
-        this.renderCategories();
-        this.renderPrompts();
-      } else {
-        console.error('Delete failed:', response);
-        this.showToast(i18n.t('saveError'));
-      }
+      if (!response?.success) throw new Error('Delete failed');
     } catch (e) {
       console.error('Delete error:', e);
+      // Rollback
+      if (removed) this.prompts.push(removed);
+      this.renderCategories();
+      this.renderPrompts();
       this.showToast(i18n.t('saveError'));
     }
   }
 
   // --- Favorites ---
   async toggleFavorite(id) {
-    await chrome.runtime.sendMessage({ type: 'TOGGLE_FAVORITE', id });
+    // Optimistic: flip in memory and re-render immediately
     const p = this.prompts.find(p => p.id === id);
-    if (p) p.favorite = !p.favorite;
-    this.renderPrompts();
+    if (p) {
+      p.favorite = !p.favorite;
+      this.renderPrompts();
+    }
+    // Fire-and-forget to background, rollback on failure
+    chrome.runtime.sendMessage({ type: 'TOGGLE_FAVORITE', id }).catch(e => {
+      if (p) { p.favorite = !p.favorite; this.renderPrompts(); }
+      console.error('toggleFavorite failed:', e);
+    });
   }
 
   // --- Share via GitHub Gist + Social Panel ---

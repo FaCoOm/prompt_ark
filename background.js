@@ -471,8 +471,11 @@ chrome.runtime.onInstalled.addListener(async () => {
 // --- Async AI Enrichment (runs after save, non-blocking) ---
 async function asyncEnrichPrompt(promptId, content) {
   try {
+    console.log('[asyncEnrich] Starting for prompt:', promptId);
     const result = await extractTitleAndCategory(content);
+    console.log('[asyncEnrich] Result:', JSON.stringify(result));
     if (!result || (!result.title && !result.category && !result.tags?.length)) {
+      console.log('[asyncEnrich] No useful metadata, skipping');
       return;
     }
 
@@ -495,8 +498,8 @@ async function asyncEnrichPrompt(promptId, content) {
     if (changed) {
       await PromptStorage.update(prompt);
       await buildContextMenus();
-      // Notify popup to refresh list with updated metadata
-      try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED' }); } catch { /* popup may be closed */ }
+      // Notify popup with the updated prompt data for fast targeted refresh
+      try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED', prompt }); } catch { /* popup may be closed */ }
     }
   } catch (e) {
     console.error('[asyncEnrich] Failed:', e);
@@ -561,9 +564,10 @@ async function handleMessage(message, sendResponse) {
         await PromptStorage.save(newPrompt);
         sendResponse({ success: true });
 
-        // Fire-and-forget: async AI enrichment only when metadata is missing
+        // Async AI enrichment — MUST be awaited (not fire-and-forget)
+        // to keep MV3 Service Worker alive until completion
         if (!newPrompt.title || newPrompt.title.endsWith('...') || !newPrompt.category) {
-          asyncEnrichPrompt(newId, message.prompt.content);
+          await asyncEnrichPrompt(newId, message.prompt.content);
         }
         break;
       }
@@ -595,9 +599,9 @@ async function handleMessage(message, sendResponse) {
         await PromptStorage.update(updatedPrompt);
         sendResponse({ success: true, prompt: updatedPrompt });
 
-        // Fire-and-forget: async AI enrichment if metadata is still missing
+        // Async AI enrichment — awaited to keep MV3 worker alive
         if (!message.prompt.title || !message.prompt.category) {
-          asyncEnrichPrompt(message.prompt.id, message.prompt.content);
+          await asyncEnrichPrompt(message.prompt.id, message.prompt.content);
         }
         break;
       }
@@ -628,6 +632,13 @@ async function handleMessage(message, sendResponse) {
         await PromptStorage.bulkSet([...existing, ...imported]);
         await buildContextMenus();
         sendResponse({ success: true });
+
+        // Async AI enrichment for imported prompts missing metadata
+        for (const p of imported) {
+          if (!p.title || !p.category) {
+            await asyncEnrichPrompt(p.id, p.content);
+          }
+        }
         break;
       }
 
@@ -855,7 +866,6 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(shareData, null, 2),
           token
         );
-        // Transform the raw gist link into our beautifully crafted static Hub landing page
         const hubUrl = `https://keyonzeng.github.io/prompt_ark/hub/index.html?gist=${result.gistId}`;
         sendResponse({ success: true, url: hubUrl });
         break;
@@ -894,7 +904,6 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(packData, null, 2),
           token
         );
-        // Transform the raw gist link into our beautifully crafted static Hub landing page
         const packHubUrl = `https://keyonzeng.github.io/prompt_ark/hub/index.html?gist=${packResult.gistId}`;
         sendResponse({ success: true, url: packHubUrl });
         break;
@@ -915,20 +924,34 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'GET_SYNC_SETTINGS': {
-        const [syncBackend, gistId, webdavUrl, webdavUser, webdavPassword] = await Promise.all([
-          LocalStorage.get('sync_backend'),
-          LocalStorage.get('gist_id'),
-          LocalStorage.get('webdavUrl'),
-          LocalStorage.get('webdavUser'),
-          LocalStorage.get('webdavPassword')
-        ]);
+        const [syncBackend, gistId, webdavUrl, webdavUser, webdavPassword,
+          obsidianWebdavUrl, obsidianWebdavUser, obsidianWebdavPassword, obsidianFolder,
+          obsidianLocalPort, obsidianLocalApiKey] = await Promise.all([
+            LocalStorage.get('sync_backend'),
+            LocalStorage.get('gist_id'),
+            LocalStorage.get('webdavUrl'),
+            LocalStorage.get('webdavUser'),
+            LocalStorage.get('webdavPassword'),
+            LocalStorage.get('obsidianWebdavUrl'),
+            LocalStorage.get('obsidianWebdavUser'),
+            LocalStorage.get('obsidianWebdavPassword'),
+            LocalStorage.get('obsidianFolder'),
+            LocalStorage.get('obsidianLocalPort'),
+            LocalStorage.get('obsidianLocalApiKey')
+          ]);
         sendResponse({
           success: true,
-          syncBackend: syncBackend || 'chrome',
+          syncBackend: syncBackend || 'none',
           gistId: gistId || '',
           webdavUrl: webdavUrl || '',
           webdavUser: webdavUser || '',
-          webdavPassword: webdavPassword || ''
+          webdavPassword: webdavPassword || '',
+          obsidianWebdavUrl: obsidianWebdavUrl || '',
+          obsidianWebdavUser: obsidianWebdavUser || '',
+          obsidianWebdavPassword: obsidianWebdavPassword || '',
+          obsidianFolder: obsidianFolder || 'prompts',
+          obsidianLocalPort: obsidianLocalPort || 27123,
+          obsidianLocalApiKey: obsidianLocalApiKey || ''
         });
         break;
       }
@@ -940,6 +963,14 @@ async function handleMessage(message, sendResponse) {
         if (message.webdavUrl !== undefined) await LocalStorage.set('webdavUrl', message.webdavUrl);
         if (message.webdavUser !== undefined) await LocalStorage.set('webdavUser', message.webdavUser);
         if (message.webdavPassword !== undefined) await LocalStorage.set('webdavPassword', message.webdavPassword);
+
+        if (message.obsidianWebdavUrl !== undefined) await LocalStorage.set('obsidianWebdavUrl', message.obsidianWebdavUrl);
+        if (message.obsidianWebdavUser !== undefined) await LocalStorage.set('obsidianWebdavUser', message.obsidianWebdavUser);
+        if (message.obsidianWebdavPassword !== undefined) await LocalStorage.set('obsidianWebdavPassword', message.obsidianWebdavPassword);
+        if (message.obsidianFolder !== undefined) await LocalStorage.set('obsidianFolder', message.obsidianFolder);
+
+        if (message.obsidianLocalPort !== undefined) await LocalStorage.set('obsidianLocalPort', message.obsidianLocalPort);
+        if (message.obsidianLocalApiKey !== undefined) await LocalStorage.set('obsidianLocalApiKey', message.obsidianLocalApiKey);
 
         await SyncManager.loadConfig();
         sendResponse({ success: true });
@@ -959,6 +990,26 @@ async function handleMessage(message, sendResponse) {
       case 'FORCE_WEBDAV_SYNC': {
         try {
           const result = await SyncManager.pullFromWebdavAndMerge();
+          sendResponse({ success: true, message: result?.message });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
+      case 'FORCE_OBSIDIAN_SYNC': {
+        try {
+          const result = await SyncManager.pullFromObsidianAndMerge();
+          sendResponse({ success: true, message: result?.message });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
+      case 'FORCE_OBSIDIAN_LOCAL_SYNC': {
+        try {
+          const result = await SyncManager.pullFromObsidianLocalAndMerge();
           sendResponse({ success: true, message: result?.message });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
@@ -1077,20 +1128,23 @@ async function buildContextMenus() {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const menuId = info.menuItemId;
 
-  // --- Add to Prompt Ark (AI-powered title & category) ---
+  // --- Add to Prompt Ark (save-first, async AI enrich) ---
   if (menuId === 'prompt-ark-add') {
     const selectedText = (info.selectionText || '').trim();
     if (!selectedText) return;
 
-    // AI-first title & category extraction with heuristic fallback
-    const { title, category, tags } = await extractTitleAndCategory(selectedText);
+    // L1: fast heuristic title + category (instant, no API call)
+    const heuristicTitle = extractTitleHeuristic(selectedText);
+    const lang = detectLanguageHeuristic(selectedText);
+    const heuristicCategory = matchCategory(selectedText, lang);
 
+    const newId = crypto.randomUUID();
     const newPrompt = {
-      id: crypto.randomUUID(),
-      title,
+      id: newId,
+      title: heuristicTitle,
       content: selectedText,
-      category,
-      tags: tags || [],
+      category: heuristicCategory,
+      tags: [],
       shortcut: '',
       variables: extractVariables(selectedText),
       versions: [],
@@ -1100,13 +1154,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       createdAt: Date.now()
     };
     await PromptStorage.save(newPrompt);
+    await buildContextMenus();
 
-    // Notify content script to show styled success toast
+    // Notify popup to refresh list immediately
+    try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED' }); } catch { /* popup may be closed */ }
+
+    // Show toast on page (non-blocking)
     if (tab?.id) {
       try {
         await chrome.tabs.sendMessage(tab.id, { type: 'SAVE_FROM_CONTEXT_MENU_SUCCESS' });
       } catch (e) {
-        // Content script not available, use scripting API fallback
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -1117,11 +1174,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
               document.body.appendChild(n);
               setTimeout(() => { n.style.opacity = '0'; setTimeout(() => n.remove(), 300); }, 2500);
             },
-            args: [title]
+            args: [heuristicTitle]
           });
         } catch (e2) { /* OK */ }
       }
     }
+
+    // L2: async AI enrichment (updates title/category/tags in background)
+    await asyncEnrichPrompt(newId, selectedText);
     return;
   }
 

@@ -2153,3 +2153,32 @@ body::before {
 .optimize-provider-option.active .provider-dot {
   background: var(--primary-color);
 }
+
+/* ===================== SYNC SETTINGS ===================== */
+.settings-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.sync-config-panel {
+  margin-top: 8px;
+}
+
+.sync-config-panel.hidden {
+  display: none;
+}
+
+.sync-config-panel .settings-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-config-panel .settings-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}

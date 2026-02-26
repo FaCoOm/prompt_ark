@@ -20,6 +20,7 @@ Desktop.ini
 # Agent / AI tools
 .agent/
 .gemini/
+artifacts/
 
 # Temp / Scripts
 scripts/
