@@ -3,8 +3,6 @@ name: Deploy Prompt Hub to GitHub Pages
 on:
   push:
     branches: [main]
-    paths:
-      - 'hub/**'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
