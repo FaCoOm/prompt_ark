@@ -29,3 +29,6 @@ scripts/
 # Source images (not needed in extension)
 horses.jpg
 generate-icons.html
+
+history.txt
+old_content.js
