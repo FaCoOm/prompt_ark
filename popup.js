@@ -44,13 +44,17 @@ class PopupManager {
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === 'PROMPTS_UPDATED') {
         if (msg.prompt) {
-          // Fast path: targeted in-memory patch for a single enriched prompt
+          // Fast path: targeted in-memory patch for a single prompt
           const idx = this.prompts.findIndex(p => p.id === msg.prompt.id);
           if (idx >= 0) {
+            // Update existing prompt (e.g. AI enrichment filled in title/category)
             this.prompts[idx] = { ...this.prompts[idx], ...msg.prompt };
-            this.renderCategories();
-            this.renderPrompts();
+          } else {
+            // New prompt (e.g. from Smart Convert / Add to Prompt Ark)
+            this.prompts.unshift(msg.prompt);
           }
+          this.renderCategories();
+          this.renderPrompts();
         } else {
           // Full reload fallback (e.g. force-sync from remote)
           this.loadPrompts().then(() => {
@@ -476,6 +480,8 @@ class PopupManager {
     document.getElementById('languageSelect')?.addEventListener('change', async (e) => {
       await i18n.setLanguage(e.target.value);
       this.localize();
+      this.renderProviders();
+      await chrome.runtime.sendMessage({ type: 'LANGUAGE_CHANGED' });
       this.renderPrompts();
     });
 

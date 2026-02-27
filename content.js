@@ -8,6 +8,7 @@ class AIPromptManager {
     this.prompts = [];
     this.injectedMarker = 'data-apm-injected';
     this.onSelectCallback = null;
+    this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
 
     // Slash command state
     this.slashDropdown = null;
@@ -16,6 +17,7 @@ class AIPromptManager {
     this.slashBound = false;
 
     this.init();
+    this._loadI18nDict();
   }
 
   // Guard: check if extension context is still valid
@@ -211,20 +213,27 @@ class AIPromptManager {
   // These are resolved BEFORE showing the variable form, so users never see them.
   static CONTEXT_VARS = new Set(['page_text', 'selected_text', 'page_url', 'page_title']);
 
-  // Capture current page context and cache it in background for cross-tab usage
+  // Capture current page context and instantly Smart Convert it
   async capturePageContext() {
     const article = document.querySelector('article') || document.querySelector('main') || document.body;
-    const context = {
-      page_text: (article?.innerText || '').substring(0, 4000).trim(),
-      page_title: document.title || '',
-      page_url: window.location.href,
-      selected_text: window.getSelection()?.toString()?.trim() || ''
-    };
+    const pageText = (article?.innerText || '').substring(0, 4000).trim();
+
+    if (!pageText) {
+      this.showNotification('❌ ' + this.msg('noPageText', 'No readable text found on page'), 'error');
+      return;
+    }
+
+    this._handleSmartConvertStatus('start');
     try {
-      await chrome.runtime.sendMessage({ type: 'CAPTURE_PAGE_CONTEXT', context });
-      this.showPageToast(`📸 Page captured! Switch to AI chat and use magic variables.`);
+      const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: pageText });
+      if (resp?.success) {
+        this._handleSmartConvertStatus('success', resp.title);
+      } else {
+        this._handleSmartConvertStatus('error');
+      }
     } catch (e) {
-      console.error('[Prompt Ark] Capture failed:', e);
+      console.error('[Prompt Ark] Auto-convert failed:', e);
+      this._handleSmartConvertStatus('error');
     }
   }
 
@@ -281,8 +290,8 @@ class AIPromptManager {
         e.stopPropagation();
         this.showPromptPicker();
       }
-      // Context Grabber: Alt+Shift+S = Snapshot current page context for cross-tab use
-      if (e.altKey && e.shiftKey && e.key.toLowerCase() === 's') {
+      // Context Grabber: Ctrl+Shift+G = Smart grab page text and convert to prompt
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         e.stopPropagation();
         this.capturePageContext();
@@ -293,6 +302,7 @@ class AIPromptManager {
     });
 
     this.initSlashCommands();
+    this.initSelectionToolbar();
 
     // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
     // Running this heavily active observer globally on <all_urls> would destroy browser performance.
@@ -478,6 +488,7 @@ class AIPromptManager {
 
       // Only add Quick Actions on Chat inputs, not Search inputs
       if (!isSearch) {
+        // Button 1: Quick Actions
         const qaBtn = document.createElement('button');
         qaBtn.className = 'notebook-helper-btn apm-type-qa';
         qaBtn.innerHTML = '<span>⚡</span>';
@@ -606,8 +617,19 @@ class AIPromptManager {
         this.showNotification(this.msg('contextMenuSaveSuccess', '已添加到 Prompt Ark ✓'), 'success');
         sendResponse({ success: true });
         break;
+      case 'SMART_CONVERT_STATUS':
+        this._handleSmartConvertStatus(message.status, message.title);
+        sendResponse({ success: true });
+        break;
       case 'GET_PLATFORM':
         sendResponse({ platform: this.platform });
+        break;
+      case 'GRAB_CONTEXT':
+        this.capturePageContext();
+        sendResponse({ success: true });
+        break;
+      case 'UPDATE_I18N_DICT':
+        if (request.dict) this.i18nDict = request.dict;
         break;
     }
   }
@@ -799,6 +821,125 @@ class AIPromptManager {
     });
   }
 
+  // --- Selection Floating Toolbar ---
+  // Shows a mini-toolbar above selected text with Add / Smart Convert actions.
+
+  initSelectionToolbar() {
+    this._toolbarHideTimer = null;
+
+    document.addEventListener('mouseup', (e) => {
+      // Don't show toolbar when clicking inside the toolbar itself
+      if (e.target.closest('#apm-selection-toolbar')) return;
+      // Don't show inside editable elements (user is writing/editing)
+      if (e.target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+      clearTimeout(this._toolbarHideTimer);
+      // Small delay to let the browser finalise the selection
+      setTimeout(() => {
+        const sel = window.getSelection();
+        const text = sel?.toString().trim();
+        if (text && text.length >= 10 && sel.rangeCount > 0) {
+          const rect = sel.getRangeAt(0).getBoundingClientRect();
+          this.showSelectionToolbar(text, rect);
+        } else {
+          this.hideSelectionToolbar();
+        }
+      }, 50);
+    });
+
+    // Hide when selection is cleared via keyboard
+    document.addEventListener('selectionchange', () => {
+      const text = window.getSelection()?.toString().trim();
+      if (!text) {
+        this._toolbarHideTimer = setTimeout(() => this.hideSelectionToolbar(), 200);
+      }
+    });
+
+    // Hide on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.hideSelectionToolbar();
+    });
+  }
+
+  showSelectionToolbar(selectedText, selectionRect) {
+    this.hideSelectionToolbar();
+    if (!this.isContextValid()) return;
+
+    const toolbar = document.createElement('div');
+    toolbar.id = 'apm-selection-toolbar';
+
+    const addLabel = this.msg('selectionToolbarAdd', 'Add to Prompt Ark');
+    const convertLabel = this.msg('selectionToolbarConvert', 'Smart Convert');
+
+    toolbar.innerHTML = `
+      <button class="apm-toolbar-btn apm-toolbar-btn-add" data-action="add" title="${addLabel}">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        ${addLabel}
+      </button>
+      <div class="apm-toolbar-divider"></div>
+      <button class="apm-toolbar-btn apm-toolbar-btn-convert" data-action="convert" title="${convertLabel}">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 9.5L9.5 2M6 2h3.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ${convertLabel}
+      </button>
+    `;
+
+    // Position: above the selection, centred horizontally
+    document.body.appendChild(toolbar);
+    const tbRect = toolbar.getBoundingClientRect();
+    const GAP = 8;
+    let top = selectionRect.top - tbRect.height - GAP;
+    let left = selectionRect.left + (selectionRect.width / 2) - (tbRect.width / 2);
+
+    // Clamp to viewport
+    if (top < 8) top = selectionRect.bottom + GAP;
+    left = Math.max(8, Math.min(left, window.innerWidth - tbRect.width - 8));
+
+    toolbar.style.top = top + 'px';
+    toolbar.style.left = left + 'px';
+
+    // Prevent mousedown from clearing selection
+    toolbar.addEventListener('mousedown', (e) => e.preventDefault());
+
+    toolbar.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      this.hideSelectionToolbar();
+      window.getSelection()?.removeAllRanges();
+
+      if (action === 'add') {
+        try {
+          const resp = await chrome.runtime.sendMessage({ type: 'QUICK_ADD_SELECTION', text: selectedText });
+          if (resp?.success) {
+            this.showNotification(this.msg('contextMenuSaveSuccess', 'Added to Prompt Ark ✓'), 'success');
+          }
+        } catch (err) {
+          this.showNotification('Error saving prompt', 'error');
+        }
+      } else if (action === 'convert') {
+        this._handleSmartConvertStatus('start');
+        try {
+          const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: selectedText });
+          if (resp?.success) {
+            this._handleSmartConvertStatus('success', resp.title);
+          } else {
+            this._handleSmartConvertStatus('error');
+          }
+        } catch (err) {
+          this._handleSmartConvertStatus('error');
+        }
+      }
+    });
+  }
+
+  hideSelectionToolbar() {
+    document.getElementById('apm-selection-toolbar')?.remove();
+  }
+
   // --- Utilities ---
 
   showNotification(message, type) {
@@ -809,19 +950,133 @@ class AIPromptManager {
     setTimeout(() => div.remove(), 3000);
   }
 
+  _handleSmartConvertStatus(status, title) {
+    const TOAST_ID = 'apm-smart-convert-toast';
+
+    const removeExisting = () => document.getElementById(TOAST_ID)?.remove();
+
+    const STYLES = {
+      base: 'position:fixed;top:20px;right:20px;z-index:999999;padding:12px 20px;border-radius:8px;font-size:14px;font-family:system-ui;box-shadow:0 4px 12px rgba(0,0,0,0.3);color:white;transition:opacity 0.3s;',
+      pending: 'background:rgba(15,23,42,0.92);border:1px solid rgba(255,255,255,0.15);',
+      success: 'background:#10b981;',
+      error: 'background:#f59e0b;',
+      no_provider: 'background:#ef4444;',
+    };
+
+    const MESSAGES = {
+      start: this.msg('contextMenuConvertStart', '⏳ Converting to prompt...'),
+      success: title ? `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}: "${title}"` : `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}`,
+      error: this.msg('contextMenuConvertError', '❌ Smart Convert failed, saved as raw text'),
+      no_provider: '❌ ' + this.msg('smartConvertNoProvider', 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.'),
+    };
+
+    if (status === 'start') {
+      removeExisting();
+      const toast = document.createElement('div');
+      toast.id = TOAST_ID;
+      toast.style.cssText = STYLES.base + STYLES.pending;
+      toast.textContent = MESSAGES.start;
+      document.body.appendChild(toast);
+      return;
+    }
+
+    // For terminal states: replace the pending toast
+    removeExisting();
+    const toast = document.createElement('div');
+    toast.style.cssText = STYLES.base + (STYLES[status] || STYLES.error);
+    toast.textContent = MESSAGES[status] || MESSAGES.error;
+    document.body.appendChild(toast);
+    const duration = status === 'no_provider' ? 4000 : 3000;
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
+  }
+
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // i18n helper: try chrome.i18n, fall back to default
+  // i18n helper: use cached dict first, then chrome.i18n, then fallback
   msg(key, fallback) {
+    if (this.i18nDict && this.i18nDict[key]) return this.i18nDict[key];
     try {
       return chrome.i18n.getMessage(key) || fallback;
     } catch (e) {
       return fallback;
     }
+  }
+
+  // Load translation dictionary directly from chrome.storage (no background.js needed)
+  _loadI18nDict() {
+    // Inline translation map — only keys content.js actually uses
+    const CONTENT_TRANSLATIONS = {
+      zh_CN: {
+        insertSuccess: 'Prompt 已填入',
+        inputNotFound: '未找到输入框',
+        extensionReload: '扩展已更新，请刷新页面',
+        loadError: '无法加载Prompts',
+        contextMenuSaveSuccess: '已添加到 Prompt Ark ✓',
+        contextMenuConvertStart: '正在转化为 Prompt...',
+        contextMenuConvertSuccess: '成功保存智能 Prompt',
+        contextMenuConvertError: '智能转化失败，已保存原文',
+        noPageText: '未找到页面可读取的文本内容',
+        smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
+        selectionToolbarAdd: '添加到 Prompt Ark',
+        selectionToolbarConvert: '智能转化为 Prompt',
+        qaExpandLabel: '展开',
+        qaExpandPrompt: '请展开以下内容',
+        qaExplainLabel: '解释',
+        qaExplainPrompt: '请解释以下内容',
+        qaRewriteLabel: '改写',
+        qaRewritePrompt: '请改写以下内容',
+        qaSummarizeLabel: '总结',
+        qaSummarizePrompt: '请总结以下内容',
+        qaTranslateLabel: '翻译',
+        qaTranslatePrompt: '请翻译以下内容',
+      },
+      en: {
+        insertSuccess: 'Prompt inserted',
+        inputNotFound: 'Input box not found',
+        extensionReload: 'Extension updated, please refresh page',
+        loadError: 'Failed to load Prompts',
+        contextMenuSaveSuccess: 'Added to Prompt Ark ✓',
+        contextMenuConvertStart: 'Converting to prompt...',
+        contextMenuConvertSuccess: 'Smart prompt saved!',
+        contextMenuConvertError: 'Smart Convert failed, saved as raw text',
+        noPageText: 'No readable text found on page',
+        smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
+        selectionToolbarAdd: 'Add to Prompt Ark',
+        selectionToolbarConvert: 'Smart Convert',
+        qaExpandLabel: 'Expand',
+        qaExpandPrompt: 'Please expand on the following',
+        qaExplainLabel: 'Explain',
+        qaExplainPrompt: 'Please explain the following',
+        qaRewriteLabel: 'Rewrite',
+        qaRewritePrompt: 'Please rewrite the following',
+        qaSummarizeLabel: 'Summarize',
+        qaSummarizePrompt: 'Please summarize the following',
+        qaTranslateLabel: 'Translate',
+        qaTranslatePrompt: 'Please translate the following',
+      }
+    };
+
+    try {
+      chrome.storage.sync.get('language', ({ language }) => {
+        if (chrome.runtime.lastError) return;
+        const locale = language || (chrome.i18n.getUILanguage().startsWith('zh') ? 'zh_CN' : 'en');
+        this.i18nDict = CONTENT_TRANSLATIONS[locale] || CONTENT_TRANSLATIONS['en'];
+      });
+    } catch (e) { /* context invalidated */ }
+
+    // Also listen for language changes in real-time
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'sync' && changes.language) {
+          const locale = changes.language.newValue || 'en';
+          this.i18nDict = CONTENT_TRANSLATIONS[locale] || CONTENT_TRANSLATIONS['en'];
+        }
+      });
+    } catch (e) { /* context invalidated */ }
   }
 
   // --- Slash Commands ---

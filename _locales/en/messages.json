@@ -8,8 +8,14 @@
   "contextMenuAddPrompt": {
     "message": "Add to Prompt Ark"
   },
+  "contextMenuConvertPrompt": {
+    "message": "Smart Convert to Prompt"
+  },
+  "contextMenuPromptsList": {
+    "message": "Prompts List"
+  },
   "contextMenuSaveSuccess": {
-    "message": "Added to Prompt Ark ✓"
+    "message": "Added to Prompt Ark \u2713"
   },
   "insertSuccess": {
     "message": "Prompt inserted"
@@ -49,5 +55,32 @@
   },
   "qaExplainPrompt": {
     "message": "Please explain the text above simply."
+  },
+  "contextMenuConvertStart": {
+    "message": "Converting to prompt..."
+  },
+  "contextMenuConvertSuccess": {
+    "message": "Smart prompt saved!"
+  },
+  "contextMenuConvertError": {
+    "message": "Smart Convert failed, saved as raw text"
+  },
+  "noPageText": {
+    "message": "No readable text found on page"
+  },
+  "smartConvertNoProvider": {
+    "message": "Smart Convert requires an AI provider. Configure one in Prompt Ark settings."
+  },
+  "openPickerDesc": {
+    "message": "Open Prompt Picker"
+  },
+  "grabContextDesc": {
+    "message": "Smart grab page text as Prompt"
+  },
+  "selectionToolbarAdd": {
+    "message": "Add to Prompt Ark"
+  },
+  "selectionToolbarConvert": {
+    "message": "Smart Convert"
   }
 }
