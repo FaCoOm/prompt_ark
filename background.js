@@ -435,19 +435,18 @@ const VARIANT_LABELS = ['concise', 'contract', 'full-spec'];
 
 // --- Smart Convert: Meta Prompt (intent inference + prompt crafting) ---
 const SMART_CONVERT_SYSTEM_PROMPT = `You are a prompt architect. The user has selected a piece of text from a webpage.
-Your mission is to transform it into a reusable AI prompt.
+Your mission is to transform it into a reusable, declarative AI prompt.
 
 ## Step 1: Infer Intent
 Silently determine what task or need this text represents or implies.
-Examples: debugging code → a code review/debug prompt; a paragraph of advice → an "improve my writing" prompt; a product description → a marketing copy prompt.
 
 ## Step 2: Craft a Reusable Prompt
-Rewrite the content following these minimalist principles:
+Rewrite the content as a declarative, reusable prompt:
 - Lead with an action verb: Analyze, Write, Review, Translate, Explain, Generate, Summarize, Debug, etc.
-- Generalize specific details into {{variable}} placeholders (e.g. {{topic}}, {{code}}, {{text}}, {{language}})
-- Remove filler, hedging, self-reference ("I want you to", "Please help me", "Can you")
+- Describe the DESIRED OUTPUT (format, content, constraints) — not reasoning steps. Do NOT add "think step by step" or CoT scaffolding.
+- Generalize specific details into {{variable}} or {variable} placeholders (e.g. {{topic}}, {code}, {{text}})
+- Remove filler: "I want you to", "Please help me", "Can you"
 - Aim for ≤3 sentences — direct, actionable, precise
-- Do NOT add a role declaration (no "You are a...")
 
 ## Step 3: Extract Metadata
 From the final crafted prompt, derive:

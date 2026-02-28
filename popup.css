@@ -1396,6 +1396,87 @@ body::before {
   box-shadow: none;
 }
 
+/* Enhancement Suffix Dropdown */
+.enhance-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.btn-enhance {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-enhance:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft, rgba(226, 163, 89, 0.1));
+}
+
+.enhance-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  padding: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.enhance-menu.hidden {
+  display: none;
+}
+
+.enhance-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.enhance-option:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.enhance-option .enhance-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.enhance-option .enhance-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enhance-option.applied {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Markdown Preview Pane */
 .md-preview {
   padding: 14px;

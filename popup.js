@@ -5,6 +5,64 @@ import { GitHubClient } from './lib/github-client.js';
 import { PromptScorer } from './lib/scorer.js';
 import { ContentAnalyzer } from './lib/analyzer.js';
 
+// Enhancement Suffix Library — pre-built prompt suffixes for one-click enhancement
+const ENHANCEMENT_SUFFIXES = [
+  {
+    id: 'output-format',
+    icon: '📊',
+    labelZh: '输出格式',
+    labelEn: 'Output Format',
+    suffixZh: '\n\n输出要求：使用结构化 Markdown 格式，包含标题层级、要点列表和加粗关键词。',
+    suffixEn: '\n\nOutput Format: Use structured Markdown with headers, bullet points, and bold key terms.',
+    dedupKey: 'Output Format'
+  },
+  {
+    id: 'word-limit',
+    icon: '📏',
+    labelZh: '字数限制',
+    labelEn: 'Word Limit',
+    suffixZh: '\n\n约束：回答控制在 500 字以内。优先给出可操作的建议，而非冗长的解释。',
+    suffixEn: '\n\nConstraint: Keep the response under 500 words. Prioritize actionable insights over explanations.',
+    dedupKey: 'under 500 words'
+  },
+  {
+    id: 'confidence-tags',
+    icon: '🔍',
+    labelZh: '置信标注',
+    labelEn: 'Confidence Tags',
+    suffixZh: '\n\n对于不确定的信息，请标注 [UNCERTAIN] 并说明原因。对于基于推断的结论，请标注 [INFERRED]。',
+    suffixEn: '\n\nFor any uncertain claims, mark them with [UNCERTAIN]. For inferred conclusions, mark with [INFERRED].',
+    dedupKey: '[UNCERTAIN]'
+  },
+  {
+    id: 'comparison-table',
+    icon: '📋',
+    labelZh: '对比表格',
+    labelEn: 'Comparison Table',
+    suffixZh: '\n\n以对比表格形式呈现分析，列包含：选项、优点、缺点、推荐度。',
+    suffixEn: '\n\nPresent the analysis as a comparison table with columns: Option, Pros, Cons, Recommendation.',
+    dedupKey: 'comparison table'
+  },
+  {
+    id: 'eval-rubric',
+    icon: '🎯',
+    labelZh: '评分维度',
+    labelEn: 'Evaluation Rubric',
+    suffixZh: '\n\n按以下维度对每个选项评分（1-5 分）：可行性、影响力、实施成本、风险。',
+    suffixEn: '\n\nEvaluate each option on these dimensions (1-5 scale): Feasibility, Impact, Effort, Risk.',
+    dedupKey: '1-5'
+  },
+  {
+    id: 'exclusions',
+    icon: '🚫',
+    labelZh: '排除项',
+    labelEn: 'Exclusions',
+    suffixZh: '\n\n禁止：使用专业术语、做未经验证的假设、重复问题内容、添加免责声明。',
+    suffixEn: '\n\nDo NOT: use jargon, make assumptions, repeat the question, or add disclaimers.',
+    dedupKey: 'Do NOT'
+  }
+];
+
 class PopupManager {
   constructor() {
     this.prompts = [];
@@ -814,6 +872,21 @@ class PopupManager {
       if (opt) this.selectOptimizeProvider(opt.dataset.providerId);
     });
 
+    // Enhancement Suffix dropdown
+    document.getElementById('enhanceBtn')?.addEventListener('click', () => this.toggleEnhanceMenu());
+    document.getElementById('enhanceMenu')?.addEventListener('click', (e) => {
+      const opt = e.target.closest('.enhance-option');
+      if (opt && !opt.classList.contains('applied')) this.applyEnhanceSuffix(opt.dataset.suffixId);
+    });
+    // Close enhance menu on outside click
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('enhanceMenu');
+      const btn = document.getElementById('enhanceBtn');
+      if (menu && !menu.contains(e.target) && e.target !== btn) {
+        menu.classList.add('hidden');
+      }
+    });
+
     // History
     document.getElementById('historyBtn')?.addEventListener('click', () => this.showHistory());
     document.getElementById('closeHistoryModal')?.addEventListener('click', () => this.hideHistory());
@@ -932,6 +1005,58 @@ class PopupManager {
       btn.disabled = false;
       btn.textContent = '✨ ' + i18n.t('optimize');
     }
+  }
+
+  // --- Enhancement Suffix Library ---
+  toggleEnhanceMenu() {
+    const menu = document.getElementById('enhanceMenu');
+    if (!menu.classList.contains('hidden')) {
+      menu.classList.add('hidden');
+      return;
+    }
+
+    const content = document.getElementById('contentInput').value;
+    const isZh = this._detectLanguage(content) === 'zh';
+
+    menu.innerHTML = ENHANCEMENT_SUFFIXES.map(s => {
+      const label = isZh ? s.labelZh : s.labelEn;
+      const alreadyApplied = content.includes(s.dedupKey);
+      return `<button type="button" class="enhance-option${alreadyApplied ? ' applied' : ''}" data-suffix-id="${s.id}">
+        <span class="enhance-icon">${s.icon}</span>
+        <span class="enhance-label">${label}</span>
+        ${alreadyApplied ? '<span style="font-size:10px;color:var(--text-muted)">✓</span>' : ''}
+      </button>`;
+    }).join('');
+    menu.classList.remove('hidden');
+  }
+
+  applyEnhanceSuffix(id) {
+    const suffix = ENHANCEMENT_SUFFIXES.find(s => s.id === id);
+    if (!suffix) return;
+
+    const textarea = document.getElementById('contentInput');
+    const content = textarea.value;
+
+    // Dedup check
+    if (content.includes(suffix.dedupKey)) return;
+
+    const isZh = this._detectLanguage(content) === 'zh';
+    const text = isZh ? suffix.suffixZh : suffix.suffixEn;
+    textarea.value = content + text;
+
+    // Close menu
+    document.getElementById('enhanceMenu').classList.add('hidden');
+
+    // Brief toast
+    const label = isZh ? suffix.labelZh : suffix.labelEn;
+    this.showToast(`📎 ${label}`);
+  }
+
+  _detectLanguage(text) {
+    if (!text) return 'en';
+    const cjk = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/g) || []).length;
+    const total = text.replace(/\s/g, '').length;
+    return total > 0 && cjk / total > 0.3 ? 'zh' : 'en';
   }
 
   // Line-based diff algorithm
