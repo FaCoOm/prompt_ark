@@ -983,8 +983,8 @@ class PopupManager {
   showVariantPicker(original, variants) {
     const variantLabels = [
       i18n.t('variantConcise') || '⚡ 精炼',
-      i18n.t('variantEnhanced') || '🎯 增强',
-      i18n.t('variantPro') || '🏗️ 专业'
+      i18n.t('variantEnhanced') || '🎯 合约',
+      i18n.t('variantPro') || '🏗️ 全规格'
     ];
 
     // Build tabs (only if multiple variants)
