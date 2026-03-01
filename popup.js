@@ -4,6 +4,9 @@ import { PromptParser } from './lib/parsers.js';
 import { GitHubClient } from './lib/github-client.js';
 import { PromptScorer } from './lib/scorer.js';
 import { ContentAnalyzer } from './lib/analyzer.js';
+import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime } from './lib/popup/utils.js';
+import { HistoryPanel } from './lib/popup/history-panel.js';
+import { ShareManager } from './lib/popup/share-manager.js';
 
 
 class PopupManager {
@@ -20,6 +23,8 @@ class PopupManager {
     this.filteredImportCache = []; // List after applying score filter
     this.githubClient = new GitHubClient();
     this.contentAnalyzer = new ContentAnalyzer();
+    this.history = new HistoryPanel();
+    this.shareManager = new ShareManager({ getPrompts: () => this.prompts });
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init());
@@ -1268,155 +1273,38 @@ class PopupManager {
     });
   }
 
-  // --- Share via GitHub Gist + Social Panel ---
-  async sharePrompt(id) {
-    const btn = document.querySelector(`.prompt-item[data-id="${id}"] .share-btn`);
-    if (btn) { btn.disabled = true; btn.innerHTML = '⏳'; }
-    const prompt = this.prompts.find(p => p.id === id);
-    const title = prompt?.title || 'Untitled Prompt';
-
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: 'SHARE_PROMPT', id });
-      if (!resp.success) {
-        if (resp.error === 'GitHub token not configured') {
-          this.showToast(i18n.t('configureGithubToken'));
-        } else {
-          this.showToast('❌ ' + resp.error);
-        }
-        return;
-      }
-      this.showSharePanel(resp.url, title);
-    } catch (e) {
-      this.showToast('❌ ' + i18n.t('shareFailed') + ': ' + e.message);
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
-      }
-    }
-  }
-
-  // Show floating share panel with social options
-  showSharePanel(url, title) {
-    this._shareUrl = url;
-    this._shareTitle = title;
-    document.getElementById('sharePanelTitle').textContent = `${i18n.t('sharePrompt')} "${title}"`;
-    document.getElementById('sharePanel').classList.remove('hidden');
-    document.getElementById('sharePanelBackdrop').classList.remove('hidden');
-  }
-
-  hideSharePanel() {
-    document.getElementById('sharePanel').classList.add('hidden');
-    document.getElementById('sharePanelBackdrop').classList.add('hidden');
-    this._shareUrl = null;
-    this._shareTitle = null;
-  }
-
-  async _handleShareOption(platform) {
-    const url = this._shareUrl;
-    const title = this._shareTitle || 'AI Prompt';
-    if (!url) return;
-
-    switch (platform) {
-      case 'twitter': {
-        const text = `🔥 ${title} — My AI Prompt\n\nInstall this prompt with one click:\n${url}\n\n#PromptArk #AI #Prompt`;
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
-        break;
-      }
-      case 'reddit': {
-        const redditTitle = `[Prompt] ${title}`;
-        const redditText = `I made this AI prompt. You can try it and install it with one click here:\n${url}`;
-        window.open(`https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(redditTitle)}&text=${encodeURIComponent(redditText)}`, '_blank');
-        break;
-      }
-      case 'copy': {
-        await navigator.clipboard.writeText(url);
-        this.showToast(i18n.t('linkCopied'));
-        break;
-      }
-      case 'json': {
-        const prompt = this.prompts.find(p => p.title === title);
-        if (prompt) {
-          const json = JSON.stringify({ title: prompt.title, content: prompt.content, category: prompt.category, tags: prompt.tags }, null, 2);
-          await navigator.clipboard.writeText(json);
-          this.showToast(i18n.t('jsonCopied'));
-        }
-        break;
-      }
-    }
-    this.hideSharePanel();
-  }
-
-  // --- Prompt Pack (Selection Mode) ---
-  enterPackMode() {
-    this._packMode = true;
-    this._packSelected = new Set();
-    document.querySelectorAll('.prompt-item').forEach(el => el.classList.add('selectable'));
-    document.getElementById('packToolbar').classList.remove('hidden');
-    document.getElementById('packTitleInput').value = '';
-    this._updatePackCount();
-    this.showToast(i18n.t('packMode'));
-  }
-
-  exitPackMode() {
-    this._packMode = false;
-    this._packSelected = null;
-    document.querySelectorAll('.prompt-item').forEach(el => {
-      el.classList.remove('selectable', 'selected');
-    });
-    document.getElementById('packToolbar').classList.add('hidden');
-  }
-
-  _updatePackCount() {
-    const count = document.querySelectorAll('.prompt-item.selected').length;
-    document.getElementById('packSelectedCount').textContent = count;
-    document.getElementById('packShareBtn').disabled = count === 0;
-  }
-
-  async sharePack() {
-    const selectedItems = document.querySelectorAll('.prompt-item.selected');
-    const ids = Array.from(selectedItems).map(el => el.dataset.id);
-    const packTitle = document.getElementById('packTitleInput').value.trim() || `Prompt Pack (${ids.length})`;
-
-    if (ids.length === 0) {
-      this.showToast(i18n.t('packSelectOne'));
-      return;
-    }
-
-    const btn = document.getElementById('packShareBtn');
-    btn.disabled = true;
-    btn.textContent = i18n.t('packSharing');
-
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: 'SHARE_PACK', ids, packTitle });
-      if (!resp.success) {
-        if (resp.error === 'GitHub token not configured') {
-          this.showToast(i18n.t('configureGithubToken'));
-        } else {
-          this.showToast('❌ ' + resp.error);
-        }
-        return;
-      }
-      this.exitPackMode();
-      this.showSharePanel(resp.url, packTitle);
-    } catch (e) {
-      this.showToast('❌ ' + i18n.t('packShareFailed') + ': ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = i18n.t('packShare');
-    }
-  }
+  // --- Share (delegated to ShareManager) ---
+  async sharePrompt(id) { await this.shareManager.sharePrompt(id); }
+  showSharePanel(url, title) { this.shareManager.showSharePanel(url, title); }
+  hideSharePanel() { this.shareManager.hideSharePanel(); }
+  async _handleShareOption(platform) { await this.shareManager.handleShareOption(platform); }
+  enterPackMode() { this.shareManager.enterPackMode(); }
+  exitPackMode() { this.shareManager.exitPackMode(); }
+  _updatePackCount() { this.shareManager._updatePackCount(); }
+  async sharePack() { await this.shareManager.sharePack(); }
 
   // --- Insert with Variable Fill ---
+
+  // Resolve {{@clipboard}} in popup context (clipboard API unavailable in background)
+  async _resolveClipboard(content) {
+    if (!content.includes('{{@clipboard}}')) return content;
+    try {
+      const clipText = await navigator.clipboard.readText();
+      return content.split('{{@clipboard}}').join(clipText || '');
+    } catch (e) {
+      console.warn('[ContextVar] Clipboard access denied:', e);
+      return content.split('{{@clipboard}}').join('');
+    }
+  }
 
   async insertPrompt(id) {
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
 
-    // Track usage
+    // Track usage (optimistic local update)
     chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id }).catch(() => { });
-    const p = this.prompts.find(p => p.id === id);
-    if (p) { p.usageCount = (p.usageCount || 0) + 1; p.lastUsedAt = Date.now(); }
+    prompt.usageCount = (prompt.usageCount || 0) + 1;
+    prompt.lastUsedAt = Date.now();
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) {
@@ -1424,17 +1312,21 @@ class PopupManager {
       return;
     }
 
-    // COMPOSE PROMPT
+    // COMPOSE PROMPT (context vars resolved by background, except clipboard)
     const resp = await chrome.runtime.sendMessage({ type: 'COMPOSE_PROMPT', prompt });
     let composedContent = prompt.content;
     let composedVars = prompt.variables || [];
     if (resp && resp.success) {
-      composedContent = resp.composed;
+      composedContent = await this._resolveClipboard(resp.composed);
       composedVars = resp.variables || [];
+      // Notify user about auto-resolved context vars
+      if (resp.contextResolved && Object.keys(resp.contextResolved).length > 0) {
+        this.showToast(i18n.t('contextVarsResolved') || '✨ Context auto-filled');
+      }
     }
     const composedPrompt = { ...prompt, content: composedContent, variables: composedVars };
 
-    // Check for variables
+    // Check for remaining user variables
     if (composedVars && composedVars.length > 0) {
       this.showVariableFillModal(composedPrompt, async (filledContent) => {
         try {
@@ -1548,8 +1440,11 @@ class PopupManager {
     let composedContent = prompt.content;
     let composedVars = prompt.variables || [];
     if (resp && resp.success) {
-      composedContent = resp.composed;
+      composedContent = await this._resolveClipboard(resp.composed);
       composedVars = resp.variables || [];
+      if (resp.contextResolved && Object.keys(resp.contextResolved).length > 0) {
+        this.showToast(i18n.t('contextVarsResolved') || '✨ Context auto-filled');
+      }
     }
     const composedPrompt = { ...prompt, content: composedContent, variables: composedVars };
 
@@ -1817,116 +1712,51 @@ class PopupManager {
     }
   }
 
-  // --- History Management ---
+  // --- History Management (delegated to HistoryPanel) ---
 
   async showHistory() {
-    if (!this.editingId) return;
-    const response = await chrome.runtime.sendMessage({ type: 'GET_PROMPT_HISTORY', id: this.editingId });
-    if (response.success) {
-      this.currentHistory = response.versions;
-      this.renderHistoryList();
-      document.getElementById('historyModal').classList.remove('hidden');
-      if (this.currentHistory.length > 0) {
-        this.previewVersion(this.currentHistory[0].versionId);
-      } else {
-        document.getElementById('diffContent').textContent = 'No history yet.';
-        document.getElementById('restoreBtn').classList.add('hidden');
-      }
-    }
+    await this.history.show(this.editingId);
   }
 
   hideHistory() {
-    document.getElementById('historyModal').classList.add('hidden');
+    this.history.hide();
   }
 
   renderHistoryList() {
-    const list = document.getElementById('historyList');
-    list.innerHTML = this.currentHistory.map(v => `
-      <div class="history-item" data-version-id="${v.versionId}">
-        <div class="version-time">${this.formatRelativeTime(v.timestamp)}</div>
-        <div class="version-preview">${this.escapeHtml(v.content.substring(0, 40))}...</div>
-      </div>
-    `).join('');
+    this.history._renderList();
   }
 
   previewVersion(versionId) {
-    const version = this.currentHistory.find(v => v.versionId === versionId);
-    if (!version) return;
-
-    this.previewingVersionId = versionId;
-    const content = document.getElementById('diffContent');
-    content.innerHTML = this.renderMarkdown(version.content);
-
-    document.getElementById('restoreBtn').classList.remove('hidden');
-
-    // Highlight active item
-    document.querySelectorAll('.history-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.versionId === versionId);
-    });
+    this.history.previewVersion(versionId);
   }
 
   async restoreVersion() {
-    if (!this.previewingVersionId || !this.editingId) return;
-
-    const version = this.currentHistory.find(v => v.versionId === this.previewingVersionId);
-    if (version) {
-      document.getElementById('contentInput').value = version.content;
-      this.hideHistory();
-      this.showToast(i18n.t('restoreSuccess') || 'Restored');
-    }
+    await this.history.restoreVersion();
   }
 
 
 
   formatRelativeTime(timestamp) {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return i18n.t('timeAgoDays', { count: days }) || `${days}d ago`;
-    if (hours > 0) return i18n.t('timeAgoHours', { count: hours }) || `${hours}h ago`;
-    if (minutes > 0) return i18n.t('timeAgoMinutes', { count: minutes }) || `${minutes}m ago`;
-    return i18n.t('timeAgoJustNow') || 'just now';
+    return formatRelativeTime(timestamp);
   }
 
 
   // --- Utilities ---
 
   showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.add('toast-hide');
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
+    showToast(message);
   }
 
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return escapeHtml(text);
   }
 
   debounce(func, wait) {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
+    return debounce(func, wait);
   }
 
   renderMarkdown(text) {
-    if (!text) return '';
-    try {
-      return marked.parse(text);
-    } catch (e) {
-      return this.escapeHtml(text);
-    }
+    return renderMarkdown(text);
   }
 }
 

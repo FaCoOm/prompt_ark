@@ -21,6 +21,7 @@ Desktop.ini
 .agent/
 .gemini/
 artifacts/
+lessons/
 
 # Temp / Scripts
 scripts/

@@ -221,7 +221,9 @@ export const translations = {
     "addOutputRulesDesc": "添加输出规则",
     "ruleToastEmpty": "请至少配置一项规则",
     "ruleToastExists": "规则块已存在，请直接修改",
-    "ruleToastSuccess": "📎 规则已添加"
+    "ruleToastSuccess": "📎 规则已添加",
+    "noHistoryYet": "还没有历史记录",
+    "contextVarsResolved": "✨ 上下文已自动填充"
   },
   "en": {
     "appName": "Prompt Ark",
@@ -444,6 +446,8 @@ export const translations = {
     "addOutputRulesDesc": "Add Output Rules",
     "ruleToastEmpty": "Please configure at least one rule.",
     "ruleToastExists": "Rules block already exists, please edit manually.",
-    "ruleToastSuccess": "📎 Rules Added"
+    "ruleToastSuccess": "📎 Rules Added",
+    "noHistoryYet": "No history yet.",
+    "contextVarsResolved": "✨ Context auto-filled"
   }
 };

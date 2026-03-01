@@ -631,6 +631,16 @@ class AIPromptManager {
       case 'UPDATE_I18N_DICT':
         if (request.dict) this.i18nDict = request.dict;
         break;
+      case 'GET_SELECTION':
+        sendResponse({ text: window.getSelection().toString() });
+        break;
+      case 'GET_PAGE_TEXT': {
+        // Return cleaned page text, capped at 5000 chars
+        const rawText = document.body.innerText || '';
+        const cleaned = rawText.replace(/\s+/g, ' ').trim().substring(0, 5000);
+        sendResponse({ text: cleaned });
+        break;
+      }
     }
   }
 
