@@ -4,7 +4,7 @@ import { PromptParser } from './lib/parsers.js';
 import { GitHubClient } from './lib/github-client.js';
 import { PromptScorer } from './lib/scorer.js';
 import { ContentAnalyzer } from './lib/analyzer.js';
-import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime } from './lib/popup/utils.js';
+import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime, highlightVariables } from './lib/popup/utils.js';
 import { HistoryPanel } from './lib/popup/history-panel.js';
 import { ShareManager } from './lib/popup/share-manager.js';
 
@@ -423,7 +423,7 @@ class PopupManager {
               </button>
             </div>
           </div>
-          <div class="prompt-preview md-content">${this.renderMarkdown(p.content)}</div>
+          <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
           <div class="prompt-meta">
             ${p.category ? `<span class="prompt-category">${this.escapeHtml(p.category)}</span>` : ''}
             ${p.tags && p.tags.length > 0 ? p.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
