@@ -82,5 +82,71 @@
   },
   "selectionToolbarConvert": {
     "message": "智能转化为 Prompt"
+  },
+  "buildRules": {
+    "message": "🎯 设定输出规则"
+  },
+  "ruleFormat": {
+    "message": "输出格式"
+  },
+  "ruleFormatAuto": {
+    "message": "自动判定"
+  },
+  "ruleFormatMarkdown": {
+    "message": "Markdown"
+  },
+  "ruleFormatJson": {
+    "message": "JSON"
+  },
+  "ruleFormatTable": {
+    "message": "对比表格"
+  },
+  "ruleFormatText": {
+    "message": "纯文本"
+  },
+  "ruleFormatCode": {
+    "message": "代码"
+  },
+  "ruleLength": {
+    "message": "字数上限"
+  },
+  "ruleLengthSuffix": {
+    "message": "字"
+  },
+  "ruleTone": {
+    "message": "语气风格"
+  },
+  "ruleToneDefault": {
+    "message": "默认"
+  },
+  "ruleToneProfessional": {
+    "message": "专业严谨"
+  },
+  "ruleToneConcise": {
+    "message": "极其简练"
+  },
+  "ruleToneCreative": {
+    "message": "生动有趣"
+  },
+  "ruleExclusions": {
+    "message": "排除项 (Do NOT)"
+  },
+  "insertRules": {
+    "message": "生成并插入规则"
+  },
+  "ruleToastEmpty": {
+    "message": "请至少配置一项规则"
+  },
+  "ruleToastExists": {
+    "message": "规则块已存在，请直接修改。"
+  },
+  "ruleToastSuccess": {
+    "message": "📎 规则已添加"
+  },
+  "addOutputRulesDesc": {
+    "message": "添加输出规则"
+  },
+  "ruleExclusionsPlaceholder": {
+    "message": "如：术语、套话、免责声明"
   }
 }

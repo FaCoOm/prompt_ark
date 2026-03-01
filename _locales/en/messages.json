@@ -82,5 +82,71 @@
   },
   "selectionToolbarConvert": {
     "message": "Smart Convert"
+  },
+  "buildRules": {
+    "message": "🎯 Output Rules Builder"
+  },
+  "ruleFormat": {
+    "message": "Format"
+  },
+  "ruleFormatAuto": {
+    "message": "Auto"
+  },
+  "ruleFormatMarkdown": {
+    "message": "Markdown"
+  },
+  "ruleFormatJson": {
+    "message": "JSON"
+  },
+  "ruleFormatTable": {
+    "message": "Table"
+  },
+  "ruleFormatText": {
+    "message": "Plain Text"
+  },
+  "ruleFormatCode": {
+    "message": "Code"
+  },
+  "ruleLength": {
+    "message": "Max Length"
+  },
+  "ruleLengthSuffix": {
+    "message": "words"
+  },
+  "ruleTone": {
+    "message": "Tone"
+  },
+  "ruleToneDefault": {
+    "message": "Default"
+  },
+  "ruleToneProfessional": {
+    "message": "Professional"
+  },
+  "ruleToneConcise": {
+    "message": "Concise"
+  },
+  "ruleToneCreative": {
+    "message": "Creative"
+  },
+  "ruleExclusions": {
+    "message": "Do NOT (Exclusions)"
+  },
+  "insertRules": {
+    "message": "Insert Rules"
+  },
+  "ruleToastEmpty": {
+    "message": "Please configure at least one rule."
+  },
+  "ruleToastExists": {
+    "message": "Rules block already exists, please edit manually."
+  },
+  "ruleToastSuccess": {
+    "message": "📎 Rules Added"
+  },
+  "addOutputRulesDesc": {
+    "message": "Add Output Rules"
+  },
+  "ruleExclusionsPlaceholder": {
+    "message": "e.g. jargon, apologies, disclaimers"
   }
 }

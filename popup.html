@@ -492,13 +492,56 @@
               <!-- dynamically populated -->
             </div>
           </div>
-          <!-- Enhancement Suffix dropdown -->
-          <div class="enhance-dropdown">
-            <button type="button" id="enhanceBtn" class="btn-enhance" title="Quick enhance">📎</button>
-            <div id="enhanceMenu" class="enhance-menu hidden">
-              <!-- dynamically populated by popup.js -->
+          <button type="button" id="enhanceBtn" class="btn-enhance" data-i18n-title="addOutputRulesDesc"
+            title="Add Output Rules">📎</button>
+
+          <!-- Output Rules Builder Panel -->
+          <div id="contractBuilderPanel" class="contract-builder-panel hidden">
+            <div class="contract-builder-header">
+              <span data-i18n="buildRules"></span>
+              <button type="button" class="contract-builder-close" id="closeContractBtn">&times;</button>
+            </div>
+            <div class="contract-builder-body">
+              <div class="builder-row">
+                <label data-i18n="ruleFormat"></label>
+                <select id="contractFormatSelect" class="settings-input builder-input">
+                  <option value="" data-i18n="ruleFormatAuto"></option>
+                  <option value="markdown" data-i18n="ruleFormatMarkdown"></option>
+                  <option value="json" data-i18n="ruleFormatJson"></option>
+                  <option value="table" data-i18n="ruleFormatTable"></option>
+                  <option value="text" data-i18n="ruleFormatText"></option>
+                  <option value="code" data-i18n="ruleFormatCode"></option>
+                </select>
+              </div>
+              <div class="builder-row">
+                <label data-i18n="ruleLength"></label>
+                <div class="input-with-suffix">
+                  <input type="number" id="contractLengthInput" class="settings-input builder-input" placeholder="500"
+                    min="10" step="50">
+                  <span class="input-suffix" data-i18n="ruleLengthSuffix"></span>
+                </div>
+              </div>
+              <div class="builder-row">
+                <label data-i18n="ruleTone"></label>
+                <select id="contractToneSelect" class="settings-input builder-input">
+                  <option value="" data-i18n="ruleToneDefault"></option>
+                  <option value="professional" data-i18n="ruleToneProfessional"></option>
+                  <option value="concise" data-i18n="ruleToneConcise"></option>
+                  <option value="creative" data-i18n="ruleToneCreative"></option>
+                </select>
+              </div>
+              <div class="builder-row">
+                <label data-i18n="ruleExclusions"></label>
+                <input type="text" id="contractExclusionsInput" class="settings-input builder-input"
+                  data-i18n-placeholder="ruleExclusionsPlaceholder" placeholder="">
+              </div>
+              <div class="builder-actions">
+                <button type="button" id="insertContractBtn" class="btn btn-primary btn-small"
+                  data-i18n="insertRules"></button>
+              </div>
             </div>
           </div>
+
           <!-- Optimization Diff Panel (inside form-group so it replaces textarea visually) -->
           <div id="optimizeDiffPanel" class="optimize-diff-panel hidden">
             <div class="optimize-diff-header">

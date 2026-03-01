@@ -5,63 +5,6 @@ import { GitHubClient } from './lib/github-client.js';
 import { PromptScorer } from './lib/scorer.js';
 import { ContentAnalyzer } from './lib/analyzer.js';
 
-// Enhancement Suffix Library — pre-built prompt suffixes for one-click enhancement
-const ENHANCEMENT_SUFFIXES = [
-  {
-    id: 'output-format',
-    icon: '📊',
-    labelZh: '输出格式',
-    labelEn: 'Output Format',
-    suffixZh: '\n\n输出要求：使用结构化 Markdown 格式，包含标题层级、要点列表和加粗关键词。',
-    suffixEn: '\n\nOutput Format: Use structured Markdown with headers, bullet points, and bold key terms.',
-    dedupKey: 'Output Format'
-  },
-  {
-    id: 'word-limit',
-    icon: '📏',
-    labelZh: '字数限制',
-    labelEn: 'Word Limit',
-    suffixZh: '\n\n约束：回答控制在 500 字以内。优先给出可操作的建议，而非冗长的解释。',
-    suffixEn: '\n\nConstraint: Keep the response under 500 words. Prioritize actionable insights over explanations.',
-    dedupKey: 'under 500 words'
-  },
-  {
-    id: 'confidence-tags',
-    icon: '🔍',
-    labelZh: '置信标注',
-    labelEn: 'Confidence Tags',
-    suffixZh: '\n\n对于不确定的信息，请标注 [UNCERTAIN] 并说明原因。对于基于推断的结论，请标注 [INFERRED]。',
-    suffixEn: '\n\nFor any uncertain claims, mark them with [UNCERTAIN]. For inferred conclusions, mark with [INFERRED].',
-    dedupKey: '[UNCERTAIN]'
-  },
-  {
-    id: 'comparison-table',
-    icon: '📋',
-    labelZh: '对比表格',
-    labelEn: 'Comparison Table',
-    suffixZh: '\n\n以对比表格形式呈现分析，列包含：选项、优点、缺点、推荐度。',
-    suffixEn: '\n\nPresent the analysis as a comparison table with columns: Option, Pros, Cons, Recommendation.',
-    dedupKey: 'comparison table'
-  },
-  {
-    id: 'eval-rubric',
-    icon: '🎯',
-    labelZh: '评分维度',
-    labelEn: 'Evaluation Rubric',
-    suffixZh: '\n\n按以下维度对每个选项评分（1-5 分）：可行性、影响力、实施成本、风险。',
-    suffixEn: '\n\nEvaluate each option on these dimensions (1-5 scale): Feasibility, Impact, Effort, Risk.',
-    dedupKey: '1-5'
-  },
-  {
-    id: 'exclusions',
-    icon: '🚫',
-    labelZh: '排除项',
-    labelEn: 'Exclusions',
-    suffixZh: '\n\n禁止：使用专业术语、做未经验证的假设、重复问题内容、添加免责声明。',
-    suffixEn: '\n\nDo NOT: use jargon, make assumptions, repeat the question, or add disclaimers.',
-    dedupKey: 'Do NOT'
-  }
-];
 
 class PopupManager {
   constructor() {
@@ -872,20 +815,10 @@ class PopupManager {
       if (opt) this.selectOptimizeProvider(opt.dataset.providerId);
     });
 
-    // Enhancement Suffix dropdown
-    document.getElementById('enhanceBtn')?.addEventListener('click', () => this.toggleEnhanceMenu());
-    document.getElementById('enhanceMenu')?.addEventListener('click', (e) => {
-      const opt = e.target.closest('.enhance-option');
-      if (opt && !opt.classList.contains('applied')) this.applyEnhanceSuffix(opt.dataset.suffixId);
-    });
-    // Close enhance menu on outside click
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('enhanceMenu');
-      const btn = document.getElementById('enhanceBtn');
-      if (menu && !menu.contains(e.target) && e.target !== btn) {
-        menu.classList.add('hidden');
-      }
-    });
+    // Output Contract Builder
+    document.getElementById('enhanceBtn')?.addEventListener('click', () => this.toggleContractBuilder());
+    document.getElementById('closeContractBtn')?.addEventListener('click', () => this.toggleContractBuilder(false));
+    document.getElementById('insertContractBtn')?.addEventListener('click', () => this.insertOutputContract());
 
     // History
     document.getElementById('historyBtn')?.addEventListener('click', () => this.showHistory());
@@ -1007,49 +940,81 @@ class PopupManager {
     }
   }
 
-  // --- Enhancement Suffix Library ---
-  toggleEnhanceMenu() {
-    const menu = document.getElementById('enhanceMenu');
-    if (!menu.classList.contains('hidden')) {
-      menu.classList.add('hidden');
+  // --- Output Contract Builder ---
+  toggleContractBuilder(show) {
+    const panel = document.getElementById('contractBuilderPanel');
+    if (show === undefined) {
+      panel.classList.toggle('hidden');
+    } else if (show) {
+      panel.classList.remove('hidden');
+    } else {
+      panel.classList.add('hidden');
+    }
+  }
+
+  insertOutputContract() {
+    const format = document.getElementById('contractFormatSelect').value;
+    const length = document.getElementById('contractLengthInput').value;
+    const tone = document.getElementById('contractToneSelect').value;
+    const doNot = document.getElementById('contractExclusionsInput').value;
+
+    // Check if everything is empty
+    if (!format && !length && !tone && !doNot) {
+      this.showToast(i18n.t('ruleToastEmpty'));
       return;
     }
 
-    const content = document.getElementById('contentInput').value;
-    const isZh = this._detectLanguage(content) === 'zh';
-
-    menu.innerHTML = ENHANCEMENT_SUFFIXES.map(s => {
-      const label = isZh ? s.labelZh : s.labelEn;
-      const alreadyApplied = content.includes(s.dedupKey);
-      return `<button type="button" class="enhance-option${alreadyApplied ? ' applied' : ''}" data-suffix-id="${s.id}">
-        <span class="enhance-icon">${s.icon}</span>
-        <span class="enhance-label">${label}</span>
-        ${alreadyApplied ? '<span style="font-size:10px;color:var(--text-muted)">✓</span>' : ''}
-      </button>`;
-    }).join('');
-    menu.classList.remove('hidden');
-  }
-
-  applyEnhanceSuffix(id) {
-    const suffix = ENHANCEMENT_SUFFIXES.find(s => s.id === id);
-    if (!suffix) return;
-
     const textarea = document.getElementById('contentInput');
     const content = textarea.value;
+    const isZh = this._detectLanguage(content) === 'zh';
+
+    // Localized maps: key → { zh, en }
+    const FORMAT_MAP = {
+      markdown: { zh: '结构化 Markdown，包含标题层级和要点列表', en: 'Structured Markdown with headers and bullet points' },
+      json: { zh: '仅输出合法 JSON，不使用 Markdown', en: 'Valid JSON only, no markdown formatting' },
+      table: { zh: '对比表格，包含选项、优点、缺点、推荐度', en: 'Comparison table with columns: Option, Pros, Cons, Recommendation' },
+      text: { zh: '纯文本，精炼段落', en: 'Plain text, concise paragraphs' },
+      code: { zh: '仅代码块，含行内注释', en: 'Code block with inline comments only' }
+    };
+    const TONE_MAP = {
+      professional: { zh: '专业、客观、严谨', en: 'Professional, objective, and academic' },
+      concise: { zh: '极其简练、直击要点', en: 'Concise, direct, highly actionable' },
+      creative: { zh: '生动有趣、富有感染力', en: 'Creative, engaging, and empathetic' }
+    };
+
+    const lang = isZh ? 'zh' : 'en';
+    const header = isZh ? '\n\n## 输出要求\n' : '\n\n## Output Rules\n';
 
     // Dedup check
-    if (content.includes(suffix.dedupKey)) return;
+    if (content.includes('## 输出要求') || content.includes('## Output Rules') || content.includes('## 输出约束') || content.includes('## Constraints')) {
+      this.showToast(i18n.t('ruleToastExists'));
+      return;
+    }
 
-    const isZh = this._detectLanguage(content) === 'zh';
-    const text = isZh ? suffix.suffixZh : suffix.suffixEn;
-    textarea.value = content + text;
+    let lines = [];
+    if (format && FORMAT_MAP[format]) {
+      lines.push(isZh ? `- **输出格式：** ${FORMAT_MAP[format][lang]}` : `- **Format:** ${FORMAT_MAP[format][lang]}`);
+    }
+    if (length) {
+      lines.push(isZh ? `- **字数限制：** 严格控制在 ${length} 字以内` : `- **Length:** Strictly under ${length} words`);
+    }
+    if (tone && TONE_MAP[tone]) {
+      lines.push(isZh ? `- **语气风格：** ${TONE_MAP[tone][lang]}` : `- **Tone:** ${TONE_MAP[tone][lang]}`);
+    }
+    if (doNot) {
+      lines.push(isZh ? `- **禁止：** ${doNot}` : `- **Do NOT:** ${doNot}`);
+    }
 
-    // Close menu
-    document.getElementById('enhanceMenu').classList.add('hidden');
+    textarea.value = content + header + lines.join('\n');
 
-    // Brief toast
-    const label = isZh ? suffix.labelZh : suffix.labelEn;
-    this.showToast(`📎 ${label}`);
+    // Reset form & close panel
+    document.getElementById('contractFormatSelect').value = '';
+    document.getElementById('contractLengthInput').value = '';
+    document.getElementById('contractToneSelect').value = '';
+    document.getElementById('contractExclusionsInput').value = '';
+    this.toggleContractBuilder(false);
+
+    this.showToast(i18n.t('ruleToastSuccess'));
   }
 
   _detectLanguage(text) {
