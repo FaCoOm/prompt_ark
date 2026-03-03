@@ -30,7 +30,7 @@ jobs:
       - name: Upload hub as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: hub/   # Only deploy the hub/ directory
+          path: prompt-ark-hub/   # Deploy the new Hub SPA
 
       - name: Deploy to GitHub Pages
         id: deployment
