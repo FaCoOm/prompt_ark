@@ -431,6 +431,7 @@ class PopupManager {
             ${(p.usageCount || 0) > 0 ? `<span class="prompt-usage">${p.usageCount}×</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
+            ${(() => { const s = PromptScorer.score(p.content); return `<span class="prompt-score" style="color:${PromptScorer.getScoreColor(s)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${s}/100">${s >= 75 ? '●' : s >= 50 ? '◐' : '○'} ${(s / 10).toFixed(1)}</span>`; })()}
           </div>
         </div>
       </div>
@@ -1377,23 +1378,46 @@ class PopupManager {
     // Update title
     varModal.querySelector('#varModalTitle').textContent = `${i18n.t('fillVariables')}: ${prompt.title}`;
 
-    // Render variable inputs
+    // Variables are now structured objects: { name, type, options, default, raw }
+    const variables = prompt.variables || [];
+
+    // Render variable inputs based on type
     const container = varModal.querySelector('#varFormContainer');
-    container.innerHTML = prompt.variables.map(v => `
-    <div class="form-group">
-      <label for="var-${this.escapeHtml(v)}">${this.escapeHtml(v)}</label>
-      <input type="text" id="var-${this.escapeHtml(v)}" data-var="${this.escapeHtml(v)}" 
-             placeholder="[${this.escapeHtml(v)}]">
-    </div>
-  `).join('');
+    container.innerHTML = variables.map(v => {
+      const escapedName = this.escapeHtml(v.name);
+      const escapedRaw = this.escapeHtml(v.raw || v.name);
+
+      if (v.type === 'enum' && v.options) {
+        // Dropdown select for enum variables
+        const optionsHtml = v.options.map(opt =>
+          `<option value="${this.escapeHtml(opt)}">${this.escapeHtml(opt)}</option>`
+        ).join('');
+        return `
+        <div class="form-group">
+          <label for="var-${escapedRaw}">${escapedName}</label>
+          <select id="var-${escapedRaw}" data-var="${escapedRaw}" class="var-select">
+            ${optionsHtml}
+          </select>
+        </div>`;
+      }
+
+      // Text input (with optional default value)
+      const defaultVal = v.type === 'default' && v.default ? this.escapeHtml(v.default) : '';
+      return `
+      <div class="form-group">
+        <label for="var-${escapedRaw}">${escapedName}</label>
+        <input type="text" id="var-${escapedRaw}" data-var="${escapedRaw}" 
+               value="${defaultVal}" placeholder="${defaultVal || `[${escapedName}]`}">
+      </div>`;
+    }).join('');
 
     varModal.classList.remove('hidden');
 
-    // Focus first input
-    const firstInput = container.querySelector('input');
+    // Focus first input/select
+    const firstInput = container.querySelector('input, select');
     if (firstInput) firstInput.focus();
 
-    // Bind events (use cloneNode trick to remove old listeners)
+    // Bind events
     const closeBtn = varModal.querySelector('#closeVarModal');
     const cancelBtn = varModal.querySelector('#cancelVarBtn');
     const insertBtn = varModal.querySelector('#insertVarBtn');
@@ -1405,14 +1429,17 @@ class PopupManager {
     closeBtn.onclick = hideVarModal;
     cancelBtn.onclick = hideVarModal;
     insertBtn.onclick = async () => {
-      // Collect values
+      // Collect values and substitute
       let content = prompt.content;
-      container.querySelectorAll('[data-var]').forEach(input => {
-        const varName = input.dataset.var;
-        const val = input.value;
-        // Replace both {{varName}} and [varName] formats
-        content = content.split(`{{${varName}}}`).join(val || `{{${varName}}}`);
-        content = content.split(`[${varName}]`).join(val || `[${varName}]`);
+      container.querySelectorAll('[data-var]').forEach(el => {
+        const rawSpec = el.dataset.var;
+        const val = el.value;
+        // Replace {{rawSpec}} with selected/entered value
+        content = content.split(`{{${rawSpec}}}`).join(val || '');
+        // Also try bracket syntax for plain vars
+        if (!rawSpec.includes(':')) {
+          content = content.split(`[${rawSpec}]`).join(val || '');
+        }
       });
 
       hideVarModal();

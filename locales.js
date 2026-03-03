@@ -101,6 +101,9 @@ export const translations = {
     "sharePrompt": "分享",
     "shareToX": "分享到 X",
     "shareToReddit": "分享到 Reddit",
+    "shareToZhihu": "分享到知乎",
+    "shareToWechat": "分享到公众号",
+    "shareToXiaohongshu": "分享到小红书",
     "copyLink": "复制链接",
     "copyAsJson": "复制为 JSON",
     "linkCopied": "🔗 链接已复制",
@@ -223,7 +226,8 @@ export const translations = {
     "ruleToastExists": "规则块已存在，请直接修改",
     "ruleToastSuccess": "📎 规则已添加",
     "noHistoryYet": "还没有历史记录",
-    "contextVarsResolved": "✨ 上下文已自动填充"
+    "contextVarsResolved": "✨ 上下文已自动填充",
+    "promptQuality": "提示词质量"
   },
   "en": {
     "appName": "Prompt Ark",
@@ -326,6 +330,9 @@ export const translations = {
     "sharePrompt": "Share",
     "shareToX": "Share to X",
     "shareToReddit": "Share to Reddit",
+    "shareToZhihu": "Share to Zhihu",
+    "shareToWechat": "Share to WeChat",
+    "shareToXiaohongshu": "Share to Xiaohongshu",
     "copyLink": "Copy Link",
     "copyAsJson": "Copy as JSON",
     "linkCopied": "🔗 Link copied",
@@ -448,6 +455,7 @@ export const translations = {
     "ruleToastExists": "Rules block already exists, please edit manually.",
     "ruleToastSuccess": "📎 Rules Added",
     "noHistoryYet": "No history yet.",
-    "contextVarsResolved": "✨ Context auto-filled"
+    "contextVarsResolved": "✨ Context auto-filled",
+    "promptQuality": "Prompt Quality"
   }
 };

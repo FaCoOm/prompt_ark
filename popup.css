@@ -2300,3 +2300,37 @@ body::before {
   color: #3b82f6;
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
+
+/* --- Prompt Quality Score Badge --- */
+.prompt-score {
+  font-size: 0.75em;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  opacity: 0.85;
+  cursor: help;
+  letter-spacing: -0.5px;
+}
+
+/* --- Enum Variable Pill & Select --- */
+.var-pill.enum {
+  background: rgba(251, 146, 60, 0.12);
+  color: #f97316;
+  border: 1px solid rgba(251, 146, 60, 0.25);
+}
+
+.var-default {
+  opacity: 0.5;
+  font-size: 0.9em;
+}
+
+.var-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  appearance: auto;
+}

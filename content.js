@@ -188,16 +188,33 @@ class AIPromptManager {
   // --- Variable Processing ---
 
   extractVariables(content) {
-    const matches = [];
+    const rawMatches = [];
     const brackets = content.match(/\{\{([^}]+)\}\}/g);
     if (brackets) {
-      matches.push(...brackets.map(m => m.slice(2, -2).trim()));
+      rawMatches.push(...brackets.map(m => m.slice(2, -2).trim()));
     }
     const squares = content.match(/\[([a-zA-Z][a-zA-Z0-9_\s]*)\](?!\()/g);
     if (squares) {
-      matches.push(...squares.map(m => m.slice(1, -1).trim()));
+      rawMatches.push(...squares.map(m => m.slice(1, -1).trim()));
     }
-    return [...new Set(matches)].filter(v => v.length > 0);
+    // Dedupe and parse into structured objects
+    const seen = new Set();
+    return rawMatches
+      .filter(v => v.length > 0 && !seen.has(v) && seen.add(v))
+      .map(raw => {
+        if (raw.startsWith('@')) return { name: raw, type: 'context', raw };
+        const colonIdx = raw.indexOf(':');
+        if (colonIdx === -1) return { name: raw, type: 'text', default: null, raw };
+        const name = raw.substring(0, colonIdx).trim();
+        const rest = raw.substring(colonIdx + 1);
+        if (rest.includes('|')) {
+          const options = rest.split('|').map(o => o.trim()).filter(o => o.length > 0);
+          if (options.length >= 2) return { name, type: 'enum', options, default: options[0], raw };
+        }
+        const defaultVal = rest.trim();
+        if (defaultVal.length > 0) return { name, type: 'default', default: defaultVal, raw };
+        return { name, type: 'text', default: null, raw };
+      });
   }
 
   resolveVariables(content, values) {
@@ -609,6 +626,82 @@ class AIPromptManager {
       case 'INSERT_PROMPT':
         this.injectPromptRobust(message.content).then(success => sendResponse({ success }));
         break;
+      case 'INSERT_SHARE_CONTENT': {
+        // Inject share content into social platform editors (知乎, 小红书, etc.)
+        const { contentSelectors = [], titleSelectors = [], preClickSelector, promptTitle } = message;
+        const shareContent = message.content || '';
+
+        // Copy to clipboard as backup immediately
+        navigator.clipboard.writeText(shareContent).catch(() => { });
+
+        const doInject = async () => {
+          // Step 1: Click "新的创作" button if needed (小红书)
+          if (preClickSelector) {
+            const btn = document.querySelector(preClickSelector);
+            if (btn) {
+              btn.click();
+              await new Promise(r => setTimeout(r, 1500)); // Wait for editor to appear
+            }
+          }
+
+          // Step 2: Extract title from content (first line) or use prompt title
+          let titleText = promptTitle || '';
+          let bodyText = shareContent;
+          const lines = shareContent.split('\n');
+          if (lines.length > 1 && lines[0].length < 100) {
+            // First line looks like a title
+            titleText = lines[0].replace(/^#+\s*/, '').trim(); // Strip markdown heading
+            bodyText = lines.slice(1).join('\n').trim();
+          }
+
+          // Step 3: Inject title
+          let titleInjected = false;
+          if (titleText && titleSelectors.length > 0) {
+            for (const sel of titleSelectors) {
+              const el = document.querySelector(sel);
+              if (el) {
+                await this.injectIntoElement(el, titleText);
+                titleInjected = true;
+                break;
+              }
+            }
+          }
+
+          // Step 4: Inject content body
+          let contentInjected = false;
+          const contentText = titleInjected ? bodyText : shareContent;
+          for (const sel of contentSelectors) {
+            const el = document.querySelector(sel);
+            if (el) {
+              await this.injectIntoElement(el, contentText);
+              contentInjected = true;
+              break;
+            }
+          }
+
+          // Fallback: try generic selectors
+          if (!contentInjected) {
+            const genericEl = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
+            if (genericEl) {
+              await this.injectIntoElement(genericEl, shareContent);
+              contentInjected = true;
+            }
+          }
+
+          if (contentInjected) {
+            this.showNotification('✅ 内容已自动填入，请检查后发布', 'success');
+          } else {
+            this.showNotification('📋 编辑器未就绪，内容已复制到剪贴板', 'info');
+          }
+          sendResponse({ success: contentInjected });
+        };
+
+        doInject().catch(() => {
+          this.showNotification('📋 内容已复制到剪贴板', 'info');
+          sendResponse({ success: false });
+        });
+        break;
+      }
       case 'SHOW_PROMPT_PICKER':
         this.showPromptPicker();
         sendResponse({ success: true });
@@ -702,8 +795,8 @@ class AIPromptManager {
     // 2. Context Grabber: auto-resolve magic variables FIRST
     const contextResolved = await this.resolveContextVariables(composedRaw);
 
-    // 3. Now check for remaining user-defined variables
-    const variables = this.extractVariables(contextResolved);
+    // 3. Now check for remaining user-defined variables (exclude context vars)
+    const variables = this.extractVariables(contextResolved).filter(v => v.type !== 'context');
 
     if (variables.length > 0) {
       // Show variable fill form (only manual variables remain)
@@ -734,13 +827,30 @@ class AIPromptManager {
         <button class="apm-close">&times;</button>
       </div>
       <div class="apm-var-form">
-        ${variables.map(v => `
-          <div class="apm-var-group">
-            <label class="apm-var-label">${this.escapeHtml(v)}</label>
-            <textarea class="apm-var-input" data-var="${this.escapeHtml(v)}" 
-              placeholder="[${this.escapeHtml(v)}]" rows="2"></textarea>
-          </div>
-        `).join('')}
+        ${variables.map(v => {
+      const escapedName = this.escapeHtml(v.name || v);
+      const escapedRaw = this.escapeHtml(v.raw || v.name || v);
+
+      // Enum: dropdown
+      if (v.type === 'enum' && v.options) {
+        return `
+              <div class="apm-var-group">
+                <label class="apm-var-label">${escapedName}</label>
+                <select class="apm-var-input" data-var="${escapedRaw}">
+                  ${v.options.map(opt => `<option value="${this.escapeHtml(opt)}">${this.escapeHtml(opt)}</option>`).join('')}
+                </select>
+              </div>`;
+      }
+
+      // Default value or plain text
+      const defaultVal = v.type === 'default' && v.default ? this.escapeHtml(v.default) : '';
+      return `
+            <div class="apm-var-group">
+              <label class="apm-var-label">${escapedName}</label>
+              <textarea class="apm-var-input" data-var="${escapedRaw}" 
+                placeholder="${defaultVal || `[${escapedName}]`}" rows="2">${defaultVal}</textarea>
+            </div>`;
+    }).join('')}
       </div>
       <div class="apm-actions">
         <button class="apm-btn apm-btn-cancel">Cancel</button>
@@ -757,11 +867,18 @@ class AIPromptManager {
     modal.querySelector('.apm-btn-cancel').addEventListener('click', () => this.hidePromptPicker());
     modal.querySelector('.apm-btn-primary').addEventListener('click', async () => {
       const values = {};
-      modal.querySelectorAll('.apm-var-input').forEach(input => {
-        values[input.dataset.var] = input.value;
+      modal.querySelectorAll('.apm-var-input').forEach(el => {
+        values[el.dataset.var] = el.value;
       });
 
-      const resolved = this.resolveVariables(prompt.content, values);
+      // Resolve using raw spec as key
+      let resolved = prompt.content;
+      for (const [rawSpec, val] of Object.entries(values)) {
+        resolved = resolved.split(`{{${rawSpec}}}`).join(val || '');
+        if (!rawSpec.includes(':')) {
+          resolved = resolved.split(`[${rawSpec}]`).join(val || '');
+        }
+      }
 
       if (this.onSelectCallback) {
         await this.onSelectCallback(resolved);
