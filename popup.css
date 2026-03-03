@@ -1954,6 +1954,26 @@ body::before {
   color: #a855f7;
 }
 
+.share-option-hub {
+  background: rgba(16, 185, 129, 0.06) !important;
+  border: 1px solid rgba(16, 185, 129, 0.15) !important;
+  border-radius: 8px;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.share-option-hub:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.share-panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 12px;
+}
+
 /* ===== Pack Toolbar ===== */
 .pack-toolbar {
   position: fixed;
