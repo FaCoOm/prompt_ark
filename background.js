@@ -3,10 +3,10 @@ console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loade
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { GitHubClient } from './lib/github-client.js';
-import { HubClient } from './lib/hub-client.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
+import { HubClient } from './lib/hub-client.js';
 
 const githubClient = new GitHubClient();
 
@@ -1511,106 +1511,7 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
-      case 'IMPORT_PROMPTS': {
-        (async () => {
-          try {
-            const incoming = message.prompts || [];
-            if (incoming.length === 0) {
-              sendResponse({ success: false, error: 'No prompts to import' });
-              return;
-            }
 
-            for (const p of incoming) {
-              // Ensure each prompt has required fields
-              const prompt = {
-                id: p.id || crypto.randomUUID(),
-                title: p.title || 'Untitled',
-                content: p.content || '',
-                category: p.category || 'Downloaded',
-                tags: p.tags || [],
-                variables: p.variables || extractVariables(p.content || ''),
-                shortcut: p.shortcut || '',
-                usageCount: 0,
-                lastUsedAt: null,
-                favorite: false,
-                createdAt: Date.now(),
-              };
-              await PromptStorage.save(prompt);
-            }
-
-            await buildContextMenus();
-            sendResponse({ success: true, count: incoming.length });
-          } catch (e) {
-            console.error('[IMPORT_PROMPTS] Error:', e);
-            sendResponse({ success: false, error: e.message });
-          }
-        })();
-        return true;
-      }
-
-      case 'PUBLISH_TO_HUB': {
-        (async () => {
-          try {
-            const token = await LocalStorage.get('githubToken');
-            if (!token) {
-              sendResponse({ success: false, error: 'GitHub token not configured' });
-              return;
-            }
-            const allPrompts = await getPrompts();
-            const prompt = allPrompts.find(p => p.id === message.id);
-            if (!prompt) {
-              sendResponse({ success: false, error: 'Prompt not found' });
-              return;
-            }
-
-            // If already published, update instead of re-create
-            if (prompt.hubGistId) {
-              await HubClient.updateListing(prompt.hubGistId, prompt, token);
-              sendResponse({ success: true, gistId: prompt.hubGistId, hubUrl: `https://gist.github.com/${prompt.hubGistId}`, updated: true });
-              return;
-            }
-
-            // Publish new listing
-            const result = await HubClient.publishPrompt(prompt, token);
-
-            // Mark prompt locally as published
-            prompt.hubGistId = result.gistId;
-            prompt.hubPublishedAt = new Date().toISOString();
-            await PromptStorage.update(prompt);
-
-            sendResponse({ success: true, ...result });
-          } catch (e) {
-            console.error('[PUBLISH_TO_HUB] Error:', e);
-            sendResponse({ success: false, error: e.message });
-          }
-        })();
-        return true;
-      }
-
-      case 'PUBLISH_PACK_TO_HUB': {
-        (async () => {
-          try {
-            const token = await LocalStorage.get('githubToken');
-            if (!token) {
-              sendResponse({ success: false, error: 'GitHub token not configured' });
-              return;
-            }
-            const allPrompts = await getPrompts();
-            const selected = allPrompts.filter(p => message.ids.includes(p.id));
-            if (selected.length === 0) {
-              sendResponse({ success: false, error: 'No prompts found' });
-              return;
-            }
-
-            const result = await HubClient.publishPack(selected, message.packTitle, token);
-            sendResponse({ success: true, ...result });
-          } catch (e) {
-            console.error('[PUBLISH_PACK_TO_HUB] Error:', e);
-            sendResponse({ success: false, error: e.message });
-          }
-        })();
-        return true;
-      }
 
       case 'SAVE_GITHUB_TOKEN': {
         await LocalStorage.set('githubToken', message.token);
@@ -1719,6 +1620,42 @@ async function handleMessage(message, sendResponse) {
         }
         break;
       }
+
+      case 'PUBLISH_TO_HUB': {
+        const ghToken = await LocalStorage.get('githubToken');
+        if (!ghToken) {
+          sendResponse({ success: false, error: 'GitHub token not configured. Go to Settings → GitHub Token.' });
+          break;
+        }
+        const allP = await getPrompts();
+        const target = allP.find(p => p.id === message.id);
+        if (!target) {
+          sendResponse({ success: false, error: 'Prompt not found' });
+          break;
+        }
+        const pubResult = await HubClient.publishPrompt(target, ghToken);
+        sendResponse({ success: true, gistId: pubResult.gistId, hubUrl: pubResult.hubUrl, indexGistId: pubResult.indexGistId });
+        break;
+      }
+
+      case 'PUBLISH_PACK_TO_HUB': {
+        const ghToken2 = await LocalStorage.get('githubToken');
+        if (!ghToken2) {
+          sendResponse({ success: false, error: 'GitHub token not configured.' });
+          break;
+        }
+        const allP2 = await getPrompts();
+        const packPrompts = (message.promptIds || []).map(id => allP2.find(p => p.id === id)).filter(Boolean);
+        if (packPrompts.length === 0) {
+          sendResponse({ success: false, error: 'No valid prompts found for pack' });
+          break;
+        }
+        const packResult = await HubClient.publishPack(packPrompts, message.packTitle || 'Prompt Pack', ghToken2);
+        sendResponse({ success: true, gistId: packResult.gistId, hubUrl: packResult.hubUrl });
+        break;
+      }
+
+
 
       default:
         sendResponse({ success: false, error: 'Unknown message type' });

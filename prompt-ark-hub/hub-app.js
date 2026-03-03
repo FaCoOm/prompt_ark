@@ -4,11 +4,9 @@
 
 const GITHUB_API = 'https://api.github.com';
 
-// Index Gist ID — read from URL param or localStorage
-// Usage: open Hub with ?index=GIST_ID to set the Index Gist
-// Or ?gist=LISTING_GIST_ID to open a specific listing directly
+// Index Gist ID — resolved via: URL param > localStorage > auto-discover from GitHub
 const params = new URLSearchParams(window.location.search);
-const INDEX_GIST_ID = params.get('index') || localStorage.getItem('hub_index_gist_id') || '';
+let INDEX_GIST_ID = params.get('index') || localStorage.getItem('hub_index_gist_id') || '';
 const DIRECT_GIST_ID = params.get('gist') || '';
 const INDEX_FILENAME = 'prompt-ark-hub-index.json';
 const LISTING_FILENAME = 'prompt-ark-hub-listing.json';
@@ -16,6 +14,52 @@ const LISTING_FILENAME = 'prompt-ark-hub-listing.json';
 // Persist the Index Gist ID if provided via URL param
 if (params.get('index')) {
     localStorage.setItem('hub_index_gist_id', params.get('index'));
+}
+
+/**
+ * Auto-discover Index Gist ID.
+ * Priority: 1) config.json (fast, no API) → 2) GitHub API search (slower, fallback)
+ */
+async function discoverIndexGistId() {
+    // Try config.json first (same directory as hub-app.js)
+    try {
+        const cfgResp = await fetch('./config.json');
+        if (cfgResp.ok) {
+            const cfg = await cfgResp.json();
+            if (cfg.indexGistId) {
+                localStorage.setItem('hub_index_gist_id', cfg.indexGistId);
+                return cfg.indexGistId;
+            }
+            // If config has owner but no indexGistId, use owner for API search
+            if (cfg.owner) {
+                return await _searchUserGists(cfg.owner);
+            }
+        }
+    } catch (e) { /* config.json not available, try auto-discover */ }
+
+    // Fallback: extract username from GitHub Pages domain
+    try {
+        const hostname = window.location.hostname;
+        if (!hostname.endsWith('.github.io')) return '';
+        const username = hostname.split('.')[0];
+        return await _searchUserGists(username);
+    } catch (e) {
+        console.warn('[Hub] Auto-discover failed:', e);
+    }
+    return '';
+}
+
+/** Search a GitHub user's gists for the Index file */
+async function _searchUserGists(username) {
+    const resp = await fetch(`${GITHUB_API}/users/${username}/gists?per_page=100`);
+    if (!resp.ok) return '';
+    const gists = await resp.json();
+    const indexGist = gists.find(g => g.files && g.files[INDEX_FILENAME]);
+    if (indexGist) {
+        localStorage.setItem('hub_index_gist_id', indexGist.id);
+        return indexGist.id;
+    }
+    return '';
 }
 
 // ===== State =====
@@ -54,6 +98,11 @@ async function loadIndex() {
     showLoading(true);
 
     try {
+        // Auto-discover Index Gist if not already known
+        if (!INDEX_GIST_ID) {
+            INDEX_GIST_ID = await discoverIndexGistId();
+        }
+
         if (INDEX_GIST_ID) {
             const resp = await fetch(`${GITHUB_API}/gists/${INDEX_GIST_ID}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
