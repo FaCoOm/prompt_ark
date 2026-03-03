@@ -199,6 +199,20 @@ async function openDetail(gistId) {
     document.getElementById('voteDownCount').textContent = listing?.downvotes || 0;
 
     const body = document.getElementById('modalBody');
+
+    // Demo listings: render directly from in-memory data (no API call)
+    if (listing?._demoContent) {
+        currentDetailData = {
+            type: listing.type,
+            listing: listing,
+            stats: { upvotes: listing.upvotes, downvotes: listing.downvotes, installCount: listing.installCount },
+            prompts: listing._demoContent,
+            pack: listing.type === 'pack' ? { title: listing.title, count: listing._demoContent.length } : null,
+        };
+        renderDetail(currentDetailData, listing);
+        return;
+    }
+
     body.innerHTML = '<div class="hub-loading"><div class="spinner"></div><p>Loading prompt details...</p></div>';
 
     try {
@@ -468,6 +482,7 @@ function getDemoListings() {
             tokenEstimate: 280,
             publishedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 86400000).toISOString(),
+            _demoContent: [{ title: 'Professional Email Writer', content: 'You are an expert business communication specialist. Write a **{{tone}}** email for the following context:\n\n**Recipient:** {{recipient}}\n**Purpose:** {{purpose}}\n\n## Guidelines\n- Keep paragraphs short (2-3 sentences max)\n- Use professional but approachable language\n- Include a clear call-to-action\n- Proofread for grammar and clarity\n\nWrite the complete email with subject line, greeting, body, and sign-off.', category: 'Productivity', tags: ['email', 'business', 'writing'] }],
         },
         {
             gistId: 'demo-2',
@@ -487,6 +502,7 @@ function getDemoListings() {
             tokenEstimate: 450,
             publishedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 4 * 86400000).toISOString(),
+            _demoContent: [{ title: 'Code Review Expert', content: 'You are a senior software engineer performing a thorough code review.\n\n**Language/Framework:** {{language}}\n\n## Review the following code:\n```\n{{code}}\n```\n\n## Provide feedback in this structure:\n\n### 🐛 Bugs & Issues\n- List any bugs, logic errors, or runtime issues\n\n### 🔒 Security\n- Identify potential security vulnerabilities (injection, XSS, etc.)\n\n### ⚡ Performance\n- Suggest performance optimizations\n\n### 📐 Best Practices\n- Code style, naming conventions, SOLID principles\n\n### ✅ Summary\n- Overall assessment (1-10) with key takeaways', category: 'Coding', tags: ['code-review', 'development', 'quality'] }],
         },
         {
             gistId: 'demo-3',
@@ -507,6 +523,13 @@ function getDemoListings() {
             tokenEstimate: 1200,
             publishedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+            _demoContent: [
+                { title: 'Audience Analysis', content: 'Analyze the target audience for **{{brand}}** in the **{{industry}}** space. Provide demographics, psychographics, pain points, and content preferences.' },
+                { title: 'Content Calendar', content: 'Create a 30-day content calendar for **{{brand}}**. Include post types, topics, optimal posting times, and platform-specific formatting.' },
+                { title: 'SEO Optimizer', content: 'Optimize the following content for SEO targeting the keyword **{{keyword}}**:\n\n{{content}}\n\nProvide: title tag, meta description, header structure, and internal linking suggestions.' },
+                { title: 'Social Media Hooks', content: 'Generate 10 scroll-stopping hooks for **{{topic}}** optimized for **{{platform}}**. Each hook should be under 150 characters.' },
+                { title: 'Performance Metrics', content: 'Define KPIs and success metrics for a **{{campaign_type}}** campaign by **{{brand}}**. Include benchmarks and measurement methodology.' },
+            ],
         },
         {
             gistId: 'demo-4',
@@ -526,6 +549,7 @@ function getDemoListings() {
             tokenEstimate: 520,
             publishedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 6 * 86400000).toISOString(),
+            _demoContent: [{ title: '学术论文助手', content: '你是一位资深学术写作顾问。请根据以下信息帮我撰写学术论文的 **{{section}}** 部分：\n\n**研究主题：** {{topic}}\n**研究方法：** {{methodology}}\n**目标期刊：** {{journal}}\n**语言：** {{language}}\n\n## 要求\n- 使用学术规范语言\n- 包含必要的引用格式占位符\n- 逻辑清晰，论证严密\n- 段落间过渡自然\n- 符合目标期刊的风格要求', category: 'Education', tags: ['academic', 'research', 'writing'] }],
         },
         {
             gistId: 'demo-5',
@@ -545,6 +569,7 @@ function getDemoListings() {
             tokenEstimate: 380,
             publishedAt: new Date(Date.now() - 14 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+            _demoContent: [{ title: 'Data Analysis Interpreter', content: 'You are a data analyst. Analyze the following dataset description and provide actionable insights.\n\n**Dataset:** {{dataset_name}}\n**Context:** {{context}}\n**Key Question:** {{question}}\n\n## Provide:\n1. **Key Findings** — Top 3-5 patterns or trends\n2. **Anomalies** — Any outliers or unexpected data points\n3. **Recommendations** — Data-driven action items\n4. **Visualization Suggestions** — Best chart types for each finding\n5. **Limitations** — Caveats and areas needing more data', category: 'Analysis', tags: ['data', 'analytics', 'insights'] }],
         },
         {
             gistId: 'demo-6',
@@ -564,6 +589,7 @@ function getDemoListings() {
             tokenEstimate: 420,
             publishedAt: new Date(Date.now() - 12 * 86400000).toISOString(),
             updatedAt: new Date(Date.now() - 9 * 86400000).toISOString(),
+            _demoContent: [{ title: 'Creative Story Builder', content: 'You are a master storyteller. Create an engaging **{{genre}}** story with the following parameters:\n\n**Setting:** {{setting}}\n**Main Character:** {{protagonist}}\n**Antagonist/Conflict:** {{conflict}}\n**Tone:** {{tone}}\n**Length:** {{length}}\n\n## Story Structure\n1. **Opening Hook** — Grab the reader in the first paragraph\n2. **Rising Action** — Build tension through 2-3 key events\n3. **Climax** — The decisive moment\n4. **Resolution** — Satisfying conclusion with a twist\n\nUse vivid sensory details, sharp dialogue, and a strong narrative voice.', category: 'Writing', tags: ['story', 'creative', 'fiction'] }],
         },
     ];
 }
