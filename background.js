@@ -1627,14 +1627,13 @@ async function handleMessage(message, sendResponse) {
           sendResponse({ success: false, error: 'GitHub token not configured. Go to Settings → GitHub Token.' });
           break;
         }
-        const allP = await getPrompts();
-        const target = allP.find(p => p.id === message.id);
+        const target = await PromptStorage.getById(message.id);
         if (!target) {
           sendResponse({ success: false, error: 'Prompt not found' });
           break;
         }
         const pubResult = await HubClient.publishPrompt(target, ghToken);
-        sendResponse({ success: true, gistId: pubResult.gistId, hubUrl: pubResult.hubUrl, indexGistId: pubResult.indexGistId });
+        sendResponse({ success: true, gistId: pubResult.gistId, hubUrl: pubResult.hubUrl, indexGistId: pubResult.indexGistId, updated: pubResult.updated });
         break;
       }
 
