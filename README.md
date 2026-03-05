@@ -32,6 +32,7 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | **Reuse a prompt** | ✨ Click → Pick → Auto-inject into any AI chat box |
 | **Customize each time** | `{{topic}}` variables become fill-in forms |
 | **Quick-transform text** | ⚡ One-click Rewrite / Summarize / Translate / Expand |
+| **Translate a prompt** | 🌐 Click translate on any card → Pick language → Auto-translated & saved |
 | **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
 | **Share with others** | 📦 Publish as Prompt Pack with a preview landing page |
 | **Use across devices** | ☁️ Chrome Sync, GitHub Gist, or WebDAV |
@@ -112,6 +113,16 @@ Type `/email` in any chat box → Your "Professional Email Writer" prompt expand
 ### AI Prompt Optimizer
 Click ✨ Optimize on any prompt → Get 3 professional rewrites (Concise / Enhanced / Professional) with diff view. Accept with one click.
 
+### AI Prompt Translation
+**Translate any saved prompt** into 7 languages with one click — directly from the prompt list or the edit modal.
+
+- Click the **🌐** button on any prompt card in the list
+- Choose: English · 中文 · 日本語 · Español · Français · Deutsch · 한국어
+- The title, category, tags, and content are all translated and **auto-saved**
+- If your Gemini session expires, the login page opens automatically
+
+> Uses your configured AI provider (Gemini Web by default — no API key needed).
+
 ### Right-click to save
 See a great prompt on a webpage? Select text → Right-click → **"Add to Prompt Ark"**. It's saved with AI-generated title, category, and tags.
 
@@ -145,7 +156,7 @@ Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 
 - **Manifest V3** — `storage`, `contextMenus`, `scripting`, `sidePanel`, `cookies`
 - **Deep DOM traversal** — Shadow DOM, React fiber bypass, per-platform injection
-- **Zero-config AI** — Gemini Web session as default, explicit cookie handling for Edge
+- **Zero-config AI** — Gemini Web session as default; auto-redirects to login on session expiry; explicit cookie handling for Edge
 - **Runtime i18n** — Live Chinese/English switching
 - **Auto-save** — 600ms debounce across all settings
 

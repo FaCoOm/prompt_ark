@@ -416,6 +416,12 @@ class PopupManager {
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
               </button>
+              <button class="action-btn translate-list-btn" title="Translate">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+                </svg>
+              </button>
               <button class="action-btn delete-btn" title="${i18n.t('deleteConfirm')}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -557,6 +563,7 @@ class PopupManager {
       else if (e.target.closest('.share-btn')) this.sharePrompt(id);
       else if (e.target.closest('.edit-btn')) this.editPrompt(id);
       else if (e.target.closest('.copy-btn')) this.copyPrompt(id);
+      else if (e.target.closest('.translate-list-btn')) this.showTranslatePopover(id, e.target.closest('.translate-list-btn'));
       else if (e.target.closest('.delete-btn')) { this.deletePrompt(id); }
     });
 
@@ -566,6 +573,57 @@ class PopupManager {
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
       this.savePrompt();
+    });
+
+    // Translate Prompt
+    document.getElementById('translateBtn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const targetLang = document.getElementById('translateTargetLang').value;
+      const titleInput = document.getElementById('titleInput');
+      const categoryInput = document.getElementById('categoryInput');
+      const contentInput = document.getElementById('contentInput');
+
+      if (!contentInput.value.trim()) {
+        this.showToast(i18n.t('contentEmpty') || 'Content is empty', 3000);
+        return;
+      }
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '⏳...';
+      btn.disabled = true;
+
+      try {
+        const resp = await chrome.runtime.sendMessage({
+          type: 'TRANSLATE_PROMPT',
+          targetLanguage: targetLang,
+          promptData: {
+            title: titleInput.value.trim(),
+            category: categoryInput.value.trim(),
+            content: contentInput.value.trim()
+          }
+        });
+
+        if (resp && resp.success && resp.data) {
+          if (resp.data.title) titleInput.value = resp.data.title;
+          if (resp.data.category) categoryInput.value = resp.data.category;
+          if (resp.data.content) {
+            contentInput.value = resp.data.content;
+            // Update markdown preview if visible
+            const mdPreview = document.getElementById('mdPreview');
+            if (mdPreview && !mdPreview.classList.contains('hidden')) {
+              mdPreview.innerHTML = this.renderMarkdown(contentInput.value);
+            }
+          }
+          this.showToast('Translated successfully');
+        } else {
+          this.showToast('❌ ' + (resp?.error || 'Translation failed'), 4000);
+        }
+      } catch (err) {
+        this.showToast('❌ Translation error', 4000);
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }
     });
 
     // Import/Export
@@ -1234,6 +1292,115 @@ class PopupManager {
   editPrompt(id) {
     const prompt = this.prompts.find(p => p.id === id);
     if (prompt) this.showEditModal(prompt);
+  }
+
+  // --- Inline Translate (Prompt List) ---
+  showTranslatePopover(promptId, btnEl) {
+    // Dismiss any existing popover
+    document.querySelector('.translate-popover')?.remove();
+
+    const languages = [
+      { code: 'English', label: 'English' },
+      { code: 'Chinese', label: '中文' },
+      { code: 'Japanese', label: '日本語' },
+      { code: 'Spanish', label: 'Español' },
+      { code: 'French', label: 'Français' },
+      { code: 'German', label: 'Deutsch' },
+      { code: 'Korean', label: '한국어' },
+    ];
+
+    const popover = document.createElement('div');
+    popover.className = 'translate-popover';
+    popover.innerHTML = languages.map(l =>
+      `<button class="translate-lang-option" data-lang="${l.code}">${l.label}</button>`
+    ).join('');
+
+    // Position relative to button
+    const rect = btnEl.getBoundingClientRect();
+    const listRect = document.getElementById('promptList').getBoundingClientRect();
+    popover.style.top = `${rect.bottom - listRect.top + 4}px`;
+    popover.style.left = `${rect.left - listRect.left}px`;
+
+    // Attach to promptList (relative positioned parent)
+    document.getElementById('promptList').style.position = 'relative';
+    document.getElementById('promptList').appendChild(popover);
+
+    // Handle language selection
+    popover.addEventListener('click', (e) => {
+      const opt = e.target.closest('.translate-lang-option');
+      if (!opt) return;
+      popover.remove();
+      this.translatePromptInline(promptId, opt.dataset.lang);
+    });
+
+    // Dismiss on outside click (next tick to avoid immediate dismiss)
+    requestAnimationFrame(() => {
+      const dismiss = (e) => {
+        if (!popover.contains(e.target) && !btnEl.contains(e.target)) {
+          popover.remove();
+          document.removeEventListener('click', dismiss, true);
+        }
+      };
+      document.addEventListener('click', dismiss, true);
+    });
+  }
+
+  async translatePromptInline(promptId, targetLanguage) {
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+
+    // Visual feedback: find the button and show spinner
+    const card = document.querySelector(`.prompt-item[data-id="${promptId}"]`);
+    const btn = card?.querySelector('.translate-list-btn');
+    const originalHtml = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '⏳'; btn.disabled = true; }
+
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'TRANSLATE_PROMPT',
+        targetLanguage,
+        promptData: {
+          title: prompt.title,
+          category: prompt.category || '',
+          tags: (prompt.tags || []).join(', '),
+          content: prompt.content,
+        }
+      });
+
+      if (!resp?.success || !resp?.data) {
+        throw new Error(resp?.error || 'Translation failed');
+      }
+
+      // Update in-memory prompt
+      const d = resp.data;
+      if (d.title) prompt.title = d.title;
+      if (d.category) prompt.category = d.category;
+      if (d.content) prompt.content = d.content;
+      if (d.tags) {
+        prompt.tags = Array.isArray(d.tags) ? d.tags : d.tags.split(',').map(t => t.trim()).filter(Boolean);
+      }
+
+      // Persist via UPDATE_PROMPT
+      await chrome.runtime.sendMessage({
+        type: 'UPDATE_PROMPT',
+        prompt: {
+          id: prompt.id,
+          title: prompt.title,
+          content: prompt.content,
+          category: prompt.category,
+          tags: prompt.tags,
+          shortcut: prompt.shortcut || '',
+        }
+      });
+
+      this.renderPrompts();
+      this.showToast(`✅ Translated to ${targetLanguage}`);
+    } catch (err) {
+      console.error('[TranslateInline]', err);
+      this.showToast(`❌ ${err.message || 'Translation error'}`, 4000);
+    } finally {
+      if (btn) { btn.innerHTML = originalHtml; btn.disabled = false; }
+    }
   }
 
   async deletePrompt(id) {

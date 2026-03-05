@@ -39,6 +39,15 @@ Edit any prompt → Click **✨ Optimize** → Get 3 rewrites:
 
 Side-by-side diff view. One-click accept or reject.
 
+### 🌐 AI Prompt Translation
+Translate any saved prompt into 7 languages with one click:
+1. Click the **🌐 globe** button on any prompt card in the list
+2. Or open the edit modal and use the **Translate** section
+3. Choose your target language: English · 中文 · 日本語 · Español · Français · Deutsch · 한국어
+4. The title, category, tags, and content are all translated and **auto-saved**
+
+> Preserves `{{variables}}`, markdown formatting, and technical terms. Uses Gemini Web by default (no API key needed). If your Gemini session expires, the login page opens automatically.
+
 ### Right-Click Quick Save
 Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-generates a title, category, and tags.
 

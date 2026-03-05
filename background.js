@@ -515,6 +515,95 @@ Return ONLY the variants with markers. No explanations.`;
   return null;
 }
 
+// --- AI-Powered Prompt Translation ---
+async function translatePromptWithAI(promptData, targetLanguage) {
+  const provider = await getActiveProvider();
+  if (!provider) throw new Error('No active AI provider configured. Please check your settings.');
+
+  const systemInstruction = await loadPrompt('translate-prompt');
+
+  const userContent = JSON.stringify({
+    title: promptData.title || '',
+    category: promptData.category || '',
+    tags: promptData.tags || '',
+    content: promptData.content || '',
+    targetLanguage: targetLanguage
+  }, null, 2);
+
+  if (provider.type === 'gemini') {
+    const model = provider.model || 'gemini-2.0-flash';
+    const requestBody = {
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ parts: [{ text: userContent }] }],
+      generationConfig: {
+        responseModalities: ['TEXT'],
+        responseMimeType: 'application/json',
+      },
+    };
+    const resp = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
+        body: JSON.stringify(requestBody),
+      }
+    );
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('[TranslatePrompt] Gemini API error:', resp.status, errText);
+      throw new Error(`Gemini API ${resp.status}: ${errText}`);
+    }
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Gemini returned empty response');
+    return JSON.parse(text);
+  }
+
+  if (provider.type === 'openai') {
+    const resp = await fetchWithTimeout(`${provider.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+      body: JSON.stringify({
+        model: provider.model || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: userContent },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+    });
+    if (!resp.ok) throw new Error(`OpenAI API ${resp.status}`);
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) throw new Error('OpenAI returned empty response');
+    return JSON.parse(text);
+  }
+
+  if (provider.type === 'gemini-web') {
+    // Gemini Web doesn't support systemInstruction or JSON schema — use compact inline prompt
+    const compactPrompt = `Translate the following AI prompt metadata into ${targetLanguage}.
+RULES: Preserve {{variables}}, markdown, code blocks, and technical terms exactly. Output ONLY valid JSON, no markdown wrapping.
+Output schema: {"title":"...","category":"...","tags":"...","content":"..."}
+
+INPUT JSON:
+${userContent}`;
+    let result = await callGeminiWeb(compactPrompt);
+    if (!result) throw new Error('Gemini Web returned empty response. Please ensure you are logged in at gemini.google.com and try again.');
+    console.log('[translatePromptWithAI] Raw Gemini Web result:', result.substring(0, 500));
+    // Strip image generation URLs that Gemini Web sometimes appends
+    result = result.replace(/https?:\/\/[^\s]*googleusercontent\.com\/image_generation_content[^\s]*/g, '').trim();
+    // Strip markdown code fences — Gemini Web often wraps JSON in ```json...```
+    result = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    // Extract the outermost JSON object robustly
+    const jsonStart = result.indexOf('{');
+    const jsonEnd = result.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) throw new Error('Could not parse JSON from Gemini Web response');
+    return JSON.parse(result.slice(jsonStart, jsonEnd + 1));
+  }
+
+  throw new Error('Unsupported AI provider type or model missing feature');
+}
+
 // --- AI-Powered Share Content Generation (Per-Platform) ---
 const SHARE_PLATFORM_NAMES = ['twitter', 'reddit', 'zhihu', 'wechat', 'xiaohongshu'];
 
@@ -1118,6 +1207,29 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
+      case 'TRANSLATE_PROMPT': {
+        (async () => {
+          try {
+            const data = await translatePromptWithAI(message.promptData, message.targetLanguage);
+            sendResponse({ success: true, data });
+          } catch (e) {
+            console.error('[TRANSLATE_PROMPT] Error:', e);
+            const isLoginError = e.message === 'NOT_LOGGED_IN' || e.message?.includes('No valid response from Gemini Web');
+            if (isLoginError) {
+              chrome.tabs.create({ url: 'https://gemini.google.com/app', active: true });
+            }
+            sendResponse({
+              success: false,
+              error: isLoginError
+                ? '请先登录 Gemini，已自动打开登录页。登录后关闭该页并重新点击翻译。'
+                : e.message,
+              errorCode: isLoginError ? 'NOT_LOGGED_IN' : null,
+            });
+          }
+        })();
+        return true;
+      }
+
       case 'GET_PROVIDERS': {
         const providers = await getProviders();
         const activeProviderId = await LocalStorage.get('activeProviderId');
@@ -1709,7 +1821,9 @@ function isAIChatUrl(url) {
   return AI_CHAT_PATTERNS.some(pattern => url.includes(pattern));
 }
 
-let _buildingMenus = false;
+// Serialized context menu builder: queues concurrent calls instead of dropping them
+let _buildMenusChain = Promise.resolve();
+let _buildMenusPending = false;
 
 // Await-able wrapper for chrome.contextMenus.create
 function createMenu(props) {
@@ -1717,8 +1831,17 @@ function createMenu(props) {
 }
 
 async function buildContextMenus() {
-  if (_buildingMenus) return;
-  _buildingMenus = true;
+  // If already queued, the pending call will pick up the latest state — skip
+  if (_buildMenusPending) return;
+  _buildMenusPending = true;
+  _buildMenusChain = _buildMenusChain
+    .then(() => _doBuildContextMenus())
+    .catch(e => console.error('[buildContextMenus] error:', e))
+    .finally(() => { _buildMenusPending = false; });
+  return _buildMenusChain;
+}
+
+async function _doBuildContextMenus() {
   try {
     // --- Determine App Language ---
     const { language } = await chrome.storage.sync.get('language');
@@ -1792,7 +1915,7 @@ async function buildContextMenus() {
       }
     }
   } finally {
-    _buildingMenus = false;
+    // (no flag to reset — managed by promise chain)
   }
 }
 

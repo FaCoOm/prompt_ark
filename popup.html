@@ -559,9 +559,27 @@
         </div>
 
 
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
-          <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+        <div class="form-bottom-row"
+          style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+          <div class="translate-actions" style="display: flex; gap: 8px;">
+            <select id="translateTargetLang" class="settings-input"
+              style="width: 120px; padding: 4px 8px; height: 32px;">
+              <option value="English">English</option>
+              <option value="Chinese" selected>中文</option>
+              <option value="Japanese">日本語</option>
+              <option value="Korean">한국어</option>
+              <option value="Spanish">Español</option>
+              <option value="French">Français</option>
+              <option value="German">Deutsch</option>
+            </select>
+            <button type="button" id="translateBtn" class="btn btn-secondary btn-small" title="Translate Prompt">
+              🌐 <span data-i18n="translate">Translate</span>
+            </button>
+          </div>
+          <div class="form-actions" style="margin-top: 0;">
+            <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
+            <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+          </div>
         </div>
       </form>
     </div>
