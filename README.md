@@ -30,11 +30,13 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | You want to... | Prompt Ark does... |
 |---|---|
 | **Reuse a prompt** | ✨ Click → Pick → Auto-inject into any AI chat box |
-| **Customize each time** | `{{topic}}` variables become fill-in forms |
+| **Customize each time** | `{{topic}}` variables become fill-in forms; enum dropdowns with `{{lang:EN\|ZH\|JP}}` |
+| **Smart-convert any text** | 🪄 Select text → Right-click → AI rewrites it into a reusable prompt instantly |
 | **Quick-transform text** | ⚡ One-click Rewrite / Summarize / Translate / Expand |
 | **Translate a prompt** | 🌐 Click translate on any card → Pick language → Auto-translated & saved |
+| **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
 | **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
-| **Share with others** | 📦 Publish as Prompt Pack with a preview landing page |
+| **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
 | **Use across devices** | ☁️ Chrome Sync, GitHub Gist, or WebDAV |
 
 ## 🔌 Works Everywhere You Chat with AI
@@ -75,13 +77,14 @@ Prompt Ark ships with **Gemini Web** as the default AI backend. As long as you'r
 ### Step 4: Use It on AI Platforms
 Open [ChatGPT](https://chatgpt.com), [Claude](https://claude.ai), [Gemini](https://gemini.google.com) or any supported platform. You'll see two new buttons next to the chat input:
 
-| Button | What it does |
+| Button / Shortcut | What it does |
 |---|---|
 | **✨ Picker** | Browse your prompt library → Select → Auto-inject into chat box |
 | **⚡ Quick Actions** | One-click Rewrite / Summarize / Translate / Expand / Explain |
 | **`/slash`** | Type `/keyword` in the chat box for instant prompt expansion |
-| **`Ctrl+Shift+P`** | Global keyboard shortcut to summon the Picker overlay |
-| **Right-click** | Select any text → "Add to Prompt Ark" to save it instantly |
+| **`Ctrl+Shift+P`** | Summon the Picker overlay from anywhere |
+| **`Ctrl+Shift+G`** | **Grab Context** — snapshot the current page (title, URL, selected text) for use inside prompts |
+| **Right-click any text** | "Add to Prompt Ark" to save it · "Smart Convert" to turn it into a reusable prompt |
 
 ### Step 5: Sync Across Devices (Optional)
 Go to **Settings → Sync** and choose your sync engine:
@@ -104,8 +107,19 @@ The **⚡** button appears next to every AI chat input. Click it to instantly:
 
 > No API key needed — these use the platform's own AI.
 
-### Dynamic variables
-Write `{{language}}` or `{{topic}}` in your prompt. When you use it, a form pops up so you fill in the blanks. Every time.
+### Dynamic variables — 3 types
+Write variables in your prompt content and they become fill-in forms at use time:
+
+| Syntax | Type | Example |
+|---|---|---|
+| `{{topic}}` | Free-text input | Any text |
+| `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Pick one option |
+| `{{style:formal}}` | Pre-filled default | Editable, pre-filled |
+
+### Context variables (`{{@...}}`)
+Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@date}}` to auto-fill live context from the current browser tab — no typing needed.
+
+> **Grab Context** (`Ctrl+Shift+G`) pre-captures a page snapshot so context variables work even after switching tabs.
 
 ### Slash commands  
 Type `/email` in any chat box → Your "Professional Email Writer" prompt expands instantly. Like text shortcuts, but for AI.
@@ -123,11 +137,18 @@ Click ✨ Optimize on any prompt → Get 3 professional rewrites (Concise / Enha
 
 > Uses your configured AI provider (Gemini Web by default — no API key needed).
 
+### 🪄 Smart Convert
+Select any text on any webpage → Right-click → **"Smart Convert to Prompt"**. AI infers the intent, adds a role, structures it with variables, and saves it as a reusable prompt — no manual editing needed.
+
+### One-click Social Sharing
+Share a prompt with an AI-generated post — tailored per platform:
+**Twitter** · **Reddit** · **Zhihu (知乎)** · **WeChat (微信)** · **Xiaohongshu (小红书)**
+
 ### Right-click to save
 See a great prompt on a webpage? Select text → Right-click → **"Add to Prompt Ark"**. It's saved with AI-generated title, category, and tags.
 
 ### Page-aware prompts
-Use `{{page_title}}`, `{{selected_text}}`, `{{page_url}}` in your prompts — they auto-fill with the current page's content.
+Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@page_text}}` in your prompts — they auto-fill with live content from the current tab.
 
 ## 📚 100 Built-in Prompts, Ready to Go
 
@@ -156,7 +177,11 @@ Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 
 - **Manifest V3** — `storage`, `contextMenus`, `scripting`, `sidePanel`, `cookies`
 - **Deep DOM traversal** — Shadow DOM, React fiber bypass, per-platform injection
-- **Zero-config AI** — Gemini Web session as default; auto-redirects to login on session expiry; explicit cookie handling for Edge
+- **Zero-config AI** — Gemini Web session reverse-engineered as default backend; auto-redirects to login on session expiry; explicit cookie handling for Edge
+- **Multi-provider AI** — Gemini API · OpenAI protocol · Gemini Web (free) — unified dispatch, hot-swap at runtime
+- **Prompt files** — All LLM prompts live in `prompts/*.md`, editable without touching JS
+- **Context Grabber** — `Ctrl+Shift+G` captures page snapshot (10 min TTL) for cross-tab `{{@variable}}` resolution
+- **Smart Convert** — Meta-prompt that reverse-engineers selected text into a structured, variable-ized reusable prompt
 - **Runtime i18n** — Live Chinese/English switching
 - **Auto-save** — 600ms debounce across all settings
 

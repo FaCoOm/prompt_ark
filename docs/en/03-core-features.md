@@ -28,8 +28,28 @@ Type `/` + keyword in any chat box. A dropdown appears with matching prompts. Se
 
 ## 🔧 Power User Features
 
-### Dynamic Variables (`{{var}}`)
-Write `{{Topic}}` or `{{language}}` in your prompt content. When inserted, a form pops up asking you to fill in each variable. Great for reusable templates.
+### Dynamic Variables — 3 Forms
+Prompt Ark supports three kinds of variables that turn into interactive fill-in controls:
+
+| Syntax | UI control | When to use |
+|---|---|---|
+| `{{Topic}}` | Free-text input | Any open-ended value |
+| `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Fixed set of options |
+| `{{style:formal}}` | Pre-filled text | Sensible default, user can change |
+
+### Context Variables (`{{@...}}`)
+Auto-resolve from the current browser tab — no copy-paste needed:
+
+| Variable | Resolves to |
+|---|---|
+| `{{@page_title}}` | Current tab's title |
+| `{{@page_url}}` | Current tab's URL |
+| `{{@selection}}` | Highlighted text on the page |
+| `{{@page_text}}` | Full visible text content of the page |
+| `{{@date}}` | Today's date (YYYY-MM-DD) |
+| `{{@lang}}` | Your configured UI language |
+
+> Use **Grab Context** (`Ctrl+Shift+G`) to pre-capture a page snapshot before switching tabs.
 
 ### AI Prompt Optimizer
 Edit any prompt → Click **✨ Optimize** → Get 3 rewrites:
@@ -48,11 +68,23 @@ Translate any saved prompt into 7 languages with one click:
 
 > Preserves `{{variables}}`, markdown formatting, and technical terms. Uses Gemini Web by default (no API key needed). If your Gemini session expires, the login page opens automatically.
 
+### 🪄 Smart Convert
+Select any text on a webpage → Right-click → **"Smart Convert to Prompt"**.
+
+The AI (via your active provider) analyzes the text to infer intent, craft a full role + task description, extract entities as `{{variables}}`, and auto-save the result as a reusable prompt with title, category, and tags.
+
+> Works with Gemini Web by default (no API key). Best for turning articles, reports, or example outputs into templates.
+
 ### Right-Click Quick Save
 Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-generates a title, category, and tags.
 
 ### Keyboard Shortcut
 `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) summons the Picker anywhere.
+
+### Grab Context (`Ctrl+Shift+G`)
+Captures a snapshot of the current page (title, URL, highlighted text, full page text) and stores it for **10 minutes**. Once captured, `{{@variable}}` context variables resolve correctly even after you switch tabs.
+
+> On Mac: `Cmd+Shift+G`
 
 ### Version History & Rollback
 Every edit auto-archives the previous version. Click **History** to browse, diff, and restore any past version.
@@ -66,7 +98,17 @@ Every edit auto-archives the previous version. Click **History** to browse, diff
 ## 📦 Sharing & Community
 
 ### Share a Prompt
-Click share → Creates a GitHub Gist → Get a **Prompt Hub** landing page link. Share on Twitter, Reddit, or copy the URL.
+Click share → Creates a GitHub Gist → Get a **Prompt Hub** landing page link. Then share with AI-generated platform-optimized text:
+
+| Platform | Content style |
+|---|---|
+| **Twitter** | Concise tweet with hashtags |
+| **Reddit** | Structured post title + body in Markdown |
+| **Zhihu (知乎)** | Long-form article in Chinese |
+| **WeChat (微信)** | Mobile-friendly WeChat article |
+| **Xiaohongshu (小红书)** | Short-form with emoji and tags |
+
+> Requires a GitHub Token in Settings → Sync.
 
 ### Prompt Packs
 Select multiple prompts → Pack Mode → Publish as a bundled collection.
@@ -92,13 +134,8 @@ Enter any URL (like a GitHub `awesome-prompts` repo). Prompt Ark:
 
 ## 🧩 Extras
 
-### Page Context Magic Variables
-| Variable | Resolves to |
-|---|---|
-| `{{page_title}}` | Current tab's title |
-| `{{page_url}}` | Current tab's URL |
-| `{{selected_text}}` | Highlighted text on the page |
-| `{{page_text}}` | Full page text content |
+### Page Context Variables
+See the **Context Variables (`{{@...}}`)** section above for the full list of auto-resolved variables (`{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@page_text}}`, `{{@date}}`, `{{@lang}}`).
 
 ### Side Panel Mode
 Prompt Ark can run as a **Side Panel** docked to the browser edge. Click the toolbar icon to toggle.
