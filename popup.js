@@ -910,13 +910,446 @@ class PopupManager {
     document.getElementById('packBtn')?.addEventListener('click', () => this.enterPackMode());
     document.getElementById('packShareBtn')?.addEventListener('click', () => this.sharePack());
     document.getElementById('packCancelBtn')?.addEventListener('click', () => this.exitPackMode());
+
+    // --- YouTube → Prompt ---
+    document.getElementById('youtubePromptBtn')?.addEventListener('click', () => this.showYoutubeModal());
+    document.getElementById('closeYoutubeModal')?.addEventListener('click', () => this.hideYoutubeModal());
+    document.getElementById('youtubeGenerateBtn')?.addEventListener('click', () => this.generateYoutubePrompt());
+    document.getElementById('youtubeSaveBtn')?.addEventListener('click', () => this.saveYoutubePrompt());
+    document.getElementById('youtubeEditSaveBtn')?.addEventListener('click', () => this.editYoutubePrompt());
+    // Mode selector toggle
+    document.getElementById('youtubeModeSelector')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.youtube-mode-btn');
+      if (!btn) return;
+      document.querySelectorAll('.youtube-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+
+    // Listen for progress updates from two-step video analysis pipeline
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === 'VIDEO_PROMPT_PROGRESS') {
+        const statusEl = document.getElementById('youtubeStatus');
+        if (statusEl && !statusEl.classList.contains('hidden')) {
+          statusEl.textContent = msg.message;
+        }
+      }
+    });
   }
 
 
 
+  // --- YouTube → Prompt Modal ---
+
+  showYoutubeModal() {
+    document.getElementById('youtubeModal').classList.remove('hidden');
+    document.getElementById('youtubeUrlInput').focus();
+    // Custom language toggle
+    const langSel = document.getElementById('youtubeTargetLang');
+    const customInput = document.getElementById('youtubeCustomLang');
+    if (langSel && customInput) {
+      langSel.onchange = () => {
+        customInput.classList.toggle('hidden', langSel.value !== 'custom');
+        if (langSel.value === 'custom') customInput.focus();
+      };
+    }
+  }
+
+  hideYoutubeModal() {
+    document.getElementById('youtubeModal').classList.add('hidden');
+    // Reset state
+    document.getElementById('youtubeResult').classList.add('hidden');
+    document.getElementById('youtubeStatus').classList.add('hidden');
+    document.getElementById('youtubeUrlInput').value = '';
+    document.getElementById('youtubeGenerateBtn').disabled = false;
+    document.getElementById('youtubeGenerateBtn').textContent = '生成';
+    // Reset mode selector to default
+    document.querySelectorAll('.youtube-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'both'));
+    // Reset language selector
+    const langSel = document.getElementById('youtubeTargetLang');
+    if (langSel) langSel.value = '';
+    const customLang = document.getElementById('youtubeCustomLang');
+    if (customLang) { customLang.value = ''; customLang.classList.add('hidden'); }
+    this._youtubeResult = null;
+  }
+
+  async generateYoutubePrompt() {
+    const url = document.getElementById('youtubeUrlInput').value.trim();
+    if (!url) { this.showToast('请输入视频链接', 3000); return; }
+
+    // Detect platform inline for UI feedback
+    const platformLabels = {
+      'youtube': '📺 YouTube', 'youtube-shorts': '📱 YouTube Shorts',
+      'tiktok': '🎵 TikTok', 'douyin': '🎵 抖音', 'kuaishou': '🔥 快手'
+    };
+    let detectedPlatform = null;
+    try {
+      const u = new URL(url);
+      const h = u.hostname.replace(/^www\./, '');
+      if (h === 'youtube.com' && u.pathname.startsWith('/shorts/')) detectedPlatform = 'youtube-shorts';
+      else if ((h === 'youtube.com' && u.searchParams.has('v')) || h === 'youtu.be') detectedPlatform = 'youtube';
+      else if (h.includes('tiktok.com')) detectedPlatform = 'tiktok';
+      else if (h.includes('douyin.com')) detectedPlatform = 'douyin';
+      else if (h.includes('kuaishou.com')) detectedPlatform = 'kuaishou';
+    } catch { /* invalid URL, let backend handle error */ }
+
+    if (!detectedPlatform) {
+      this.showToast('不支持的链接，请输入 YouTube / TikTok / 抖音 / 快手 链接', 4000);
+      return;
+    }
+
+    const btn = document.getElementById('youtubeGenerateBtn');
+    const statusEl = document.getElementById('youtubeStatus');
+    const resultEl = document.getElementById('youtubeResult');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+    const label = platformLabels[detectedPlatform] || detectedPlatform;
+    statusEl.textContent = `${label} — 正在获取元数据并分析分镜...`;
+    statusEl.classList.remove('hidden', 'youtube-status-error');
+    resultEl.classList.add('hidden');
+
+    try {
+      // Use Port-based communication to keep Service Worker alive during long operations
+      const result = await new Promise((resolve, reject) => {
+        const port = chrome.runtime.connect({ name: 'video-prompt' });
+        port.onMessage.addListener((msg) => {
+          if (msg.type === 'VIDEO_PROMPT_PROGRESS') {
+            statusEl.textContent = msg.message;
+          } else if (msg.type === 'VIDEO_PROMPT_RESULT') {
+            port.disconnect();
+            if (msg.success) resolve(msg.result);
+            else reject(new Error(msg.error || 'Generation failed'));
+          }
+        });
+        port.onDisconnect.addListener(() => {
+          reject(new Error(chrome.runtime.lastError?.message || 'Connection lost'));
+        });
+        port.postMessage({
+          type: 'GENERATE_VIDEO_PROMPT',
+          videoUrl: url,
+          mode: document.querySelector('.youtube-mode-btn.active')?.dataset.mode || 'both',
+          targetLang: (() => {
+            const sel = document.getElementById('youtubeTargetLang');
+            if (sel?.value === 'custom') return document.getElementById('youtubeCustomLang')?.value.trim() || '';
+            return sel?.value || '';
+          })(),
+        });
+      });
+
+      this._youtubeResult = result;
+      this._renderYoutubeResult(result);
+      statusEl.classList.add('hidden');
+      resultEl.classList.remove('hidden');
+    } catch (err) {
+      statusEl.textContent = '❌ ' + err.message;
+      statusEl.classList.add('youtube-status-error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '生成';
+    }
+  }
+
+  _renderYoutubeResult(data) {
+    // Title + Tags
+    document.getElementById('youtubeResultTitle').textContent = data.title || '';
+    const tagsEl = document.getElementById('youtubeResultTags');
+    tagsEl.innerHTML = (data.tags || []).map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('');
+
+    const storyboardEl = document.getElementById('youtubeStoryboard');
+    const resultMode = data._mode || 'both';
+    let anchorsHtml = '';
+
+    // Content/Both modes: show character + scene anchors (editable)
+    if (resultMode !== 'style' && (data.character_anchor || data.scene_anchor || data.style_consistency)) {
+      anchorsHtml = `<div class="youtube-anchors">
+        ${data.character_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">👤</span><span class="youtube-anchor-label">角色锚定</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="character_anchor">${this.escapeHtml(data.character_anchor)}</span></div>` : ''}
+        ${data.scene_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🏠</span><span class="youtube-anchor-label">场景锚定</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="scene_anchor">${this.escapeHtml(data.scene_anchor)}</span></div>` : ''}
+        ${data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">统一风格</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
+      </div>`;
+    }
+
+    // Style/Both modes: show style anchor as a prominent block (editable)
+    if (resultMode !== 'content' && (data.style_anchor || data.style_consistency)) {
+      anchorsHtml += `<div class="youtube-anchors">
+        ${data.style_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">风格 DNA</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_anchor">${this.escapeHtml(data.style_anchor)}</span></div>` : ''}
+        ${resultMode === 'style' && data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎬</span><span class="youtube-anchor-label">统一风格</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
+      </div>`;
+    }
+
+    // Video transcript + summary (from Gemini API or Gemini Web Step 1)
+    const transcriptContent = data.video_transcript || '';
+    const summaryContent = data.video_summary || data._video_analysis || '';
+    let scriptHtml = '';
+
+    // Visual Dictionary — click to highlight in prompts, copy style block
+    const vocabEl = document.getElementById('youtubeVisualVocabulary');
+    const vocabTagsEl = document.getElementById('youtubeVocabTags');
+    if (data.visual_vocabulary && Array.isArray(data.visual_vocabulary) && data.visual_vocabulary.length > 0) {
+      const vocabTerms = data.visual_vocabulary;
+      vocabTagsEl.innerHTML = vocabTerms.map(v => `<span class="vocab-tag">${this.escapeHtml(v)}</span>`).join('');
+      vocabEl.classList.remove('hidden');
+
+      // Store original prompt text for highlight toggling
+      this._vocabActiveTag = null;
+
+      vocabTagsEl.querySelectorAll('.vocab-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+          const term = tag.textContent;
+          const wasActive = tag.classList.contains('active');
+
+          // Clear all active states
+          vocabTagsEl.querySelectorAll('.vocab-tag').forEach(t => t.classList.remove('active'));
+
+          // Restore all prompt texts (remove highlights, re-apply current variables)
+          const currentVars = {};
+          document.querySelectorAll('.pg-input').forEach(inp => {
+            currentVars[inp.dataset.varKey] = inp.value;
+          });
+          const applyVars = (text) => {
+            Object.entries(currentVars).forEach(([k, v]) => {
+              text = text.replaceAll(`{{${k}}}`, v || `{{${k}}}`);
+            });
+            return text;
+          };
+
+          document.querySelectorAll('.youtube-beat-prompt-text').forEach(el => {
+            const base = el.dataset.original || el.textContent;
+            el.innerHTML = this.escapeHtml(applyVars(base));
+          });
+
+          if (wasActive) {
+            this._vocabActiveTag = null;
+            return;
+          }
+
+          // Toggle on — highlight this term in all prompts (after variable substitution)
+          tag.classList.add('active');
+          this._vocabActiveTag = term;
+
+          const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(${escapedTerm})`, 'gi');
+
+          document.querySelectorAll('.youtube-beat-prompt-text').forEach(el => {
+            const base = el.dataset.original || el.textContent;
+            const resolved = applyVars(base);
+            if (regex.test(resolved)) {
+              el.innerHTML = this.escapeHtml(resolved).replace(regex, '<span class="vocab-highlight">$1</span>');
+            }
+          });
+        });
+      });
+
+      // Copy Style Block button
+      const copyAllBtn = document.getElementById('youtubeVocabCopyAll');
+      if (copyAllBtn) {
+        const freshBtn = copyAllBtn.cloneNode(true);
+        copyAllBtn.parentNode.replaceChild(freshBtn, copyAllBtn);
+        freshBtn.addEventListener('click', () => {
+          const styleBlock = vocabTerms.join(', ');
+          navigator.clipboard.writeText(styleBlock).then(() => {
+            this.showToast('✅ 已复制风格块: ' + styleBlock.slice(0, 60) + '...');
+          });
+        });
+      }
+    } else {
+      vocabEl.classList.add('hidden');
+    }
+
+    // Variable Playground — only in style mode (user provides their own subject/scene)
+    const pgEl = document.getElementById('youtubeVariablePlayground');
+    const pgInputsEl = document.getElementById('youtubePlaygroundInputs');
+    const playgroundVars = data.variables || {};
+    if (resultMode === 'style' && Object.keys(playgroundVars).length > 0) {
+      this._currentVariables = playgroundVars;
+      pgInputsEl.innerHTML = Object.entries(playgroundVars).map(([key, val]) => `
+        <div class="pg-input-row">
+          <span class="pg-input-label">{{${this.escapeHtml(key)}}}</span>
+          <input type="text" class="pg-input" data-var-key="${this.escapeHtml(key)}" value="${this.escapeHtml(val)}">
+        </div>
+      `).join('');
+      pgEl.classList.remove('hidden');
+    } else {
+      pgEl.classList.add('hidden');
+    }
+
+    if (transcriptContent) {
+      scriptHtml += `<details class="youtube-script-panel">
+        <summary class="youtube-script-toggle">📋 完整 Transcript <span class="youtube-script-badge">${transcriptContent.length} 字</span></summary>
+        <div class="youtube-script-content">${this.escapeHtml(transcriptContent)}</div>
+      </details>`;
+    }
+    if (summaryContent) {
+      scriptHtml += `<details class="youtube-script-panel" ${!transcriptContent ? 'open' : ''}>
+        <summary class="youtube-script-toggle">📝 视频 Summary <span class="youtube-script-badge">${summaryContent.length} 字</span></summary>
+        <div class="youtube-script-content">${this.escapeHtml(summaryContent)}</div>
+      </details>`;
+    }
+
+    // Shots — programmatically inject {{subject}}/{{scene}} if not already present
+    const shots = data.shots || data.storyboard || [];
+    const hasVars = data.variables && Object.keys(data.variables).length > 0;
+    storyboardEl.innerHTML = anchorsHtml + scriptHtml + shots.map(s => {
+      let rawPrompt = s.prompt || s.ai_video_prompt || s.action || '';
+      return `
+      <div class="youtube-beat">
+        <div class="youtube-beat-header">
+          <span class="youtube-beat-num">Shot ${s.beat}</span>
+          <span class="youtube-beat-ts">${this.escapeHtml(s.time || s.timestamp_hint || '')}</span>
+        </div>
+        ${s.description ? `<div class="youtube-beat-desc">${this.escapeHtml(s.description)}</div>` : ''}
+        <div class="youtube-beat-prompt">
+          <div class="youtube-beat-prompt-header">
+            <span class="youtube-beat-prompt-label">📹 Video Prompt</span>
+            <button class="youtube-copy-btn" title="复制">📋</button>
+          </div>
+          <div class="youtube-beat-prompt-text" data-original="${this.escapeHtml(rawPrompt)}">${this.escapeHtml(rawPrompt)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Real-time variable replacement: typing in playground instantly updates all shots
+    if (hasVars) {
+      const applyVarsToShots = () => {
+        const inputs = pgInputsEl.querySelectorAll('.pg-input');
+        const vars = {};
+        inputs.forEach(inp => { vars[inp.dataset.varKey] = inp.value; });
+        storyboardEl.querySelectorAll('.youtube-beat-prompt-text').forEach(el => {
+          let text = el.dataset.original || el.textContent;
+          Object.entries(vars).forEach(([k, v]) => {
+            text = text.replaceAll(`{{${k}}}`, v || `{{${k}}}`);
+          });
+          el.textContent = text;
+        });
+      };
+      pgInputsEl.addEventListener('input', applyVarsToShots);
+      // Apply once immediately with default example values
+      applyVarsToShots();
+    }
+
+    // Make prompt cards and copy buttons work — assemble complete prompt on copy
+    storyboardEl.querySelectorAll('.youtube-beat').forEach(card => {
+      const copyBtn = card.querySelector('.youtube-copy-btn');
+      const promptText = card.querySelector('.youtube-beat-prompt-text');
+
+      const doCopy = () => {
+        const shotText = card.querySelector('.youtube-beat-prompt-text')?.textContent || '';
+        // Read current (possibly edited) anchor values by key in semantic order
+        const getAnchor = (key) => storyboardEl.querySelector(`[data-anchor-key="${key}"]`)?.textContent?.trim() || '';
+        let parts;
+        if (resultMode === 'style') {
+          // Style mode: style_anchor + action + style_consistency
+          parts = [getAnchor('style_anchor'), shotText, getAnchor('style_consistency')].filter(Boolean);
+        } else {
+          // Content/Both: character + scene + action + style
+          parts = [getAnchor('character_anchor'), getAnchor('scene_anchor'), shotText, getAnchor('style_consistency')].filter(Boolean);
+        }
+        navigator.clipboard.writeText(parts.join('. ')).then(() => this.showToast('✅ 完整 Prompt 已复制'));
+      };
+      if (copyBtn) copyBtn.addEventListener('click', doCopy);
+      if (promptText) promptText.addEventListener('click', doCopy);
+    });
+
+    // Highlights
+    const highlightsEl = document.getElementById('youtubeHighlights');
+    const h = data.highlights || {};
+    highlightsEl.innerHTML = Object.keys(h).length > 0 ? `
+      <div class="youtube-highlights-grid">
+        ${h.hook ? `<div class="youtube-highlight-item"><span class="youtube-highlight-label">🪝 Hook</span><span>${this.escapeHtml(h.hook)}</span></div>` : ''}
+        ${h.viral_element ? `<div class="youtube-highlight-item"><span class="youtube-highlight-label">🔥 Viral</span><span>${this.escapeHtml(h.viral_element)}</span></div>` : ''}
+        ${h.emotional_peak ? `<div class="youtube-highlight-item"><span class="youtube-highlight-label">💥 Peak</span><span>${this.escapeHtml(h.emotional_peak)}</span></div>` : ''}
+      </div>
+    ` : '';
+
+    // Prompt preview
+    document.getElementById('youtubePromptPreview').value = data.prompt || '';
+  }
+
+  async saveYoutubePrompt() {
+    if (!this._youtubeResult) return;
+    const d = this._youtubeResult;
+
+    // Build rich content that preserves ALL analysis knowledge
+    const sections = [];
+
+    // 1. Master template (the core reusable prompt)
+    if (d.prompt) sections.push(d.prompt);
+
+    // 2. Visual vocabulary as a style block
+    if (d.visual_vocabulary && d.visual_vocabulary.length > 0) {
+      sections.push(`\n---\n📖 Visual Vocabulary: ${d.visual_vocabulary.join(', ')}`);
+    }
+
+    // 3. Style anchors
+    if (d.style_anchor) sections.push(`🎨 Style Anchor: ${d.style_anchor}`);
+    if (d.style_consistency) sections.push(`🎬 Style Consistency: ${d.style_consistency}`);
+    if (d.character_anchor) sections.push(`👤 Character Anchor: ${d.character_anchor}`);
+    if (d.scene_anchor) sections.push(`🏠 Scene Anchor: ${d.scene_anchor}`);
+
+    // 4. Individual shot prompts
+    const shots = d.shots || d.storyboard || [];
+    if (shots.length > 0) {
+      sections.push(`\n---\n🎬 Shot Prompts (${shots.length} shots):`);
+      shots.forEach(s => {
+        const prompt = s.prompt || s.ai_video_prompt || '';
+        if (prompt) sections.push(`Shot ${s.beat}: ${prompt}`);
+      });
+    }
+
+    // Merge visual_vocabulary terms into tags for searchability
+    const allTags = [...(d.tags || [])];
+    if (d.visual_vocabulary) {
+      d.visual_vocabulary.forEach(v => {
+        if (!allTags.includes(v)) allTags.push(v);
+      });
+    }
+
+    const resp = await chrome.runtime.sendMessage({
+      type: 'SAVE_PROMPT',
+      prompt: {
+        title: d.title || 'YouTube Video Prompt',
+        content: sections.join('\n'),
+        category: d.category || 'Creative',
+        tags: allTags,
+        videoData: d, // structured JSON for re-rendering in video modal
+      }
+    });
+    if (resp.success) {
+      this.showToast('✅ 完整视频分析已保存（含词典 + 分镜）');
+      this.hideYoutubeModal();
+      await this.loadPrompts();
+      this.renderCategories();
+      this.renderPrompts();
+    } else {
+      this.showToast('❌ 保存失败', 3000);
+    }
+  }
+
+  editYoutubePrompt() {
+    if (!this._youtubeResult) return;
+    const d = this._youtubeResult;
+    this.hideYoutubeModal();
+    // Pre-fill edit modal with generated content
+    this.showEditModal({
+      id: null,
+      title: d.title || '',
+      content: d.prompt || '',
+      category: d.category || 'Creative',
+      tags: d.tags || [],
+      shortcut: '',
+    });
+  }
+
   // --- Edit Modal ---
 
   showEditModal(prompt = null) {
+    // If this is a saved video prompt, re-open in the interactive video modal
+    if (prompt?.videoData) {
+      this._youtubeResult = prompt.videoData;
+      this._renderYoutubeResult(prompt.videoData);
+      document.getElementById('youtubeModal').classList.remove('hidden');
+      return;
+    }
+
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
 
