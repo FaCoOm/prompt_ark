@@ -100,13 +100,3 @@ CREATE POLICY "Authenticated users can insert votes" ON public.votes FOR INSERT 
 CREATE POLICY "Users can update own votes" ON public.votes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own votes" ON public.votes FOR DELETE USING (auth.uid() = user_id);
 
--- ============================================
--- SEED DATA (Demo)
--- ============================================
-INSERT INTO public.prompts (title, description, content, category, tags, author, quality_score, language, variable_count, token_estimate, type) VALUES
-('Professional Email Writer', 'Write polished, professional emails for any business context.', 'You are an expert business communication specialist. Write a **{{tone}}** email...', 'Productivity', ARRAY['email', 'business'], 'prompt-ark', 88, 'en', 3, 280, 'prompt'),
-('Code Review Expert', 'Thorough code review assistant for bugs, security, and best practices.', 'You are a senior software engineer performing a thorough code review...', 'Coding', ARRAY['code-review', 'development'], 'prompt-ark', 92, 'en', 2, 450, 'prompt'),
-('Content Strategy Pack', 'A collection of 5 prompts for content strategy.', 'This pack contains 5 prompts for content strategy.', 'Creative', ARRAY['content', 'marketing'], 'prompt-ark', 85, 'en', 4, 1200, 'pack'),
-('学术论文助手', '结构化学术写作助手，支持论文大纲、文献综述等。', '你是一位资深学术写作顾问...', 'Education', ARRAY['academic', 'research'], 'prompt-ark', 80, 'zh', 5, 520, 'prompt'),
-('Data Analysis Interpreter', 'Transform raw data into actionable insights.', 'You are a data analyst...', 'Analysis', ARRAY['data', 'analytics'], 'prompt-ark', 78, 'en', 3, 380, 'prompt'),
-('Creative Story Builder', 'Interactive story generation with customizable parameters.', 'You are a master storyteller...', 'Writing', ARRAY['story', 'creative'], 'prompt-ark', 75, 'en', 6, 420, 'prompt');

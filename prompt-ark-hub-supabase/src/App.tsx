@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase, type Prompt } from './lib/supabase'
 import {
   Header,
@@ -13,27 +13,66 @@ import {
   ToastProvider,
   useToast,
   Loading,
+  Pagination,
 } from './components'
 
-type Category = 'all' | 'productivity' | 'writing' | 'coding' | 'education' | 'creative' | 'analysis'
+type Category = string // Dynamic - any category from data
 type SortOption = 'trending' | 'newest' | 'topRated' | 'quality'
+
+const PAGE_SIZE = 12
 
 function AppContent() {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState<Category>('all')
+  const [category, setCategory] = useState<string>('all')
   const [sort, setSort] = useState<SortOption>('trending')
+  const [currentPage, setCurrentPage] = useState(1)
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
   const [user, setUser] = useState<any>(null)
   const [userVotes, setUserVotes] = useState<Record<string, 'up' | 'down'>>({})
   const { showToast } = useToast()
 
+  // Get unique categories from prompts
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    prompts.forEach(p => { if (p.category) cats.add(p.category) })
+    return ['all', ...Array.from(cats).sort()]
+  }, [prompts])
+
   // Load prompts
   useEffect(() => {
     loadPrompts()
     checkAuth()
+    
+    // Check for ?gist= URL parameter
+    const params = new URLSearchParams(window.location.search)
+    const gistId = params.get('gist')
+    if (gistId) {
+      // Will open after prompts are loaded
+      const timer = setInterval(() => {
+        const found = prompts.find(p => (p as any).gistId === gistId)
+        if (found) {
+          setSelectedPrompt(found)
+          clearInterval(timer)
+        }
+      }, 500)
+      return () => clearInterval(timer)
+    }
   }, [])
+
+  // Open detail when gist param present and prompts loaded
+  useEffect(() => {
+    if (prompts.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const gistId = params.get('gist')
+    if (gistId) {
+      const found = prompts.find(p => (p as any).gistId === gistId || p.id === gistId)
+      if (found) {
+        setSelectedPrompt(found)
+      }
+    }
+  }, [prompts])
 
   async function loadPrompts() {
     setLoading(true)
@@ -72,13 +111,18 @@ function AppContent() {
     }
   }
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [category, search, sort])
+
   // Filter and sort prompts
   const filteredPrompts = useMemo(() => {
     let list = [...prompts]
 
     // Category filter
     if (category !== 'all') {
-      list = list.filter(p => p.category?.toLowerCase() === category)
+      list = list.filter(p => p.category?.toLowerCase() === category.toLowerCase())
     }
 
     // Search filter
@@ -110,6 +154,14 @@ function AppContent() {
 
     return list
   }, [prompts, category, search, sort])
+
+  // Paginated prompts
+  const paginatedPrompts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredPrompts.slice(start, start + PAGE_SIZE)
+  }, [filteredPrompts, currentPage])
+
+  const totalPages = Math.ceil(filteredPrompts.length / PAGE_SIZE)
 
   // Handle vote
   async function handleVote(type: 'up' | 'down') {
@@ -172,6 +224,11 @@ function AppContent() {
     showToast('✅ Prompt sent to Prompt Ark!')
   }
 
+  const handleCategoryChange = useCallback((cat: string) => {
+    setCategory(cat)
+    setCurrentPage(1)
+  }, [])
+
   return (
     <div className="hub-container">
       <Header />
@@ -179,7 +236,11 @@ function AppContent() {
       <SearchBar value={search} onChange={setSearch} />
       
       <div className="hub-controls">
-        <CategoryTabs activeCategory={category} onChange={setCategory} />
+        <CategoryTabs 
+          categories={categories} 
+          activeCategory={category} 
+          onChange={handleCategoryChange} 
+        />
         <SortSelect value={sort} onChange={setSort} />
       </div>
       
@@ -193,10 +254,18 @@ function AppContent() {
       {loading ? (
         <Loading />
       ) : (
-        <PromptGrid 
-          prompts={filteredPrompts} 
-          onPromptClick={setSelectedPrompt} 
-        />
+        <>
+          <PromptGrid 
+            prompts={paginatedPrompts} 
+            onPromptClick={setSelectedPrompt} 
+          />
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredPrompts.length}
+            onPageChange={setCurrentPage}
+          />
+        </>
       )}
 
       <footer className="hub-footer">
