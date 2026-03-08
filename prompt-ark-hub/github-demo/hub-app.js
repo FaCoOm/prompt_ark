@@ -73,6 +73,8 @@ let filteredListings = [];
 let currentCategory = 'all';
 let currentSort = 'trending';
 let currentSearch = '';
+let currentPage = 1;
+const PAGE_SIZE = 12;
 let currentDetailGistId = null;
 let currentDetailData = null;
 let deviceId = getDeviceId();
@@ -103,6 +105,8 @@ async function loadIndex() {
     showLoading(true);
 
     try {
+        let indexListings = [];
+
         // Auto-discover Index Gist if not already known
         if (!INDEX_GIST_ID) {
             INDEX_GIST_ID = await discoverIndexGistId();
@@ -110,25 +114,29 @@ async function loadIndex() {
 
         if (INDEX_GIST_ID) {
             const resp = await fetch(`${GITHUB_API}/gists/${INDEX_GIST_ID}`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const gist = await resp.json();
-            const file = gist.files[INDEX_FILENAME];
-            if (file) {
-                const data = JSON.parse(file.content);
-                allListings = data.listings || [];
+            if (resp.ok) {
+                const gist = await resp.json();
+                const file = gist.files[INDEX_FILENAME];
+                if (file) {
+                    const data = JSON.parse(file.content);
+                    indexListings = data.listings || [];
+                }
             }
         }
 
-        // If no index or empty, use demo data
-        if (allListings.length === 0) {
-            allListings = getDemoListings();
-        }
+        // Always merge: community-published (index) first, then built-in prompts
+        const builtinListings = getDemoListings();
+        const indexGistIds = new Set(indexListings.map(l => l.gistId));
+        const uniqueBuiltins = builtinListings.filter(l => !indexGistIds.has(l.gistId));
+        allListings = [...indexListings, ...uniqueBuiltins];
 
+        buildCategoryTabs();
         applyFilters();
         showLoading(false);
     } catch (e) {
         console.error('[Hub] Failed to load index:', e);
         allListings = getDemoListings();
+        buildCategoryTabs();
         applyFilters();
         showLoading(false);
     }
@@ -174,8 +182,21 @@ function applyFilters() {
     }
 
     filteredListings = list;
-    renderGrid(list);
+    const totalPages = Math.ceil(list.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    const paged = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    renderGrid(paged);
+    renderPagination(list.length, totalPages);
     updateStats(list.length, allListings.length);
+}
+
+// ===== Dynamic Category Tabs =====
+function buildCategoryTabs() {
+    const cats = new Set();
+    allListings.forEach(l => { if (l.category) cats.add(l.category); });
+    const tabsEl = document.getElementById('categoryTabs');
+    tabsEl.innerHTML = '<button class="hub-cat-btn active" data-cat="all">All</button>' +
+        [...cats].sort().map(c => `<button class="hub-cat-btn" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
 }
 
 // ===== Rendering =====
@@ -185,19 +206,34 @@ function renderGrid(listings) {
 
     if (listings.length === 0) {
         grid.innerHTML = '';
-        empty.style.display = '';
+        const emptyEl = document.getElementById('emptyState');
+        emptyEl.style.display = '';
+        // Contextual empty message
+        if (currentSearch.trim() || currentCategory !== 'all') {
+            emptyEl.querySelector('.hub-empty-title').textContent = 'No matching prompts';
+            emptyEl.querySelector('p').textContent = 'Try adjusting your search or category filter.';
+        } else {
+            emptyEl.querySelector('.hub-empty-title').textContent = 'No prompts yet';
+            emptyEl.querySelector('p').textContent = 'Be the first to publish a prompt from Prompt Ark!';
+        }
         return;
     }
 
     empty.style.display = 'none';
 
-    grid.innerHTML = listings.map(l => `
+    grid.innerHTML = listings.map(l => {
+        const votes = getVotes();
+        const voteAdj = getVoteAdjustments();
+        const adj = voteAdj[l.gistId] || { up: 0, down: 0 };
+        const up = (l.upvotes || 0) + adj.up;
+        const down = (l.downvotes || 0) + adj.down;
+        return `
     <div class="hub-card" data-gist="${l.gistId}">
       <div class="hub-card-header">
         <div class="hub-card-title">${escapeHtml(l.title)}</div>
         <span class="hub-card-type ${l.type}">${l.type === 'pack' ? `📦 Pack (${l.packCount || '?'})` : 'Prompt'}</span>
       </div>
-      <div class="hub-card-desc">${escapeHtml(l.description || '')}</div>
+      <div class="hub-card-desc">${escapeHtml(l.description || (l.title || '').substring(0, 120))}</div>
       <div class="hub-card-tags">
         <span class="hub-tag">${escapeHtml(l.category || 'General')}</span>
         ${(l.tags || []).slice(0, 3).map(t => `<span class="hub-tag">${escapeHtml(t)}</span>`).join('')}
@@ -205,19 +241,57 @@ function renderGrid(listings) {
       <div class="hub-card-meta">
         <div class="hub-card-author">
           ${l.authorAvatar
-            ? `<img class="hub-card-avatar" src="${escapeHtml(l.authorAvatar)}" alt="${escapeHtml(l.author)}" loading="lazy">`
-            : `<div class="hub-card-avatar"></div>`
-        }
+                ? `<img class="hub-card-avatar" src="${escapeHtml(l.authorAvatar)}" alt="${escapeHtml(l.author)}" loading="lazy">`
+                : `<div class="hub-card-avatar"></div>`
+            }
           <span class="hub-card-author-name">${escapeHtml(l.author || 'anonymous')}</span>
         </div>
         <div class="hub-card-stats">
-          <span class="hub-stat"><span class="hub-stat-icon">👍</span> ${l.upvotes || 0}</span>
+          <span class="hub-stat"><span class="hub-stat-icon">👍</span> ${up}</span>
           <span class="hub-stat"><span class="hub-stat-icon">⬇️</span> ${l.installCount || 0}</span>
           ${l.qualityScore ? `<span class="hub-card-score ${scoreClass(l.qualityScore)}">${l.qualityScore}</span>` : ''}
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+    }).join('');
+}
+
+function renderPagination(totalItems, totalPages) {
+    let paginationEl = document.getElementById('hubPagination');
+    if (!paginationEl) {
+        paginationEl = document.createElement('div');
+        paginationEl.id = 'hubPagination';
+        paginationEl.className = 'hub-pagination';
+        document.getElementById('promptGrid').after(paginationEl);
+    }
+
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    // Build page buttons (show max 7 pages with ellipsis)
+    let pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            pages.push(i);
+        }
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    paginationEl.innerHTML = `
+        <button class="hub-page-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>
+        ${pages.map(p => p === '...' ? '<span class="hub-page-ellipsis">…</span>' :
+        `<button class="hub-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`
+    ).join('')}
+        <button class="hub-page-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>
+    `;
 }
 
 function scoreClass(score) {
@@ -274,10 +348,39 @@ async function openDetail(gistId) {
         const resp = await fetch(`${GITHUB_API}/gists/${gistId}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const gist = await resp.json();
-        const file = gist.files[LISTING_FILENAME];
-        if (!file) throw new Error('Invalid listing Gist');
 
-        currentDetailData = JSON.parse(file.content);
+        // Try standard hub listing filename first
+        let file = gist.files[LISTING_FILENAME];
+
+        // Fallback: old SHARE_PROMPT format uses custom filenames like 'prompt-ark-xxx.json'
+        if (!file) {
+            const jsonFiles = Object.values(gist.files).filter(f => f.filename.endsWith('.json'));
+            if (jsonFiles.length > 0) file = jsonFiles[0];
+        }
+
+        if (!file) throw new Error('No JSON file found in Gist');
+
+        let data = JSON.parse(file.content);
+
+        // Auto-convert old prompt-ark export format → hub listing format
+        if (data.format === 'prompt-ark' && !data.type) {
+            data = {
+                format: 'prompt-ark-hub',
+                version: 1,
+                type: data.pack ? 'pack' : 'prompt',
+                listing: {
+                    title: data.prompts?.[0]?.title || 'Untitled',
+                    description: (data.prompts?.[0]?.content || '').substring(0, 200),
+                    category: data.prompts?.[0]?.category || 'General',
+                    tags: data.prompts?.[0]?.tags || [],
+                },
+                stats: { upvotes: 0, downvotes: 0, installCount: 0 },
+                prompts: data.prompts || [],
+                pack: data.pack || null,
+            };
+        }
+
+        currentDetailData = data;
         renderDetail(currentDetailData, listing);
     } catch (e) {
         console.error('[Hub] Failed to load listing:', e);
@@ -288,6 +391,20 @@ async function openDetail(gistId) {
 function renderDetail(data, indexEntry) {
     const body = document.getElementById('modalBody');
     const prompts = data.prompts || [];
+
+    // Update modal title from fetched data
+    const resolvedTitle = data.listing?.title || prompts[0]?.title || indexEntry?.title || 'Untitled';
+    document.getElementById('modalTitle').textContent = resolvedTitle;
+
+    // Update author info
+    const authorEl = document.getElementById('modalAuthor');
+    const author = data.listing?.author || indexEntry?.author || data._gistOwner || '';
+    const avatar = data.listing?.authorAvatar || indexEntry?.authorAvatar || data._gistOwnerAvatar || '';
+    if (author) {
+        authorEl.innerHTML = `${avatar ? `<img src="${escapeHtml(avatar)}" class="hub-author-avatar">` : ''}<span>by ${escapeHtml(author)}</span>`;
+    } else {
+        authorEl.innerHTML = '';
+    }
 
     if (data.type === 'pack' && prompts.length > 1) {
         // Pack view
@@ -308,19 +425,37 @@ function renderDetail(data, indexEntry) {
         // Single prompt view
         const prompt = prompts[0] || {};
         const meta = renderMetaItems(data.listing);
-        const contentHtml = typeof marked !== 'undefined'
+        let contentHtml = typeof marked !== 'undefined'
             ? marked.parse(prompt.content || 'No content available.')
             : escapeHtml(prompt.content || 'No content available.');
 
+        // Highlight {{variables}} in rendered content
+        contentHtml = contentHtml.replace(/\{\{([^}]+)\}\}/g,
+            '<span class="hub-var-highlight">{{$1}}</span>');
+
+        // Variable preview panel
+        const vars = (prompt.content || '').match(/\{\{([^}]+)\}\}/g) || [];
+        const uniqueVars = [...new Set(vars.map(v => v.replace(/\{\{|\}\}/g, '').split(/[:=|]/)[0].trim()))];
+        const varPanel = uniqueVars.length > 0 ? `
+      <div class="hub-var-panel">
+        <div class="hub-var-panel-title">📝 Variables (${uniqueVars.length})</div>
+        <div class="hub-var-list">
+          ${uniqueVars.map(v => `<span class="hub-var-chip">{{${escapeHtml(v)}}}</span>`).join('')}
+        </div>
+      </div>` : '';
+
         body.innerHTML = `
       <div class="hub-modal-meta">${meta}</div>
+      ${varPanel}
       <div class="hub-modal-content">${contentHtml}</div>
     `;
     }
 
-    // Update vote counts from fresh data
-    document.getElementById('voteUpCount').textContent = data.stats?.upvotes || 0;
-    document.getElementById('voteDownCount').textContent = data.stats?.downvotes || 0;
+    // Update vote counts using persisted adjustments
+    const adj = getVoteAdjustments();
+    const gistAdj = adj[currentDetailGistId] || { up: 0, down: 0 };
+    document.getElementById('voteUpCount').textContent = (data.stats?.upvotes || 0) + gistAdj.up;
+    document.getElementById('voteDownCount').textContent = (data.stats?.downvotes || 0) + gistAdj.down;
 
     // Check if we already voted
     updateVoteUI();
@@ -348,41 +483,46 @@ function getVotes() {
     catch { return {}; }
 }
 
+function getVoteAdjustments() {
+    try { return JSON.parse(localStorage.getItem('hub_vote_adj') || '{}'); }
+    catch { return {}; }
+}
+
 function setVote(gistId, direction) {
     const votes = getVotes();
     const current = votes[gistId];
 
     if (current === direction) {
-        // Toggle off
         delete votes[gistId];
     } else {
         votes[gistId] = direction;
     }
 
     localStorage.setItem('hub_votes', JSON.stringify(votes));
+
+    // Persist vote adjustments so counts survive page reloads
+    const adj = getVoteAdjustments();
+    if (!adj[gistId]) adj[gistId] = { up: 0, down: 0 };
+
+    // Undo previous vote
+    if (current === 'up') adj[gistId].up--;
+    if (current === 'down') adj[gistId].down--;
+
+    // Apply new vote
+    const newDir = votes[gistId];
+    if (newDir === 'up') adj[gistId].up++;
+    if (newDir === 'down') adj[gistId].down++;
+
+    localStorage.setItem('hub_vote_adj', JSON.stringify(adj));
+
+    // Update modal counts
+    const entry = allListings.find(l => l.gistId === gistId);
+    const baseUp = entry?.upvotes || 0;
+    const baseDown = entry?.downvotes || 0;
+    document.getElementById('voteUpCount').textContent = baseUp + adj[gistId].up;
+    document.getElementById('voteDownCount').textContent = baseDown + adj[gistId].down;
+
     updateVoteUI();
-
-    // Update stats in listing data locally (optimistic)
-    if (currentDetailData?.stats) {
-        const stats = currentDetailData.stats;
-        // Reset
-        if (current === 'up') stats.upvotes = Math.max(0, stats.upvotes - 1);
-        if (current === 'down') stats.downvotes = Math.max(0, stats.downvotes - 1);
-        // Apply new
-        const newDir = votes[gistId];
-        if (newDir === 'up') stats.upvotes = (stats.upvotes || 0) + 1;
-        if (newDir === 'down') stats.downvotes = (stats.downvotes || 0) + 1;
-
-        document.getElementById('voteUpCount').textContent = stats.upvotes;
-        document.getElementById('voteDownCount').textContent = stats.downvotes;
-
-        // Update index entry
-        const entry = allListings.find(l => l.gistId === currentDetailGistId);
-        if (entry) {
-            entry.upvotes = stats.upvotes;
-            entry.downvotes = stats.downvotes;
-        }
-    }
 }
 
 function updateVoteUI() {
@@ -444,6 +584,7 @@ function bindEvents() {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => {
             currentSearch = searchInput.value;
+            currentPage = 1;
             applyFilters();
         }, 200);
     });
@@ -455,13 +596,27 @@ function bindEvents() {
         document.querySelectorAll('.hub-cat-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentCategory = btn.dataset.cat;
+        currentPage = 1;
         applyFilters();
     });
 
     // Sort
     document.getElementById('sortSelect').addEventListener('change', (e) => {
         currentSort = e.target.value;
+        currentPage = 1;
         applyFilters();
+    });
+
+    // Pagination (delegated — pagination element is created dynamically)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.hub-page-btn');
+        if (!btn || btn.disabled) return;
+        const page = btn.dataset.page;
+        if (page === 'prev') currentPage--;
+        else if (page === 'next') currentPage++;
+        else currentPage = parseInt(page);
+        applyFilters();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     // Card click → open detail
@@ -486,6 +641,40 @@ function bindEvents() {
 
     // Install
     document.getElementById('installBtn').addEventListener('click', installPrompt);
+
+    // Copy Link
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+        if (!currentDetailGistId) return;
+        const shareUrl = `${window.location.origin}${window.location.pathname}?gist=${currentDetailGistId}`;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast('✅ Share link copied!');
+        }).catch(() => {
+            showToast('❌ Failed to copy link');
+        });
+    });
+
+    // Fork (import with forkedFrom marker)
+    document.getElementById('forkBtn').addEventListener('click', () => {
+        if (!currentDetailData?.prompts?.length) {
+            showToast('❌ No prompt data to fork');
+            return;
+        }
+        const payload = {
+            format: 'prompt-ark',
+            version: 1,
+            prompts: currentDetailData.prompts.map(p => ({
+                title: `[Fork] ${p.title || 'Untitled'}`,
+                content: p.content,
+                category: p.category || '',
+                tags: [...(p.tags || []), 'forked'],
+                variables: p.variables || [],
+                forkedFrom: currentDetailGistId,
+            })),
+        };
+        if (currentDetailData.pack) payload.pack = currentDetailData.pack;
+        window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*');
+        showToast(`🍴 Forked ${currentDetailData.prompts.length} prompt${currentDetailData.prompts.length > 1 ? 's' : ''} to Prompt Ark!`);
+    });
 }
 
 // ===== Utilities =====

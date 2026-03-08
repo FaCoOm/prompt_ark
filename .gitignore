@@ -22,11 +22,13 @@ Desktop.ini
 .gemini/
 artifacts/
 lessons/
+tasks/
 AGENTS.md
 .sisyphus/
 
 # Temp / Scripts
 scripts/
+research/
 *.log
 
 # Source images (not needed in extension)

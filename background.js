@@ -7,16 +7,16 @@ import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
 import { HubClient } from './lib/hub-client.js';
-import { safeParseJSON, fetchWithTimeout, keepAlive, getProviders, setProviders, getActiveProvider, migrateProviderSettings, callCloudAPI } from './lib/ai/provider.js';
-import { parseVariableSpec, extractVariables, classifyVariables, resolveContextVariables, composePrompt } from './lib/variables.js';
-import { detectLanguageHeuristic, detectLanguage, extractTitleHeuristic, matchCategory, extractTitleAndCategory as _extractTitleAndCategory } from './lib/text-analysis.js';
+import { safeParseJSON, fetchWithTimeout, getProviders, setProviders, getActiveProvider, migrateProviderSettings, callCloudAPI } from './lib/ai/provider.js';
+import { extractVariables, classifyVariables, resolveContextVariables, composePrompt } from './lib/variables.js';
+import { detectLanguageHeuristic, extractTitleHeuristic, matchCategory, extractTitleAndCategory as _extractTitleAndCategory } from './lib/text-analysis.js';
 import { optimizePromptWithAI } from './lib/ai/optimize.js';
 import { translatePromptWithAI } from './lib/ai/translate.js';
 import { smartConvertWithAI } from './lib/ai/smart-convert.js';
 import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
-import { generateShareText, shareToSocialPlatform, SHARE_PLATFORM_NAMES, SOCIAL_EDITORS, VARIANT_LABELS } from './lib/ai/share.js';
-import { buildContextMenus, handleContextMenuClick, getDefaultPlatform, isAIChatUrl, AI_PLATFORMS, AI_CHAT_PATTERNS } from './lib/context-menu.js';
+import { generateShareText, shareToSocialPlatform } from './lib/ai/share.js';
+import { buildContextMenus, handleContextMenuClick } from './lib/context-menu.js';
 
 
 const githubClient = new GitHubClient();
@@ -33,11 +33,6 @@ chrome.sidePanel
 // User content → Dual-layer: sync (slim) + local (full)
 async function getPrompts() { return await PromptStorage.get(); }
 async function setPrompts(prompts) { return await PromptStorage.set(prompts); }
-
-
-
-
-
 
 
 // Wrapper: delegate to text-analysis module with DI
@@ -638,7 +633,7 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(shareData, null, 2),
           token
         );
-        const hubUrl = `https://keyonzeng.github.io/prompt_ark/index.html?gist=${result.gistId}`;
+        const hubUrl = `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${result.gistId}`;
         sendResponse({ success: true, url: hubUrl });
         break;
       }
@@ -676,12 +671,10 @@ async function handleMessage(message, sendResponse) {
           JSON.stringify(packData, null, 2),
           token
         );
-        const packHubUrl = `https://keyonzeng.github.io/prompt_ark/index.html?gist=${packResult.gistId}`;
+        const packHubUrl = `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${packResult.gistId}`;
         sendResponse({ success: true, url: packHubUrl });
         break;
       }
-
-
 
       case 'SAVE_GITHUB_TOKEN': {
         await LocalStorage.set('githubToken', message.token);
@@ -823,8 +816,6 @@ async function handleMessage(message, sendResponse) {
         sendResponse({ success: true, gistId: packResult.gistId, hubUrl: packResult.hubUrl });
         break;
       }
-
-
 
       default:
         sendResponse({ success: false, error: 'Unknown message type' });
