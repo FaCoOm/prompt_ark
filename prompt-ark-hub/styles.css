@@ -767,6 +767,53 @@ body::after {
     transform: translateX(-50%) translateY(0);
 }
 
+/* ===== Pagination ===== */
+.hub-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 24px 0;
+    flex-wrap: wrap;
+}
+
+.hub-page-btn {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 38px;
+    text-align: center;
+}
+
+.hub-page-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.hub-page-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.hub-page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.hub-page-ellipsis {
+    color: var(--text-tertiary);
+    padding: 0 4px;
+    font-size: 14px;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
     .hub-container {

@@ -73,6 +73,8 @@ let filteredListings = [];
 let currentCategory = 'all';
 let currentSort = 'trending';
 let currentSearch = '';
+let currentPage = 1;
+const PAGE_SIZE = 12;
 let currentDetailGistId = null;
 let currentDetailData = null;
 let deviceId = getDeviceId();
@@ -180,7 +182,11 @@ function applyFilters() {
     }
 
     filteredListings = list;
-    renderGrid(list);
+    const totalPages = Math.ceil(list.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    const paged = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    renderGrid(paged);
+    renderPagination(list.length, totalPages);
     updateStats(list.length, allListings.length);
 }
 
@@ -215,7 +221,13 @@ function renderGrid(listings) {
 
     empty.style.display = 'none';
 
-    grid.innerHTML = listings.map(l => `
+    grid.innerHTML = listings.map(l => {
+        const votes = getVotes();
+        const voteAdj = getVoteAdjustments();
+        const adj = voteAdj[l.gistId] || { up: 0, down: 0 };
+        const up = (l.upvotes || 0) + adj.up;
+        const down = (l.downvotes || 0) + adj.down;
+        return `
     <div class="hub-card" data-gist="${l.gistId}">
       <div class="hub-card-header">
         <div class="hub-card-title">${escapeHtml(l.title)}</div>
@@ -229,19 +241,57 @@ function renderGrid(listings) {
       <div class="hub-card-meta">
         <div class="hub-card-author">
           ${l.authorAvatar
-            ? `<img class="hub-card-avatar" src="${escapeHtml(l.authorAvatar)}" alt="${escapeHtml(l.author)}" loading="lazy">`
-            : `<div class="hub-card-avatar"></div>`
-        }
+                ? `<img class="hub-card-avatar" src="${escapeHtml(l.authorAvatar)}" alt="${escapeHtml(l.author)}" loading="lazy">`
+                : `<div class="hub-card-avatar"></div>`
+            }
           <span class="hub-card-author-name">${escapeHtml(l.author || 'anonymous')}</span>
         </div>
         <div class="hub-card-stats">
-          <span class="hub-stat"><span class="hub-stat-icon">👍</span> ${l.upvotes || 0}</span>
+          <span class="hub-stat"><span class="hub-stat-icon">👍</span> ${up}</span>
           <span class="hub-stat"><span class="hub-stat-icon">⬇️</span> ${l.installCount || 0}</span>
           ${l.qualityScore ? `<span class="hub-card-score ${scoreClass(l.qualityScore)}">${l.qualityScore}</span>` : ''}
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+    }).join('');
+}
+
+function renderPagination(totalItems, totalPages) {
+    let paginationEl = document.getElementById('hubPagination');
+    if (!paginationEl) {
+        paginationEl = document.createElement('div');
+        paginationEl.id = 'hubPagination';
+        paginationEl.className = 'hub-pagination';
+        document.getElementById('promptGrid').after(paginationEl);
+    }
+
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    // Build page buttons (show max 7 pages with ellipsis)
+    let pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            pages.push(i);
+        }
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    paginationEl.innerHTML = `
+        <button class="hub-page-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>
+        ${pages.map(p => p === '...' ? '<span class="hub-page-ellipsis">…</span>' :
+        `<button class="hub-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`
+    ).join('')}
+        <button class="hub-page-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>
+    `;
 }
 
 function scoreClass(score) {
@@ -401,9 +451,11 @@ function renderDetail(data, indexEntry) {
     `;
     }
 
-    // Update vote counts from fresh data
-    document.getElementById('voteUpCount').textContent = data.stats?.upvotes || 0;
-    document.getElementById('voteDownCount').textContent = data.stats?.downvotes || 0;
+    // Update vote counts using persisted adjustments
+    const adj = getVoteAdjustments();
+    const gistAdj = adj[currentDetailGistId] || { up: 0, down: 0 };
+    document.getElementById('voteUpCount').textContent = (data.stats?.upvotes || 0) + gistAdj.up;
+    document.getElementById('voteDownCount').textContent = (data.stats?.downvotes || 0) + gistAdj.down;
 
     // Check if we already voted
     updateVoteUI();
@@ -431,41 +483,46 @@ function getVotes() {
     catch { return {}; }
 }
 
+function getVoteAdjustments() {
+    try { return JSON.parse(localStorage.getItem('hub_vote_adj') || '{}'); }
+    catch { return {}; }
+}
+
 function setVote(gistId, direction) {
     const votes = getVotes();
     const current = votes[gistId];
 
     if (current === direction) {
-        // Toggle off
         delete votes[gistId];
     } else {
         votes[gistId] = direction;
     }
 
     localStorage.setItem('hub_votes', JSON.stringify(votes));
+
+    // Persist vote adjustments so counts survive page reloads
+    const adj = getVoteAdjustments();
+    if (!adj[gistId]) adj[gistId] = { up: 0, down: 0 };
+
+    // Undo previous vote
+    if (current === 'up') adj[gistId].up--;
+    if (current === 'down') adj[gistId].down--;
+
+    // Apply new vote
+    const newDir = votes[gistId];
+    if (newDir === 'up') adj[gistId].up++;
+    if (newDir === 'down') adj[gistId].down++;
+
+    localStorage.setItem('hub_vote_adj', JSON.stringify(adj));
+
+    // Update modal counts
+    const entry = allListings.find(l => l.gistId === gistId);
+    const baseUp = entry?.upvotes || 0;
+    const baseDown = entry?.downvotes || 0;
+    document.getElementById('voteUpCount').textContent = baseUp + adj[gistId].up;
+    document.getElementById('voteDownCount').textContent = baseDown + adj[gistId].down;
+
     updateVoteUI();
-
-    // Update stats in listing data locally (optimistic)
-    if (currentDetailData?.stats) {
-        const stats = currentDetailData.stats;
-        // Reset
-        if (current === 'up') stats.upvotes = Math.max(0, stats.upvotes - 1);
-        if (current === 'down') stats.downvotes = Math.max(0, stats.downvotes - 1);
-        // Apply new
-        const newDir = votes[gistId];
-        if (newDir === 'up') stats.upvotes = (stats.upvotes || 0) + 1;
-        if (newDir === 'down') stats.downvotes = (stats.downvotes || 0) + 1;
-
-        document.getElementById('voteUpCount').textContent = stats.upvotes;
-        document.getElementById('voteDownCount').textContent = stats.downvotes;
-
-        // Update index entry
-        const entry = allListings.find(l => l.gistId === currentDetailGistId);
-        if (entry) {
-            entry.upvotes = stats.upvotes;
-            entry.downvotes = stats.downvotes;
-        }
-    }
 }
 
 function updateVoteUI() {
@@ -527,6 +584,7 @@ function bindEvents() {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => {
             currentSearch = searchInput.value;
+            currentPage = 1;
             applyFilters();
         }, 200);
     });
@@ -538,13 +596,27 @@ function bindEvents() {
         document.querySelectorAll('.hub-cat-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentCategory = btn.dataset.cat;
+        currentPage = 1;
         applyFilters();
     });
 
     // Sort
     document.getElementById('sortSelect').addEventListener('change', (e) => {
         currentSort = e.target.value;
+        currentPage = 1;
         applyFilters();
+    });
+
+    // Pagination (delegated — pagination element is created dynamically)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.hub-page-btn');
+        if (!btn || btn.disabled) return;
+        const page = btn.dataset.page;
+        if (page === 'prev') currentPage--;
+        else if (page === 'next') currentPage++;
+        else currentPage = parseInt(page);
+        applyFilters();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     // Card click → open detail
