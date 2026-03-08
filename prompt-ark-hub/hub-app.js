@@ -274,10 +274,39 @@ async function openDetail(gistId) {
         const resp = await fetch(`${GITHUB_API}/gists/${gistId}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const gist = await resp.json();
-        const file = gist.files[LISTING_FILENAME];
-        if (!file) throw new Error('Invalid listing Gist');
 
-        currentDetailData = JSON.parse(file.content);
+        // Try standard hub listing filename first
+        let file = gist.files[LISTING_FILENAME];
+
+        // Fallback: old SHARE_PROMPT format uses custom filenames like 'prompt-ark-xxx.json'
+        if (!file) {
+            const jsonFiles = Object.values(gist.files).filter(f => f.filename.endsWith('.json'));
+            if (jsonFiles.length > 0) file = jsonFiles[0];
+        }
+
+        if (!file) throw new Error('No JSON file found in Gist');
+
+        let data = JSON.parse(file.content);
+
+        // Auto-convert old prompt-ark export format → hub listing format
+        if (data.format === 'prompt-ark' && !data.type) {
+            data = {
+                format: 'prompt-ark-hub',
+                version: 1,
+                type: data.pack ? 'pack' : 'prompt',
+                listing: {
+                    title: data.prompts?.[0]?.title || 'Untitled',
+                    description: (data.prompts?.[0]?.content || '').substring(0, 200),
+                    category: data.prompts?.[0]?.category || 'General',
+                    tags: data.prompts?.[0]?.tags || [],
+                },
+                stats: { upvotes: 0, downvotes: 0, installCount: 0 },
+                prompts: data.prompts || [],
+                pack: data.pack || null,
+            };
+        }
+
+        currentDetailData = data;
         renderDetail(currentDetailData, listing);
     } catch (e) {
         console.error('[Hub] Failed to load listing:', e);
