@@ -313,6 +313,7 @@ function AppContent() {
         onClose={() => setSelectedPrompt(null)}
         onCopyLink={handleCopyLink}
         onFork={handleFork}
+        onInstall={handleInstall}
       >
         {selectedPrompt && (
           <>
@@ -323,8 +324,7 @@ function AppContent() {
               onVote={handleVote}
               disabled={!user}
             />
-            <InstallButton onClick={handleInstall} />
-          </>
+            </>
         )}
       </DetailModal>
     </div>

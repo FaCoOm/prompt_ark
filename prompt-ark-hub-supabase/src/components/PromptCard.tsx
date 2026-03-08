@@ -61,7 +61,7 @@ export function PromptCard({ prompt, onClick }: PromptCardProps) {
           </span>
           {prompt.quality_score ? (
             <span className={`hub-card-score ${scoreClass(prompt.quality_score)}`}>
-              {prompt.quality_score}
+              💎 {prompt.quality_score}
             </span>
           ) : null}
         </div>
