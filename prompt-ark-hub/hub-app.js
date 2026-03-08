@@ -124,11 +124,13 @@ async function loadIndex() {
             allListings = getDemoListings();
         }
 
+        buildCategoryTabs();
         applyFilters();
         showLoading(false);
     } catch (e) {
         console.error('[Hub] Failed to load index:', e);
         allListings = getDemoListings();
+        buildCategoryTabs();
         applyFilters();
         showLoading(false);
     }
@@ -178,6 +180,15 @@ function applyFilters() {
     updateStats(list.length, allListings.length);
 }
 
+// ===== Dynamic Category Tabs =====
+function buildCategoryTabs() {
+    const cats = new Set();
+    allListings.forEach(l => { if (l.category) cats.add(l.category); });
+    const tabsEl = document.getElementById('categoryTabs');
+    tabsEl.innerHTML = '<button class="hub-cat-btn active" data-cat="all">All</button>' +
+        [...cats].sort().map(c => `<button class="hub-cat-btn" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+}
+
 // ===== Rendering =====
 function renderGrid(listings) {
     const grid = document.getElementById('promptGrid');
@@ -185,7 +196,16 @@ function renderGrid(listings) {
 
     if (listings.length === 0) {
         grid.innerHTML = '';
-        empty.style.display = '';
+        const emptyEl = document.getElementById('emptyState');
+        emptyEl.style.display = '';
+        // Contextual empty message
+        if (currentSearch.trim() || currentCategory !== 'all') {
+            emptyEl.querySelector('.hub-empty-title').textContent = 'No matching prompts';
+            emptyEl.querySelector('p').textContent = 'Try adjusting your search or category filter.';
+        } else {
+            emptyEl.querySelector('.hub-empty-title').textContent = 'No prompts yet';
+            emptyEl.querySelector('p').textContent = 'Be the first to publish a prompt from Prompt Ark!';
+        }
         return;
     }
 
@@ -197,7 +217,7 @@ function renderGrid(listings) {
         <div class="hub-card-title">${escapeHtml(l.title)}</div>
         <span class="hub-card-type ${l.type}">${l.type === 'pack' ? `📦 Pack (${l.packCount || '?'})` : 'Prompt'}</span>
       </div>
-      <div class="hub-card-desc">${escapeHtml(l.description || '')}</div>
+      <div class="hub-card-desc">${escapeHtml(l.description || (l.title || '').substring(0, 120))}</div>
       <div class="hub-card-tags">
         <span class="hub-tag">${escapeHtml(l.category || 'General')}</span>
         ${(l.tags || []).slice(0, 3).map(t => `<span class="hub-tag">${escapeHtml(t)}</span>`).join('')}
