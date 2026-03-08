@@ -9,8 +9,7 @@ import {
   DetailModal,
   Voting,
   InstallButton,
-  AuthButton,
-  ToastProvider,
+    ToastProvider,
   useToast,
   Loading,
   Pagination,
@@ -224,6 +223,41 @@ function AppContent() {
     showToast('✅ Prompt sent to Prompt Ark!')
   }
 
+  // Handle copy link
+  function handleCopyLink() {
+    if (!selectedPrompt) return
+    const shareUrl = `${window.location.origin}${window.location.pathname}?gist=${selectedPrompt.id}`
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('✅ Share link copied!')
+    }).catch(() => {
+      showToast('❌ Failed to copy link')
+    })
+  }
+
+  // Handle fork
+  function handleFork() {
+    if (!selectedPrompt) return
+    if (!selectedPrompt.content) {
+      showToast('❌ No prompt data to fork')
+      return
+    }
+
+    const payload = {
+      format: 'prompt-ark',
+      version: 1,
+      prompts: [{
+        title: `[Fork] ${selectedPrompt.title || 'Untitled'}`,
+        content: selectedPrompt.content,
+        category: selectedPrompt.category || '',
+        tags: [...(selectedPrompt.tags || []), 'forked'],
+      }],
+    }
+
+    window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*')
+    showToast(`🍴 Forked prompt to Prompt Ark!`)
+  }
+
+
   const handleCategoryChange = useCallback((cat: string) => {
     setCategory(cat)
     setCurrentPage(1)
@@ -248,7 +282,6 @@ function AppContent() {
         <span className="hub-stats-count">
           <strong>{filteredPrompts.length}</strong> of {prompts.length} prompts
         </span>
-        <AuthButton user={user} onAuthChange={setUser} />
       </div>
 
       {loading ? (
@@ -276,6 +309,9 @@ function AppContent() {
       <DetailModal 
         prompt={selectedPrompt} 
         onClose={() => setSelectedPrompt(null)}
+        onCopyLink={handleCopyLink}
+        onFork={handleFork}
+        onInstall={handleInstall}
       >
         {selectedPrompt && (
           <>
@@ -286,8 +322,7 @@ function AppContent() {
               onVote={handleVote}
               disabled={!user}
             />
-            <InstallButton onClick={handleInstall} />
-          </>
+            </>
         )}
       </DetailModal>
     </div>
