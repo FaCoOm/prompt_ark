@@ -338,9 +338,19 @@ function renderDetail(data, indexEntry) {
     const body = document.getElementById('modalBody');
     const prompts = data.prompts || [];
 
-    // Update modal title from fetched data (fixes "Loading..." stuck when opened via ?gist= URL)
+    // Update modal title from fetched data
     const resolvedTitle = data.listing?.title || prompts[0]?.title || indexEntry?.title || 'Untitled';
     document.getElementById('modalTitle').textContent = resolvedTitle;
+
+    // Update author info
+    const authorEl = document.getElementById('modalAuthor');
+    const author = data.listing?.author || indexEntry?.author || data._gistOwner || '';
+    const avatar = data.listing?.authorAvatar || indexEntry?.authorAvatar || data._gistOwnerAvatar || '';
+    if (author) {
+        authorEl.innerHTML = `${avatar ? `<img src="${escapeHtml(avatar)}" class="hub-author-avatar">` : ''}<span>by ${escapeHtml(author)}</span>`;
+    } else {
+        authorEl.innerHTML = '';
+    }
 
     if (data.type === 'pack' && prompts.length > 1) {
         // Pack view
@@ -361,12 +371,28 @@ function renderDetail(data, indexEntry) {
         // Single prompt view
         const prompt = prompts[0] || {};
         const meta = renderMetaItems(data.listing);
-        const contentHtml = typeof marked !== 'undefined'
+        let contentHtml = typeof marked !== 'undefined'
             ? marked.parse(prompt.content || 'No content available.')
             : escapeHtml(prompt.content || 'No content available.');
 
+        // Highlight {{variables}} in rendered content
+        contentHtml = contentHtml.replace(/\{\{([^}]+)\}\}/g,
+            '<span class="hub-var-highlight">{{$1}}</span>');
+
+        // Variable preview panel
+        const vars = (prompt.content || '').match(/\{\{([^}]+)\}\}/g) || [];
+        const uniqueVars = [...new Set(vars.map(v => v.replace(/\{\{|\}\}/g, '').split(/[:=|]/)[0].trim()))];
+        const varPanel = uniqueVars.length > 0 ? `
+      <div class="hub-var-panel">
+        <div class="hub-var-panel-title">📝 Variables (${uniqueVars.length})</div>
+        <div class="hub-var-list">
+          ${uniqueVars.map(v => `<span class="hub-var-chip">{{${escapeHtml(v)}}}</span>`).join('')}
+        </div>
+      </div>` : '';
+
         body.innerHTML = `
       <div class="hub-modal-meta">${meta}</div>
+      ${varPanel}
       <div class="hub-modal-content">${contentHtml}</div>
     `;
     }
@@ -539,6 +565,40 @@ function bindEvents() {
 
     // Install
     document.getElementById('installBtn').addEventListener('click', installPrompt);
+
+    // Copy Link
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+        if (!currentDetailGistId) return;
+        const shareUrl = `${window.location.origin}${window.location.pathname}?gist=${currentDetailGistId}`;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast('✅ Share link copied!');
+        }).catch(() => {
+            showToast('❌ Failed to copy link');
+        });
+    });
+
+    // Fork (import with forkedFrom marker)
+    document.getElementById('forkBtn').addEventListener('click', () => {
+        if (!currentDetailData?.prompts?.length) {
+            showToast('❌ No prompt data to fork');
+            return;
+        }
+        const payload = {
+            format: 'prompt-ark',
+            version: 1,
+            prompts: currentDetailData.prompts.map(p => ({
+                title: `[Fork] ${p.title || 'Untitled'}`,
+                content: p.content,
+                category: p.category || '',
+                tags: [...(p.tags || []), 'forked'],
+                variables: p.variables || [],
+                forkedFrom: currentDetailGistId,
+            })),
+        };
+        if (currentDetailData.pack) payload.pack = currentDetailData.pack;
+        window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*');
+        showToast(`🍴 Forked ${currentDetailData.prompts.length} prompt${currentDetailData.prompts.length > 1 ? 's' : ''} to Prompt Ark!`);
+    });
 }
 
 // ===== Utilities =====

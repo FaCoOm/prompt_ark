@@ -88,6 +88,7 @@
             <div class="hub-modal-header">
                 <div>
                     <h2 class="hub-modal-title" id="modalTitle"></h2>
+                    <div class="hub-modal-author" id="modalAuthor"></div>
                 </div>
                 <button class="hub-modal-close" id="modalClose">✕</button>
             </div>
@@ -99,7 +100,12 @@
                     <button class="hub-vote-btn up" id="voteUp">👍 <span id="voteUpCount">0</span></button>
                     <button class="hub-vote-btn down" id="voteDown">👎 <span id="voteDownCount">0</span></button>
                 </div>
-                <button class="hub-install-btn" id="installBtn">⚡ Add to Prompt Ark</button>
+                <div class="hub-modal-actions">
+                    <button class="hub-action-btn" id="copyLinkBtn" title="Copy share link">🔗 Copy Link</button>
+                    <button class="hub-action-btn" id="forkBtn" title="Fork this prompt to your collection">🍴
+                        Fork</button>
+                    <button class="hub-install-btn" id="installBtn">⚡ Add to Prompt Ark</button>
+                </div>
             </div>
         </div>
     </div>
