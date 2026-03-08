@@ -25,6 +25,7 @@ lessons/
 
 # Temp / Scripts
 scripts/
+research/
 *.log
 
 # Source images (not needed in extension)
