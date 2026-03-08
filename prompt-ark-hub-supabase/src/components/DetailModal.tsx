@@ -5,10 +5,12 @@ import type { Prompt } from '../lib/supabase'
 interface DetailModalProps {
   prompt: Prompt | null
   onClose: () => void
+  onCopyLink?: () => void
+  onFork?: () => void
   children?: React.ReactNode // For voting and install buttons
 }
 
-export function DetailModal({ prompt, onClose, children }: DetailModalProps) {
+export function DetailModal({ prompt, onClose, onCopyLink, onFork, children }: DetailModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,6 +54,12 @@ export function DetailModal({ prompt, onClose, children }: DetailModalProps) {
         <div className="hub-modal-header">
           <div>
             <h2 className="hub-modal-title" id="modalTitle">{prompt.title}</h2>
+            <div className="hub-modal-author" id="modalAuthor">
+              {prompt.author_avatar && (
+                <img className="hub-author-avatar" src={prompt.author_avatar} alt={prompt.author} />
+              )}
+              <span>{prompt.author}</span>
+            </div>
           </div>
           <button className="hub-modal-close" onClick={onClose}>✕</button>
         </div>
@@ -69,6 +77,24 @@ export function DetailModal({ prompt, onClose, children }: DetailModalProps) {
         </div>
         
         <div className="hub-modal-footer">
+          <div className="hub-modal-actions">
+            <button 
+              className="hub-action-btn" 
+              id="copyLinkBtn"
+              title="Copy share link"
+              onClick={onCopyLink}
+            >
+              🔗 Copy Link
+            </button>
+            <button 
+              className="hub-action-btn" 
+              id="forkBtn"
+              title="Fork this prompt to your collection"
+              onClick={onFork}
+            >
+              🍴 Fork
+            </button>
+          </div>
           {children}
         </div>
       </div>
