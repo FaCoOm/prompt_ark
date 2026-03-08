@@ -103,6 +103,8 @@ async function loadIndex() {
     showLoading(true);
 
     try {
+        let indexListings = [];
+
         // Auto-discover Index Gist if not already known
         if (!INDEX_GIST_ID) {
             INDEX_GIST_ID = await discoverIndexGistId();
@@ -110,19 +112,21 @@ async function loadIndex() {
 
         if (INDEX_GIST_ID) {
             const resp = await fetch(`${GITHUB_API}/gists/${INDEX_GIST_ID}`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const gist = await resp.json();
-            const file = gist.files[INDEX_FILENAME];
-            if (file) {
-                const data = JSON.parse(file.content);
-                allListings = data.listings || [];
+            if (resp.ok) {
+                const gist = await resp.json();
+                const file = gist.files[INDEX_FILENAME];
+                if (file) {
+                    const data = JSON.parse(file.content);
+                    indexListings = data.listings || [];
+                }
             }
         }
 
-        // If no index or empty, use demo data
-        if (allListings.length === 0) {
-            allListings = getDemoListings();
-        }
+        // Always merge: community-published (index) first, then built-in prompts
+        const builtinListings = getDemoListings();
+        const indexGistIds = new Set(indexListings.map(l => l.gistId));
+        const uniqueBuiltins = builtinListings.filter(l => !indexGistIds.has(l.gistId));
+        allListings = [...indexListings, ...uniqueBuiltins];
 
         buildCategoryTabs();
         applyFilters();
