@@ -22,6 +22,8 @@ Desktop.ini
 .gemini/
 artifacts/
 lessons/
+AGENTS.md
+.sisyphus/
 
 # Temp / Scripts
 scripts/
