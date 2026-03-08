@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
 import type { Prompt } from '../lib/supabase'
 
 interface DetailModalProps {
@@ -8,7 +7,7 @@ interface DetailModalProps {
   onCopyLink?: () => void
   onFork?: () => void
   onInstall?: () => void
-  children?: React.ReactNode // For voting and install buttons
+  children?: React.ReactNode
 }
 
 export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, children }: DetailModalProps) {
@@ -48,14 +47,36 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
   const variables = parseVariables(prompt.content || '')
   const hasVariables = variables.length > 0
 
-  // Highlight variables in content
-  const highlightAndRenderContent = () => {
-    const content = prompt.content || ''
-    // Highlight {{variables}}
-    let html = content.replace(/\{\{([^}]+)\}\}/g, 
+  // Variable highlighting
+  const highlightVariables = (content: string) => {
+    return content.replace(/\{\{([^}]+)\}\}/g, 
       '<span class="hub-var-highlight">{{$1}}</span>'
     )
-    // Basic markdown
+  }
+
+  const renderMetaItems = () => {
+    const items: React.ReactNode[] = []
+    if (prompt.category) items.push(<span key="cat" className="hub-modal-meta-item">📁 {prompt.category}</span>)
+    if (prompt.variable_count) items.push(<span key="var" className="hub-modal-meta-item">🔤 {prompt.variable_count} variable{prompt.variable_count > 1 ? 's' : ''}</span>)
+    if (prompt.token_estimate) items.push(<span key="token" className="hub-modal-meta-item">📏 ~{prompt.token_estimate} tokens</span>)
+    return items
+  }
+
+  const renderLanguage = () => {
+    if (!prompt.language) return null
+    return <span key="lang" className="hub-modal-meta-item">🌐 {prompt.language.toUpperCase()}</span>
+  }
+
+  const renderQualityScore = () => {
+    if (!prompt.quality_score) return null
+    const scoreClass = prompt.quality_score >= 80 ? 'high' : prompt.quality_score >= 50 ? 'mid' : 'low'
+    return <span key="score" className={`hub-card-score ${scoreClass}`}>💎 {prompt.quality_score}</span>
+  }
+
+  // Render content with markdown and variable highlighting
+  const renderContent = () => {
+    let html = prompt.content || 'No content available.'
+    html = highlightVariables(html)
     html = html
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/^## (.+)$/gm, '<h2>$1</h2>')
@@ -64,20 +85,7 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\n/g, '<br>')
-    return html
-  }
-
-  const renderMetaItems = () => {
-    const items = []
-    if (prompt.category) items.push(`📁 ${prompt.category}`)
-    if (prompt.variable_count) items.push(`🔤 ${prompt.variable_count} variable${prompt.variable_count > 1 ? 's' : ''}`)
-    if (prompt.token_estimate) items.push(`📏 ~${prompt.token_estimate} tokens`)
-    if (prompt.quality_score) {
-      const scoreClass = prompt.quality_score >= 80 ? 'high' : prompt.quality_score >= 50 ? 'mid' : 'low'
-      items.push(`<span class="hub-card-score ${scoreClass}">💎 ${prompt.quality_score}</span>`)
-    }
-    if (prompt.language) items.push(`🌐 ${prompt.language.toUpperCase()}`)
-    return items
+    return `<div>${html}</div>`
   }
 
   return (
@@ -98,9 +106,9 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
         
         <div className="hub-modal-body" id="modalBody">
           <div className="hub-modal-meta">
-            {renderMetaItems().map((item, i) => (
-              <span key={i} className="hub-modal-meta-item">{item}</span>
-            ))}
+            {renderMetaItems()}
+            {renderQualityScore()}
+            {renderLanguage()}
           </div>
           
           {hasVariables && (
@@ -114,7 +122,7 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
             </div>
           )}
           
-          <div className="hub-modal-content" dangerouslySetInnerHTML={{ __html: highlightAndRenderContent() }} />
+          <div className="hub-modal-content" dangerouslySetInnerHTML={{ __html: renderContent() }} />
         </div>
         
         <div className="hub-modal-footer">
@@ -122,28 +130,13 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
             {children}
           </div>
           <div className="hub-modal-actions">
-            <button 
-              className="hub-action-btn" 
-              id="copyLinkBtn"
-              title="Copy share link"
-              onClick={onCopyLink}
-            >
+            <button className="hub-action-btn" id="copyLinkBtn" title="Copy share link" onClick={onCopyLink}>
               🔗 Copy Link
             </button>
-            <button 
-              className="hub-action-btn" 
-              id="forkBtn"
-              title="Fork this prompt to your collection"
-              onClick={onFork}
-            >
+            <button className="hub-action-btn" id="forkBtn" title="Fork this prompt to your collection" onClick={onFork}>
               🍴 Fork
             </button>
-            <button 
-              className="hub-install-btn" 
-              id="installBtn"
-              title="Add to Prompt Ark"
-              onClick={onInstall}
-            >
+            <button className="hub-install-btn" id="installBtn" title="Add to Prompt Ark" onClick={onInstall}>
               ⚡ Add to Prompt Ark
             </button>
           </div>

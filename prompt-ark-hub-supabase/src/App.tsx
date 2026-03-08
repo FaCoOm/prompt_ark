@@ -9,8 +9,7 @@ import {
   DetailModal,
   Voting,
   InstallButton,
-  AuthButton,
-  ToastProvider,
+    ToastProvider,
   useToast,
   Loading,
   Pagination,
@@ -283,7 +282,6 @@ function AppContent() {
         <span className="hub-stats-count">
           <strong>{filteredPrompts.length}</strong> of {prompts.length} prompts
         </span>
-        <AuthButton user={user} onAuthChange={setUser} />
       </div>
 
       {loading ? (
