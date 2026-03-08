@@ -318,6 +318,10 @@ function renderDetail(data, indexEntry) {
     const body = document.getElementById('modalBody');
     const prompts = data.prompts || [];
 
+    // Update modal title from fetched data (fixes "Loading..." stuck when opened via ?gist= URL)
+    const resolvedTitle = data.listing?.title || prompts[0]?.title || indexEntry?.title || 'Untitled';
+    document.getElementById('modalTitle').textContent = resolvedTitle;
+
     if (data.type === 'pack' && prompts.length > 1) {
         // Pack view
         const meta = renderMetaItems(data.listing);
