@@ -115,6 +115,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+// --- Provider Dispatch Helper (DRY: replaces 3-branch inline dispatch) ---
+async function callProvider(provider, prompt) {
+  if (provider.type === 'gemini') {
+    const model = provider.model || 'gemini-2.0-flash';
+    const resp = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      }
+    );
+    if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
+    const data = await resp.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+  } else if (provider.type === 'openai') {
+    const resp = await fetchWithTimeout(`${provider.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+      body: JSON.stringify({
+        model: provider.model || 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!resp.ok) throw new Error(`OpenAI API ${resp.status}`);
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content;
+  } else if (provider.type === 'gemini-web') {
+    return await callGeminiWeb(prompt);
+  }
+  return null;
+}
+
+// --- Share via Gist Helper (DRY: replaces SHARE_PROMPT + SHARE_PACK inline code) ---
+async function shareViaGist(message) {
+  const token = await LocalStorage.get('githubToken');
+  if (!token) return { success: false, error: 'GitHub token not configured' };
+
+  const allPrompts = await getPrompts();
+  const isPack = message.type === 'SHARE_PACK';
+
+  let prompts, title, filename;
+  if (isPack) {
+    prompts = allPrompts.filter(p => message.ids.includes(p.id));
+    if (prompts.length === 0) return { success: false, error: 'No prompts found' };
+    title = message.packTitle || 'Prompt Pack';
+    filename = `prompt-ark-pack-${title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
+  } else {
+    const prompt = allPrompts.find(p => p.id === message.id);
+    if (!prompt) return { success: false, error: 'Prompt not found' };
+    prompts = [prompt];
+    title = prompt.title;
+    filename = `prompt-ark-${(title || 'untitled').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
+  }
+
+  const serializePrompt = p => ({
+    title: p.title, content: p.content, category: p.category || '',
+    tags: p.tags || [], variables: p.variables || [], shortcut: p.shortcut || '',
+  });
+
+  const shareData = {
+    format: 'prompt-ark', version: 1, exportedAt: new Date().toISOString(),
+    ...(isPack ? { pack: { title, count: prompts.length } } : {}),
+    prompts: prompts.map(serializePrompt),
+  };
+
+  const gistTitle = isPack ? `[Prompt Ark Pack] ${title} (${prompts.length} prompts)` : `[Prompt Ark] ${title}`;
+  const result = await githubClient.createGist(gistTitle, filename, JSON.stringify(shareData, null, 2), token);
+  return { success: true, url: `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${result.gistId}` };
+}
+
 async function handleMessage(message, sendResponse) {
   try {
     switch (message.type) {
@@ -390,37 +461,7 @@ async function handleMessage(message, sendResponse) {
           break;
         }
         try {
-          let text = null;
-          if (provider.type === 'gemini') {
-            const model = provider.model || 'gemini-2.0-flash';
-            const resp = await fetchWithTimeout(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: message.prompt }] }],
-                }),
-              }
-            );
-            if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
-            const data = await resp.json();
-            text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          } else if (provider.type === 'openai') {
-            const resp = await fetchWithTimeout(`${provider.apiUrl}/chat/completions`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
-              body: JSON.stringify({
-                model: provider.model || 'gpt-4o-mini',
-                messages: [{ role: 'user', content: message.prompt }],
-              }),
-            });
-            if (!resp.ok) throw new Error(`OpenAI API ${resp.status}`);
-            const data = await resp.json();
-            text = data.choices?.[0]?.message?.content;
-          } else if (provider.type === 'gemini-web') {
-            text = await callGeminiWeb(message.prompt);
-          }
+          const text = await callProvider(provider, message.prompt);
           sendResponse({ success: !!text, text });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
@@ -602,77 +643,14 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'SHARE_PROMPT': {
-        const token = await LocalStorage.get('githubToken');
-        if (!token) {
-          sendResponse({ success: false, error: 'GitHub token not configured' });
-          break;
-        }
-        const allPrompts = await getPrompts();
-        const prompt = allPrompts.find(p => p.id === message.id);
-        if (!prompt) {
-          sendResponse({ success: false, error: 'Prompt not found' });
-          break;
-        }
-        const shareData = {
-          format: 'prompt-ark',
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          prompts: [{
-            title: prompt.title,
-            content: prompt.content,
-            category: prompt.category || '',
-            tags: prompt.tags || [],
-            variables: prompt.variables || [],
-            shortcut: prompt.shortcut || '',
-          }],
-        };
-        const filename = `prompt-ark-${(prompt.title || 'untitled').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
-        const result = await githubClient.createGist(
-          `[Prompt Ark] ${prompt.title}`,
-          filename,
-          JSON.stringify(shareData, null, 2),
-          token
-        );
-        const hubUrl = `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${result.gistId}`;
-        sendResponse({ success: true, url: hubUrl });
+        const result = await shareViaGist(message, sendResponse);
+        if (result) sendResponse(result);
         break;
       }
 
       case 'SHARE_PACK': {
-        const token = await LocalStorage.get('githubToken');
-        if (!token) {
-          sendResponse({ success: false, error: 'GitHub token not configured' });
-          break;
-        }
-        const allPrompts = await getPrompts();
-        const selected = allPrompts.filter(p => message.ids.includes(p.id));
-        if (selected.length === 0) {
-          sendResponse({ success: false, error: 'No prompts found' });
-          break;
-        }
-        const packData = {
-          format: 'prompt-ark',
-          version: 1,
-          pack: { title: message.packTitle, count: selected.length },
-          exportedAt: new Date().toISOString(),
-          prompts: selected.map(prompt => ({
-            title: prompt.title,
-            content: prompt.content,
-            category: prompt.category || '',
-            tags: prompt.tags || [],
-            variables: prompt.variables || [],
-            shortcut: prompt.shortcut || '',
-          })),
-        };
-        const packFilename = `prompt-ark-pack-${(message.packTitle || 'pack').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
-        const packResult = await githubClient.createGist(
-          `[Prompt Ark Pack] ${message.packTitle} (${selected.length} prompts)`,
-          packFilename,
-          JSON.stringify(packData, null, 2),
-          token
-        );
-        const packHubUrl = `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${packResult.gistId}`;
-        sendResponse({ success: true, url: packHubUrl });
+        const result = await shareViaGist(message, sendResponse);
+        if (result) sendResponse(result);
         break;
       }
 
@@ -691,35 +669,18 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'GET_SYNC_SETTINGS': {
-        const [syncBackend, gistId, webdavUrl, webdavUser, webdavPassword,
-          obsidianWebdavUrl, obsidianWebdavUser, obsidianWebdavPassword, obsidianFolder,
-          obsidianLocalPort, obsidianLocalApiKey] = await Promise.all([
-            LocalStorage.get('sync_backend'),
-            LocalStorage.get('gist_id'),
-            LocalStorage.get('webdavUrl'),
-            LocalStorage.get('webdavUser'),
-            LocalStorage.get('webdavPassword'),
-            LocalStorage.get('obsidianWebdavUrl'),
-            LocalStorage.get('obsidianWebdavUser'),
-            LocalStorage.get('obsidianWebdavPassword'),
-            LocalStorage.get('obsidianFolder'),
-            LocalStorage.get('obsidianLocalPort'),
-            LocalStorage.get('obsidianLocalApiKey')
-          ]);
-        sendResponse({
-          success: true,
-          syncBackend: syncBackend || 'none',
-          gistId: gistId || '',
-          webdavUrl: webdavUrl || '',
-          webdavUser: webdavUser || '',
-          webdavPassword: webdavPassword || '',
-          obsidianWebdavUrl: obsidianWebdavUrl || '',
-          obsidianWebdavUser: obsidianWebdavUser || '',
-          obsidianWebdavPassword: obsidianWebdavPassword || '',
-          obsidianFolder: obsidianFolder || 'prompts',
-          obsidianLocalPort: obsidianLocalPort || 27123,
-          obsidianLocalApiKey: obsidianLocalApiKey || ''
-        });
+        const syncKeys = [
+          'sync_backend', 'gist_id', 'webdavUrl', 'webdavUser', 'webdavPassword',
+          'obsidianWebdavUrl', 'obsidianWebdavUser', 'obsidianWebdavPassword',
+          'obsidianFolder', 'obsidianLocalPort', 'obsidianLocalApiKey'
+        ];
+        const defaults = { sync_backend: 'none', obsidianFolder: 'prompts', obsidianLocalPort: 27123 };
+        const values = await Promise.all(syncKeys.map(k => LocalStorage.get(k)));
+        const settings = Object.fromEntries(syncKeys.map((k, i) => {
+          const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+          return [camel, values[i] || defaults[k] || ''];
+        }));
+        sendResponse({ success: true, ...settings });
         break;
       }
 
@@ -744,39 +705,18 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
-      case 'FORCE_GIST_SYNC': {
-        try {
-          const result = await SyncManager.pullFromGistAndMerge();
-          sendResponse({ success: true, message: result?.message });
-        } catch (e) {
-          sendResponse({ success: false, error: e.message });
-        }
-        break;
-      }
-
-      case 'FORCE_WEBDAV_SYNC': {
-        try {
-          const result = await SyncManager.pullFromWebdavAndMerge();
-          sendResponse({ success: true, message: result?.message });
-        } catch (e) {
-          sendResponse({ success: false, error: e.message });
-        }
-        break;
-      }
-
-      case 'FORCE_OBSIDIAN_SYNC': {
-        try {
-          const result = await SyncManager.pullFromObsidianAndMerge();
-          sendResponse({ success: true, message: result?.message });
-        } catch (e) {
-          sendResponse({ success: false, error: e.message });
-        }
-        break;
-      }
-
+      case 'FORCE_GIST_SYNC':
+      case 'FORCE_WEBDAV_SYNC':
+      case 'FORCE_OBSIDIAN_SYNC':
       case 'FORCE_OBSIDIAN_LOCAL_SYNC': {
+        const syncMethods = {
+          FORCE_GIST_SYNC: 'pullFromGistAndMerge',
+          FORCE_WEBDAV_SYNC: 'pullFromWebdavAndMerge',
+          FORCE_OBSIDIAN_SYNC: 'pullFromObsidianAndMerge',
+          FORCE_OBSIDIAN_LOCAL_SYNC: 'pullFromObsidianLocalAndMerge',
+        };
         try {
-          const result = await SyncManager.pullFromObsidianLocalAndMerge();
+          const result = await SyncManager[syncMethods[message.type]]();
           sendResponse({ success: true, message: result?.message });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
