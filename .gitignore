@@ -25,6 +25,8 @@ lessons/
 tasks/
 AGENTS.md
 .sisyphus/
+.opencode/
+openspec/
 
 # Temp / Scripts
 scripts/
