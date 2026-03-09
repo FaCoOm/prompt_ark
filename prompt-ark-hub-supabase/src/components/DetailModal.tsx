@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Prompt } from '../lib/supabase'
 
 interface DetailModalProps {
@@ -8,6 +10,13 @@ interface DetailModalProps {
   onFork?: () => void
   onInstall?: () => void
   children?: React.ReactNode
+}
+
+interface PackItem {
+  title?: string
+  content?: string
+  category?: string
+  tags?: string[]
 }
 
 export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, children }: DetailModalProps) {
@@ -35,7 +44,20 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
 
   if (!prompt) return null
 
-  // Parse variables from content
+  // Check if this is a pack
+  const isPack = prompt.type === 'pack'
+  
+  // Parse pack items from content if type is pack
+  const packItems: PackItem[] = isPack ? (() => {
+    try {
+      const parsed = JSON.parse(prompt.content || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })() : []
+
+  // Parse variables from content (only for single prompt)
   const parseVariables = (content: string) => {
     const vars = content.match(/\{\{([^}]+)\}\}/g) || []
     const uniqueVars = [...new Set(vars.map(v => 
@@ -44,7 +66,7 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
     return uniqueVars
   }
 
-  const variables = parseVariables(prompt.content || '')
+  const variables = !isPack ? parseVariables(prompt.content || '') : []
   const hasVariables = variables.length > 0
 
   // Variable highlighting
@@ -59,6 +81,9 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
     if (prompt.category) items.push(<span key="cat" className="hub-modal-meta-item">📁 {prompt.category}</span>)
     if (prompt.variable_count) items.push(<span key="var" className="hub-modal-meta-item">🔤 {prompt.variable_count} variable{prompt.variable_count > 1 ? 's' : ''}</span>)
     if (prompt.token_estimate) items.push(<span key="token" className="hub-modal-meta-item">📏 ~{prompt.token_estimate} tokens</span>)
+    if (isPack && packItems.length > 0) {
+      items.push(<span key="pack" className="hub-modal-meta-item">📦 {packItems.length} prompt{packItems.length > 1 ? 's' : ''}</span>)
+    }
     return items
   }
 
@@ -73,19 +98,84 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
     return <span key="score" className={`hub-card-score ${scoreClass}`}>💎 {prompt.quality_score}</span>
   }
 
-  // Render content with markdown and variable highlighting
-  const renderContent = () => {
-    let html = prompt.content || 'No content available.'
-    html = highlightVariables(html)
-    html = html
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\n/g, '<br>')
-    return `<div>${html}</div>`
+  // Variable highlighting helper
+  const renderVariableHighlight = (text: React.ReactNode): React.ReactNode => {
+    if (typeof text !== 'string') return text
+    
+    const parts = text.split(/(\{\{[^}]+\}\})/g)
+    if (parts.length === 1) return text
+    
+    return (
+      <>
+        {parts.map((part, i) => {
+          if (part.match(/^\{\{[^}]+\}\}$/)) {
+            return <span key={i} className="hub-var-highlight">{part}</span>
+          }
+          return part
+        })}
+      </>
+    )
+  }
+
+  // Variable highlighting component for react-markdown
+  const MarkdownComponents = {
+    p: ({ children, ...props }: React.HTMLProps<HTMLParagraphElement>) => (
+      <p {...props}>{renderVariableHighlight(children)}</p>
+    ),
+    span: ({ children, ...props }: React.HTMLProps<HTMLSpanElement>) => (
+      <span {...props}>{renderVariableHighlight(children)}</span>
+    ),
+    li: ({ children, ...props }: React.HTMLProps<HTMLLIElement>) => (
+      <li {...props}>{renderVariableHighlight(children)}</li>
+    ),
+    td: ({ children, ...props }: React.HTMLProps<HTMLTableDataCellElement>) => (
+      <td {...props}>{renderVariableHighlight(children)}</td>
+    ),
+    th: ({ children, ...props }: React.HTMLProps<HTMLTableHeaderCellElement>) => (
+      <th {...props}>{renderVariableHighlight(children)}</th>
+    ),
+    code: ({ className, children, ...props }: React.HTMLProps<HTMLElement> & { className?: string }) => {
+      const match = /language-(\w+)/.exec(className || '')
+      const isInline = !match && !className
+      
+      if (isInline) {
+        const codeContent = String(children).replace(/\n$/, '')
+        return (
+          <code className={className} {...props}>
+            {renderVariableHighlight(codeContent)}
+          </code>
+        )
+      }
+      
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    }
+  }
+
+  // Render pack items list
+  const renderPackItems = () => {
+    if (!isPack || packItems.length === 0) return null
+
+    return (
+      <div className="hub-pack-list">
+        <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
+          This pack contains <strong>{packItems.length}</strong> prompts:
+        </p>
+        {packItems.map((item, idx) => (
+          <div key={idx} className="hub-pack-item">
+            <div className="hub-pack-item-title">
+              {item.title || `Prompt ${idx + 1}`}
+            </div>
+            <div className="hub-pack-item-preview">
+              {(item.content || '').substring(0, 100)}...
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -111,18 +201,33 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
             {renderLanguage()}
           </div>
           
-          {hasVariables && (
-            <div className="hub-var-panel">
-              <div className="hub-var-panel-title">📝 Variables ({variables.length})</div>
-              <div className="hub-var-list">
-                {variables.map((v, i) => (
-                  <span key={i} className="hub-var-chip">{`{{${v}}}`}</span>
-                ))}
+          {/* Pack view: show items list */}
+          {isPack ? (
+            renderPackItems()
+          ) : (
+            <>
+              {/* Single prompt view: show variables and content */}
+              {hasVariables && (
+                <div className="hub-var-panel">
+                  <div className="hub-var-panel-title">📝 Variables ({variables.length})</div>
+                  <div className="hub-var-list">
+                    {variables.map((v, i) => (
+                      <span key={i} className="hub-var-chip">{`{{${v}}}`}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="hub-modal-content">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]} 
+                  components={MarkdownComponents}
+                >
+                  {prompt.content || 'No content available.'}
+                </ReactMarkdown>
               </div>
-            </div>
+            </>
           )}
-          
-          <div className="hub-modal-content" dangerouslySetInnerHTML={{ __html: renderContent() }} />
         </div>
         
         <div className="hub-modal-footer">
@@ -133,9 +238,11 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
             <button className="hub-action-btn" id="copyLinkBtn" title="Copy share link" onClick={onCopyLink}>
               🔗 Copy Link
             </button>
-            <button className="hub-action-btn" id="forkBtn" title="Fork this prompt to your collection" onClick={onFork}>
-              🍴 Fork
-            </button>
+            {!isPack && (
+              <button className="hub-action-btn" id="forkBtn" title="Fork this prompt to your collection" onClick={onFork}>
+                🍴 Fork
+              </button>
+            )}
             <button className="hub-install-btn" id="installBtn" title="Add to Prompt Ark" onClick={onInstall}>
               ⚡ Add to Prompt Ark
             </button>
