@@ -242,7 +242,7 @@ class AIPromptManager {
 
     this._handleSmartConvertStatus('start');
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: pageText });
+      const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: pageText, pageTitle: document.title, pageUrl: location.href });
       if (resp?.success) {
         this._handleSmartConvertStatus('success', resp.title);
       } else {
@@ -1087,7 +1087,7 @@ container = container.parentElement;
 
       if (action === 'add') {
         try {
-          const resp = await chrome.runtime.sendMessage({ type: 'QUICK_ADD_SELECTION', text: selectedText });
+          const resp = await chrome.runtime.sendMessage({ type: 'QUICK_ADD_SELECTION', text: selectedText, pageTitle: document.title, pageUrl: location.href });
           if (resp?.success) {
             this.showNotification(this.msg('contextMenuSaveSuccess', 'Added to Prompt Ark ✓'), 'success');
           }
@@ -1097,7 +1097,7 @@ container = container.parentElement;
       } else if (action === 'convert') {
         this._handleSmartConvertStatus('start');
         try {
-          const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: selectedText });
+          const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: selectedText, pageTitle: document.title, pageUrl: location.href });
           if (resp?.success) {
             this._handleSmartConvertStatus('success', resp.title);
           } else {
