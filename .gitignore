@@ -19,7 +19,9 @@ Desktop.ini
 
 # Agent / AI tools
 .agent/
+.agents/
 .gemini/
+skills-lock.json
 artifacts/
 lessons/
 tasks/
