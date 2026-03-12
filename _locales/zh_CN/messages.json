@@ -154,5 +154,47 @@
   },
   "ruleExclusionsPlaceholder": {
     "message": "如：术语、套话、免责声明"
+  },
+  "imagePromptFeature": {
+    "message": "🖼️ 图像生成提示词（Beta）"
+  },
+  "imagePromptFeatureHint": {
+    "message": "悬停网页图片生成 AI 图像提示词"
+  },
+  "imagePromptEnable": {
+    "message": "启用图像生成提示词功能"
+  },
+  "imageRecognitionModel": {
+    "message": "🎯 图像识别模型"
+  },
+  "imageRecognitionModelHint": {
+    "message": "用于分析网页图片并生成提示词"
+  },
+  "imagePromptNoProvider": {
+    "message": "未配置可用图像识别模型"
+  },
+  "imagePromptGenerating": {
+    "message": "正在分析图片..."
+  },
+  "imagePromptRetry": {
+    "message": "重试"
+  },
+  "imagePromptCancel": {
+    "message": "取消"
+  },
+  "imagePromptCopy": {
+    "message": "复制"
+  },
+  "imagePromptSave": {
+    "message": "保存到 Prompt Ark"
+  },
+  "imagePromptRegenerate": {
+    "message": "重新生成"
+  },
+  "imagePromptNanobanana": {
+    "message": "打开 nanobanana"
+  },
+  "imagePromptError": {
+    "message": "分析图片失败，请重试"
   }
 }

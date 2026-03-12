@@ -15,6 +15,7 @@ import { translatePromptWithAI } from './lib/ai/translate.js';
 import { smartConvertWithAI } from './lib/ai/smart-convert.js';
 import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
+import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
 import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS } from './lib/ai/share.js';
 import { buildContextMenus, handleContextMenuClick } from './lib/context-menu.js';
 
@@ -183,7 +184,7 @@ async function shareViaGist(message) {
 
   const gistTitle = isPack ? `[Prompt Ark Pack] ${title} (${prompts.length} prompts)` : `[Prompt Ark] ${title}`;
   const result = await githubClient.createGist(gistTitle, filename, JSON.stringify(shareData, null, 2), token);
-  return { success: true, url: `https://keyonzeng.github.io/prompt_ark/prompt-ark-hub/?gist=${result.gistId}` };
+  return { success: true, url: `https://keyonzeng.github.io/prompt_ark/?gist=${result.gistId}` };
 }
 
 async function handleMessage(message, sendResponse) {
@@ -214,6 +215,93 @@ async function handleMessage(message, sendResponse) {
       case 'GET_PROMPTS':
         sendResponse({ success: true, prompts: await getPrompts() });
         break;
+
+      case 'GET_OPENCLAW_SETTINGS':
+        sendResponse(await LocalStorage.get('openclaw') || { endpoint: '', apiKey: '' });
+        break;
+
+      case 'SAVE_OPENCLAW_SETTINGS':
+        await LocalStorage.set('openclaw', { endpoint: message.endpoint, apiKey: message.apiKey });
+        sendResponse({ success: true });
+        break;
+
+      case 'GET_IMAGE_PROMPT_SETTINGS':
+        sendResponse(await LocalStorage.get('imagePrompt') || { enabled: false, imageModelId: '' });
+        break;
+
+      case 'SAVE_IMAGE_PROMPT_SETTINGS':
+        await LocalStorage.set('imagePrompt', { enabled: message.enabled, imageModelId: message.imageModelId });
+        // Broadcast to all tabs to enable/disable image prompt feature
+        chrome.tabs.query({}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, { type: 'IMAGE_PROMPT_SETTINGS_CHANGED', enabled: message.enabled }).catch(() => {});
+          });
+        });
+        sendResponse({ success: true });
+        break;
+
+      case 'ANALYZE_IMAGE':
+        // Store pending image analysis request and open popup
+        await LocalStorage.set('pendingImageAnalysis', {
+          imageUrl: message.imageUrl,
+          imageModelId: message.imageModelId,
+          timestamp: Date.now()
+        });
+        // Open popup
+        chrome.action.openPopup();
+        sendResponse({ success: true });
+        break;
+
+      case 'GET_PENDING_IMAGE_ANALYSIS':
+        const pending = await LocalStorage.get('pendingImageAnalysis');
+        // Clear after reading
+        if (pending) {
+          await LocalStorage.remove('pendingImageAnalysis');
+        }
+        sendResponse({ pending });
+        break;
+        
+      case 'GENERATE_SKILL': {
+        const skillPayload = await generateSkillWithAI(message.promptData);
+        const skills = await LocalStorage.get('skills') || [];
+        const skillRecord = {
+          id: crypto.randomUUID(),
+          skill_name: skillPayload.skill_name,
+          description: skillPayload.description || '',
+          source_prompt_id: message.promptData.id,
+          source_prompt_title: message.promptData.title || '',
+          files: skillPayload.files,
+          pushed: false,
+          createdAt: Date.now()
+        };
+        skills.unshift(skillRecord);
+        await LocalStorage.set('skills', skills);
+        sendResponse({ success: true, skill: skillRecord });
+        break;
+      }
+
+      case 'GET_SKILLS':
+        sendResponse({ success: true, skills: await LocalStorage.get('skills') || [] });
+        break;
+
+      case 'PUSH_SKILL': {
+        const allSkills = await LocalStorage.get('skills') || [];
+        const target = allSkills.find(s => s.id === message.skillId);
+        if (!target) throw new Error('Skill not found');
+        await pushSkillToOpenClaw(target);
+        target.pushed = true;
+        await LocalStorage.set('skills', allSkills);
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'DELETE_SKILL': {
+        let dSkills = await LocalStorage.get('skills') || [];
+        dSkills = dSkills.filter(s => s.id !== message.skillId);
+        await LocalStorage.set('skills', dSkills);
+        sendResponse({ success: true });
+        break;
+      }
 
       case 'SAVE_PROMPT': {
         const newId = crypto.randomUUID();

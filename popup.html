@@ -264,6 +264,30 @@
             <input type="password" id="githubTokenInput" class="settings-input"
               data-i18n-placeholder="githubTokenPlaceholder" placeholder="ghp_xxxxxxxxxxxx">
           </div>
+
+          <div class="settings-section-header" style="margin-top: 16px;">
+            <label data-i18n="openclawSettings">🤖 OpenClaw Agent (P2S)</label>
+          </div>
+          <span class="settings-hint" data-i18n="openclawHint">Push generated skills to local OpenClaw</span>
+          <div class="form-row">
+            <input type="text" id="openclawEndpointInput" class="settings-input"
+              placeholder="http://127.0.0.1:4100/api/v1/skills">
+          </div>
+          <div class="form-row" style="margin-top: 8px;">
+            <input type="password" id="openclawApiKeyInput" class="settings-input"
+              placeholder="API Key (Optional)">
+          </div>
+
+          <div class="settings-section-header" style="margin-top: 16px;">
+            <label data-i18n="imagePromptFeature">🖼️ 图像生成提示词（Beta）</label>
+          </div>
+          <span class="settings-hint" data-i18n="imagePromptFeatureHint">悬停网页图片生成 AI 图像提示词</span>
+          <div class="form-row" style="margin-top: 8px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="imagePromptEnabled">
+              <span data-i18n="imagePromptEnable">启用图像生成提示词功能</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -311,6 +335,17 @@
               <button id="saveProviderBtn" class="btn btn-primary btn-small" data-i18n="save">保存</button>
             </div>
           </div>
+
+          <!-- Image Recognition Model Selector -->
+          <div id="imageModelSelector" class="form-row hidden" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+            <label data-i18n="imageRecognitionModel">🎯 图像识别模型</label>
+            <span class="settings-hint" data-i18n="imageRecognitionModelHint">用于分析网页图片生成提示词</span>
+            <select id="imageRecognitionModelSelect" class="settings-input" style="margin-top: 8px;">
+              <!-- Rendered dynamically -->
+            </select>
+          </div>
+
+          <!-- Provider Add/Edit Form (hidden) -->
         </div>
       </div>
 
@@ -430,6 +465,7 @@
       <button id="packBtn" class="btn btn-secondary btn-small" title="Share Prompt Pack">📦</button>
       <button id="youtubePromptBtn" class="btn btn-secondary btn-small"
         title="从视频生成 Prompt（YouTube / TikTok / 抖音 / 快手）">🎬</button>
+      <button id="skillManagerBtn" class="btn btn-secondary btn-small" title="Skill Manager">🧩</button>
       <span class="shortcut-hint" data-i18n="shortcutHint">Ctrl+Shift+P 快捷插入</span>
     </footer>
   </div>
@@ -852,6 +888,108 @@
   </div>
 
   <script src="lib/marked.min.js"></script>
+
+  <!-- Skill Manager Modal -->
+  <div id="skillManagerModal" class="modal hidden">
+    <div class="modal-content skill-manager-modal">
+      <div class="modal-header">
+        <h2>🧩 Skill Manager</h2>
+        <button class="modal-close" id="closeSkillManagerModal">&times;</button>
+      </div>
+      <!-- List View -->
+      <div id="skillListView" class="skill-manager-body">
+        <div id="skillEmptyState" class="skill-empty hidden">
+          <div class="skill-empty-icon">🧩</div>
+          <p>No skills generated yet.</p>
+          <p class="skill-empty-hint">Click the 🧩 button on any prompt to generate a skill.</p>
+        </div>
+        <div id="skillListContent" class="skill-list"></div>
+      </div>
+      <!-- Detail View -->
+      <div id="skillDetailView" class="skill-detail hidden">
+        <button class="btn btn-secondary btn-small skill-back-btn" id="skillBackBtn">← Back</button>
+        <h3 id="skillDetailTitle"></h3>
+        <div id="skillDetailContent" class="skill-detail-md"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Prompt Result Modal -->
+  <div id="imagePromptModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="imagePromptFeature">🖼️ Image Prompt Analysis</h2>
+        <button class="modal-close" id="closeImagePromptModal">&times;</button>
+      </div>
+      <div class="image-prompt-body">
+        <!-- Loading State -->
+        <div id="imagePromptLoading" class="image-prompt-loading hidden">
+          <div class="spinner"></div>
+          <p data-i18n="imagePromptGenerating">Analyzing image...</p>
+          <button id="imagePromptCancelBtn" class="btn btn-secondary btn-small" data-i18n="imagePromptCancel">Cancel</button>
+        </div>
+
+        <!-- Error State -->
+        <div id="imagePromptError" class="image-prompt-error hidden">
+          <p data-i18n="imagePromptError">Failed to analyze image</p>
+          <button id="imagePromptRetryBtn" class="btn btn-primary" data-i18n="imagePromptRetry">Retry</button>
+        </div>
+
+        <!-- Result Content -->
+        <div id="imagePromptResult" class="image-prompt-result hidden">
+          <!-- Original Image -->
+          <div class="image-prompt-preview">
+            <img id="imagePromptThumbnail" src="" alt="Analyzed image">
+          </div>
+
+          <!-- Analysis Results -->
+          <div class="image-prompt-analysis">
+            <div class="analysis-field">
+              <label>Subject:</label>
+              <div id="imagePromptSubject"></div>
+            </div>
+            <div class="analysis-field">
+              <label>Style:</label>
+              <div id="imagePromptStyle"></div>
+            </div>
+            <div class="analysis-field">
+              <label>Lighting:</label>
+              <div id="imagePromptLighting"></div>
+            </div>
+            <div class="analysis-field">
+              <label>Color Scheme:</label>
+              <div id="imagePromptColorScheme"></div>
+            </div>
+            <div class="analysis-field">
+              <label>Composition:</label>
+              <div id="imagePromptComposition"></div>
+            </div>
+            <div class="analysis-field">
+              <label>Details:</label>
+              <div id="imagePromptDetails"></div>
+            </div>
+          </div>
+
+          <!-- Generated Prompt -->
+          <div class="image-prompt-output">
+            <label>Generated Prompt:</label>
+            <textarea id="imagePromptOutput" rows="4" readonly></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div class="image-prompt-actions">
+            <button id="imagePromptCopyBtn" class="btn btn-secondary" data-i18n="imagePromptCopy">Copy</button>
+            <button id="imagePromptSaveBtn" class="btn btn-primary" data-i18n="imagePromptSave">Save to Prompt Ark</button>
+            <button id="imagePromptRegenerateBtn" class="btn btn-secondary" data-i18n="imagePromptRegenerate">Regenerate</button>
+            <button id="imagePromptNanobananaBtn" class="btn btn-secondary" data-i18n="imagePromptNanobanana">Open nanobanana</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+
   <script src="popup.js" type="module"></script>
 
 </body>
