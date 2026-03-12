@@ -891,9 +891,15 @@ class AIPromptManager {
   }
 
   _triggerArticleShare(platform) {
-    // Grab selection or full page text
+    // Grab selection or article content (prefer semantic tags over full page)
     const selection = window.getSelection().toString().trim();
-    const sourceText = selection || (document.body.innerText || '').replace(/\s+/g, ' ').trim().substring(0, 3000);
+    let sourceText = selection;
+    if (!sourceText) {
+      // Try semantic article containers first (cleaner content, less nav/sidebar noise)
+      const articleEl = document.querySelector('article') || document.querySelector('[role="article"]') || document.querySelector('main') || document.querySelector('.post-content, .article-content, .entry-content, .content-body');
+      const rawText = articleEl ? articleEl.innerText : (document.body.innerText || '');
+      sourceText = rawText.replace(/\s+/g, ' ').trim().substring(0, 8000);
+    }
 
     if (!sourceText) return;
 
