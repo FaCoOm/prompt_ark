@@ -1,4 +1,8 @@
-## English AI-Writing Patterns — Append to base humanize prompt
+<!-- depends-on: humanize.md | This file is NOT a standalone prompt. It is appended to humanize.md when the input text is English. -->
+
+## English AI-Writing Patterns
+
+The following rules extend the base humanize.md rewrite rules for **English-language** text. Apply these in addition to (not instead of) the 8 base rules.
 
 ### High-Frequency AI Vocabulary (delete or replace)
 Additionally, furthermore, it's important to note, it's worth mentioning, in conclusion, arguably, one could say, delve, landscape (abstract), tapestry (abstract), testament, pivotal, crucial, vibrant, showcasing, fostering, garner, interplay, intricate, nestled, groundbreaking, game-changing, revolutionize, paradigm shift, cutting-edge, seamless, innovative, next-generation
