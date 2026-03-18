@@ -224,6 +224,16 @@ class AIPromptManager {
   }
 
   findInputElement() {
+    // Try platform-specific simple selectors first (fast path)      const elements = root.querySelectorAll ? root.querySelectorAll('*') : [];
+      elements.forEach(el => {
+        if (predicate(el)) results.push(el);
+        if (el.shadowRoot) queue.push(el.shadowRoot);
+      });
+    }
+    return results;
+  }
+
+  findInputElement() {
     // Try platform-specific simple selectors first (fast path)
     const simple = this.findInputSimple();
     if (simple) return simple;
@@ -452,12 +462,6 @@ class AIPromptManager {
     });
 
     this.initSlashCommands();
-    this.initSelectionToolbar();
-
-    // Initialize Image Prompt Handler
-    this.imagePromptHandler = new ImagePromptHandler();
-
-    // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
     this.initSelectionToolbar();
 
     // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
