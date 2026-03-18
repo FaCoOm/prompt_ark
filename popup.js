@@ -46,6 +46,16 @@ class PopupManager {
     this.renderPrompts();
     this.bindEvents();
 
+    // Render Hub user info if logged in
+    this.renderHubUserInfo();
+
+    // Listen for Hub auth changes (real-time sync)
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && (changes.hubUser || changes.isLoggedIn)) {
+        this.renderHubUserInfo();
+      }
+    });
+    
     // Listen for async AI enrichment updates from background
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === 'PROMPTS_UPDATED') {
@@ -76,6 +86,48 @@ class PopupManager {
     i18n.translatePage();
     if (this.prompts.length > 0) {
       this.renderCategories();
+    }
+  }
+
+  // --- Hub User Info (登录显示头像和名字) ---
+  async renderHubUserInfo() {
+    const container = document.getElementById('hubUserInfo');
+    const avatarImg = document.getElementById('hubUserAvatar');
+    const nameSpan = document.getElementById('hubUserName');
+    if (!container || !avatarImg || !nameSpan) return;
+
+    try {
+      const data = await chrome.storage.local.get(['isLoggedIn', 'hubUser']);
+      const { isLoggedIn, hubUser } = data || {};
+
+      if (isLoggedIn && hubUser) {
+        if (hubUser.avatar) {
+          // 移除旧元素，重新创建 img 以支持 onerror
+          const oldImg = container.querySelector('.hub-user-avatar');
+          if (oldImg) oldImg.remove();
+          const oldInitials = container.querySelector('.hub-user-initials');
+          if (oldInitials) oldInitials.remove();
+          
+          const img = document.createElement('img');
+          img.className = 'hub-user-avatar';
+          img.alt = 'Avatar';
+          img.src = hubUser.avatar;
+          img.onerror = () => {
+            img.remove();
+            const initials = document.createElement('span');
+            initials.className = 'hub-user-initials';
+            initials.textContent = (hubUser.name || hubUser.email || '?')[0].toUpperCase();
+            container.insertBefore(initials, nameSpan);
+          };
+          container.insertBefore(img, nameSpan);
+        }
+        nameSpan.textContent = hubUser.name || hubUser.email || '';
+        container.classList.remove('hidden');
+      } else {
+        container.classList.add('hidden');
+      }
+    } catch (e) {
+      container.classList.add('hidden');
     }
   }
 

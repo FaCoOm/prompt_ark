@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { supabase, type Prompt } from './lib/supabase'
+import { supabase, type Prompt, getCurrentUser } from './lib/supabase'
+import { initAuthSync } from './lib/auth-sync'
 import {
   Header,
   SearchBar,
@@ -12,6 +13,7 @@ import {
   useToast,
   Loading,
   Pagination,
+  AuthButton,
 } from './components'
 
 type SortOption = 'trending' | 'newest' | 'topRated' | 'quality'
@@ -26,6 +28,7 @@ function AppContent() {
   const [sort, setSort] = useState<SortOption>('trending')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
+  const [user, setUser] = useState<any>(null)
   const { showToast } = useToast()
 
   // Get unique categories from prompts
@@ -35,12 +38,87 @@ function AppContent() {
     return ['all', ...Array.from(cats).sort()]
   }, [prompts])
 
-  // Load prompts on mount
+  const handleExternalLoginTrigger = async () => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('action') !== 'login' || params.get('source') !== 'extension') return
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
+    })
+    if (error) console.error('Auto login error:', error)
+  }
+
+  useEffect(() => {
+    initAuthSync()
+    handleExternalLoginTrigger()
+  }, [])
+
   useEffect(() => {
     loadPrompts()
   }, [])
 
-  // Open detail when id param present in URL
+  useEffect(() => {
+    const channel = supabase
+      .channel('prompts-insert')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'prompts',
+          filter: 'visibility=eq.public',
+        },
+        (payload) => {
+          console.log('[Hub] New prompt inserted:', payload.new)
+          setPrompts((prev) => {
+            const newList = [payload.new as Prompt, ...prev]
+            return newList.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Load prompt by ID from URL params (supports unlisted access)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const promptId = params.get('prompt') || params.get('id')
+    if (promptId) {
+      loadPromptById(promptId)
+    }
+  }, [])
+
+  async function loadPromptById(id: string) {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) {
+      console.error('Error loading prompt:', error)
+      showToast('Failed to load prompt')
+      return
+    }
+    
+    if (data && ['public', 'unlisted'].includes(data.visibility)) {
+      setSelectedPrompt(data)
+    } else if (data?.visibility === 'private') {
+      showToast('This prompt is private')
+    }
+  }
+
+  // Open detail when id param present in URL (fallback to local search)
   useEffect(() => {
     if (prompts.length === 0) return
     const params = new URLSearchParams(window.location.search)
@@ -55,9 +133,16 @@ function AppContent() {
 
   async function loadPrompts() {
     setLoading(true)
-    const { data, error } = await supabase
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+    
+    let query = supabase
       .from('prompts')
       .select('*')
+      .eq('visibility', 'public')
+    
+    const { data, error } = await query
     
     if (error) {
       console.error('Error loading prompts:', error)
@@ -279,8 +364,16 @@ function AppContent() {
 
   return (
     <div className="hub-container">
-      <Header />
+      <Header 
+        user={user}
+        onAuthChange={setUser}
+      />
       
+      
+      <div className="hub-title-section">
+        <h1 className="hub-title">Prompt Ark Hub</h1>
+        <p className="hub-subtitle">Discover, install, and share AI prompts from the community</p>
+      </div>
       <SearchBar value={search} onChange={setSearch} />
       
       <div className="hub-controls">

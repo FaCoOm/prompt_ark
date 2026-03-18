@@ -1,20 +1,36 @@
 import React from 'react'
+import { AuthButton } from './AuthButton'
 
 interface HeaderProps {
-  title?: string
-  subtitle?: string
+  user?: any
+  onAuthChange?: (user: any) => void
 }
 
 export function Header({ 
-  title = 'Prompt Ark Hub', 
-  subtitle = 'Discover, install, and share AI prompts from the community' 
+  user,
+  onAuthChange
 }: HeaderProps) {
   return (
     <header className="hub-header">
-      <div className="hub-logo">
-        <h1>{title}</h1>
+      <a href="/" className="hub-logo-link">
+        <img 
+          src="/icon128.png" 
+          alt="Prompt Ark" 
+          className="hub-logo-icon"
+        />
+        <span className="hub-logo-text">Prompt Ark</span>
+      </a>
+      <div className="hub-auth-container">
+        <a 
+          className="hub-ext-link" 
+          href="https://github.com/keyonzeng/prompt_ark" 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          🧩 Get Extension
+        </a>
+        <AuthButton user={user} onAuthChange={onAuthChange || (() => {})} />
       </div>
-      <p className="hub-subtitle">{subtitle}</p>
     </header>
   )
 }

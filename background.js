@@ -6,7 +6,7 @@ import { GitHubClient } from './lib/github-client.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
-import { HubClient } from './lib/hub-client.js';
+import { HubClient } from './lib/supabase/client.js';
 import { safeParseJSON, fetchWithTimeout, getProviders, setProviders, getActiveProvider, migrateProviderSettings, callCloudAPI } from './lib/ai/provider.js';
 import { extractVariables, classifyVariables, resolveContextVariables, composePrompt } from './lib/variables.js';
 import { detectLanguageHeuristic, extractTitleHeuristic, matchCategory, extractTitleAndCategory as _extractTitleAndCategory } from './lib/text-analysis.js';
@@ -16,8 +16,9 @@ import { smartConvertWithAI } from './lib/ai/smart-convert.js';
 import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
 import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
-import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS } from './lib/ai/share.js';
+import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS, buildFallbackText } from './lib/ai/share.js';
 import { buildContextMenus, handleContextMenuClick } from './lib/context-menu.js';
+import { initSupabase, initSupabaseFromStorage, isAuthenticated as isSupabaseAuthenticated, from as supabaseFrom, signOut } from './lib/supabase/client.js';
 
 
 const githubClient = new GitHubClient();
@@ -29,6 +30,152 @@ preloadAllPrompts();
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error('Side panel setup failed:', error));
+
+// Listen for messages from content script (which receives postMessage from Hub)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'PROMPT_ARK_AUTH_SYNC') {
+    const { isLoggedIn, accessToken, refreshToken, expiresAt, user } = message.payload || {};
+    
+    chrome.storage.local.set({
+      isLoggedIn: isLoggedIn || false,
+      accessToken: accessToken || null,
+      refreshToken: refreshToken || null,
+      expiresAt: expiresAt || null,
+      hubUser: user || null
+    }).then(async () => {
+      console.log('[Hub Auth Sync] Auth state updated:', { isLoggedIn, user: user?.email });
+      
+      if (isLoggedIn && accessToken && refreshToken) {
+        initSupabase(accessToken, refreshToken, expiresAt, user);
+        await handlePendingIntent();
+      } else {
+        signOut();
+      }
+      
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error('[Hub Auth Sync] Failed to store auth:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    
+    return true;
+  }
+  return false;
+});
+
+const PENDING_INTENT_TTL = 15 * 60 * 1000;
+let _isPendingIntentRunning = false;
+
+async function handlePendingIntent() {
+  if (_isPendingIntentRunning) {
+    console.log('[PendingIntent] Already running, skipping');
+    return;
+  }
+  _isPendingIntentRunning = true;
+  
+  try {
+    const result = await chrome.storage.local.get(['pendingIntent']);
+    const intent = result.pendingIntent;
+    
+    if (!intent) {
+      _isPendingIntentRunning = false;
+      return;
+    }
+    
+    if (Date.now() - intent.timestamp > PENDING_INTENT_TTL) {
+      await chrome.storage.local.remove('pendingIntent');
+      _isPendingIntentRunning = false;
+      return;
+    }
+    
+    await chrome.storage.local.remove('pendingIntent');
+    
+    console.log('[PendingIntent] Executing:', intent.action);
+    
+    if (intent.action === 'PUBLISH_TO_HUB') {
+      const resp = await HubClient.publishPrompt(intent.promptData, 'public');
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: '🎉 Published to Hub!',
+        message: `Your prompt "${intent.promptData.title}" is now live on Hub.`
+      });
+    } else if (intent.action === 'PUBLISH_PACK_TO_HUB') {
+      const resp = await HubClient.publishPack(intent.promptData.prompts, intent.promptData.packTitle, 'public');
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: '🎉 Pack Published!',
+        message: `Your prompt pack "${intent.promptData.packTitle}" is now live on Hub.`
+      });
+    } else if (intent.action === 'SHARE_TO_PLATFORM') {
+      const { promptData, platform } = intent;
+      const resp = await HubClient.publishPrompt(promptData, 'unlisted');
+      
+      const shareUrl = resp.url;
+      const shareTitle = promptData.title || 'AI Prompt';
+      
+      const fallbackText = buildFallbackText(platform, shareTitle, shareUrl, promptData);
+      
+      if (platform === 'zhihu' || platform === 'wechat' || platform === 'xiaohongshu') {
+        await shareToSocialPlatform({
+          content: promptData.content || '',
+          title: shareTitle,
+          url: shareUrl,
+          platform,
+          fallbackText,
+        }, () => {});
+      } else if (platform === 'twitter') {
+        const tweetText = fallbackText || `${shareTitle}\n\n🔗 ${shareUrl}`;
+        await chrome.tabs.create({ url: `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}` });
+      } else if (platform === 'reddit') {
+        const redditBody = fallbackText || `${shareTitle}\n\n🔗 ${shareUrl}`;
+        await chrome.tabs.create({ url: `https://www.reddit.com/submit?type=TEXT&title=${encodeURIComponent(shareTitle)}` });
+        await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: redditBody });
+        });
+      } else if (platform === 'linkedin') {
+        const linkedinText = fallbackText || `${shareTitle}\n\n🔗 ${shareUrl}`;
+        await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' });
+        await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: linkedinText });
+        });
+      } else if (platform === 'copy') {
+        await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareUrl });
+        });
+      } else if (platform === 'json') {
+        const json = JSON.stringify({ title: shareTitle, content: promptData.content, category: promptData.category, tags: promptData.tags }, null, 2);
+        await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: json });
+        });
+      }
+      
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: '🔗 ' + (platform === 'copy' || platform === 'json' ? 'Copied!' : 'Opening ' + platform + '...'),
+        message: platform === 'copy' || platform === 'json' ? 'Check your clipboard' : 'Check the new tab to finish sharing.'
+      });
+    }
+  } catch (e) {
+    console.error('[PendingIntent] Failed:', e);
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: '❌ Publish Failed',
+      message: `Failed to publish: ${e.message || 'Unknown error'}. Please try again.`
+    });
+  } finally {
+    _isPendingIntentRunning = false;
+  }
+}
+
+initSupabaseFromStorage().then(success => {
+  if (success) {
+    console.log('[Supabase] Session restored from storage');
+  }
+});
 
 // --- Storage Helper (DRY) ---
 // User content → Dual-layer: sync (slim) + local (full)
@@ -149,42 +296,12 @@ async function callProvider(provider, prompt) {
   return null;
 }
 
-// --- Share via Gist Helper (DRY: replaces SHARE_PROMPT + SHARE_PACK inline code) ---
-async function shareViaGist(message) {
-  const token = await LocalStorage.get('githubToken');
-  if (!token) return { success: false, error: 'GitHub token not configured' };
-
-  const allPrompts = await getPrompts();
-  const isPack = message.type === 'SHARE_PACK';
-
-  let prompts, title, filename;
-  if (isPack) {
-    prompts = allPrompts.filter(p => message.ids.includes(p.id));
-    if (prompts.length === 0) return { success: false, error: 'No prompts found' };
-    title = message.packTitle || 'Prompt Pack';
-    filename = `prompt-ark-pack-${title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
-  } else {
-    const prompt = allPrompts.find(p => p.id === message.id);
-    if (!prompt) return { success: false, error: 'Prompt not found' };
-    prompts = [prompt];
-    title = prompt.title;
-    filename = `prompt-ark-${(title || 'untitled').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40)}.json`;
+async function requireHubAuth() {
+  const accessToken = await LocalStorage.get('accessToken');
+  if (!accessToken) {
+    throw new Error('NOT_LOGGED_IN');
   }
-
-  const serializePrompt = p => ({
-    title: p.title, content: p.content, category: p.category || '',
-    tags: p.tags || [], variables: p.variables || [], shortcut: p.shortcut || '',
-  });
-
-  const shareData = {
-    format: 'prompt-ark', version: 1, exportedAt: new Date().toISOString(),
-    ...(isPack ? { pack: { title, count: prompts.length } } : {}),
-    prompts: prompts.map(serializePrompt),
-  };
-
-  const gistTitle = isPack ? `[Prompt Ark Pack] ${title} (${prompts.length} prompts)` : `[Prompt Ark] ${title}`;
-  const result = await githubClient.createGist(gistTitle, filename, JSON.stringify(shareData, null, 2), token);
-  return { success: true, url: `https://keyonzeng.github.io/prompt_ark/?gist=${result.gistId}` };
+  return accessToken;
 }
 
 async function handleMessage(message, sendResponse) {
@@ -757,22 +874,29 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'SHARE_PROMPT': {
-        const result = await shareViaGist(message, sendResponse);
-        if (result) sendResponse(result);
+        try {
+          await requireHubAuth();
+          const result = await HubClient.publishPrompt(message.prompt, 'unlisted');
+          sendResponse({ success: true, id: result.id, url: result.url });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
         break;
       }
 
-      case 'SHARE_PACK': {
-        const result = await shareViaGist(message, sendResponse);
-        if (result) sendResponse(result);
-        break;
-      }
-
-      case 'SAVE_GITHUB_TOKEN': {
-        await LocalStorage.set('githubToken', message.token);
-        // Refresh SyncManager in background instantly
-        await SyncManager.loadConfig();
-        sendResponse({ success: true });
+      case 'CHECK_HUB_LOGIN': {
+        const accessToken = await LocalStorage.get('accessToken');
+        if (!accessToken) {
+          sendResponse({ success: true, isLoggedIn: false });
+          break;
+        }
+        
+        try {
+          const { loggedIn, user } = await HubClient.checkLogin();
+          sendResponse({ success: true, isLoggedIn: loggedIn, user });
+        } catch (e) {
+          sendResponse({ success: true, isLoggedIn: false });
+        }
         break;
       }
 
@@ -839,35 +963,24 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'PUBLISH_TO_HUB': {
-        const ghToken = await LocalStorage.get('githubToken');
-        if (!ghToken) {
-          sendResponse({ success: false, error: 'GitHub token not configured. Go to Settings → GitHub Token.' });
-          break;
+        try {
+          await requireHubAuth();
+          const result = await HubClient.publishPrompt(message.prompt, message.visibility || 'public');
+          sendResponse({ success: true, id: result.id, url: result.url });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
         }
-        const target = await PromptStorage.getById(message.id);
-        if (!target) {
-          sendResponse({ success: false, error: 'Prompt not found' });
-          break;
-        }
-        const pubResult = await HubClient.publishPrompt(target, ghToken);
-        sendResponse({ success: true, gistId: pubResult.gistId, hubUrl: pubResult.hubUrl, indexGistId: pubResult.indexGistId, updated: pubResult.updated });
         break;
       }
 
       case 'PUBLISH_PACK_TO_HUB': {
-        const ghToken2 = await LocalStorage.get('githubToken');
-        if (!ghToken2) {
-          sendResponse({ success: false, error: 'GitHub token not configured.' });
-          break;
+        try {
+          await requireHubAuth();
+          const result = await HubClient.publishPack(message.prompts, message.packTitle, message.visibility || 'public');
+          sendResponse({ success: true, id: result.id, url: result.url });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
         }
-        const allP2 = await getPrompts();
-        const packPrompts = (message.promptIds || []).map(id => allP2.find(p => p.id === id)).filter(Boolean);
-        if (packPrompts.length === 0) {
-          sendResponse({ success: false, error: 'No valid prompts found for pack' });
-          break;
-        }
-        const packResult = await HubClient.publishPack(packPrompts, message.packTitle || 'Prompt Pack', ghToken2);
-        sendResponse({ success: true, gistId: packResult.gistId, hubUrl: packResult.hubUrl });
         break;
       }
 
