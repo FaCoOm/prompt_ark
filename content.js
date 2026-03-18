@@ -1,90 +1,51 @@
 // content.js - Prompt Ark Content Script
 // Unified deep traversal strategy for all platforms
 
-import { ImagePromptHandler } from './lib/image-prompt-handler.js';
-
-class AIPromptManager {
-// content.js - Prompt Ark Content Script
-// Unified deep traversal strategy for all platforms
-
 // --- Image Prompt Feature (Embedded) ---
 class ImagePromptHandler {
   constructor() {
     this.enabled = false;
-    this.imageModelId = '';
+    this.imageModelId = "";
     this.processedImages = new WeakSet();
     this.currentButton = null;
     this.hoverTimer = null;
     this.currentImg = null;
     this.observer = null;
-    
-    // Ad domains to exclude
-    this.adDomains = [
-      'googleads', 'doubleclick', 'googlesyndication', 'google-analytics',
-      'facebook.com/tr', 'amazon-adsystem', 'adsystem.amazon'
-    ];
-    
+    this.adDomains = ["googleads", "doubleclick", "googlesyndication", "google-analytics", "facebook.com/tr", "amazon-adsystem", "adsystem.amazon"];
     this.init();
   }
-  
   async init() {
-    // Load settings
     await this.loadSettings();
-    
-    // Listen for settings changes from background
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'IMAGE_PROMPT_SETTINGS_CHANGED') {
+      if (message.type === "IMAGE_PROMPT_SETTINGS_CHANGED") {
         this.enabled = message.enabled;
-        if (this.enabled) {
-          this.startDetection();
-        } else {
-          this.stopDetection();
-        }
+        this.enabled ? this.startDetection() : this.stopDetection();
       }
     });
-    
-    // Start if enabled
-    if (this.enabled) {
-      this.startDetection();
-    }
+    if (this.enabled) this.startDetection();
   }
-  
   async loadSettings() {
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_IMAGE_PROMPT_SETTINGS' });
+      const resp = await chrome.runtime.sendMessage({ type: "GET_IMAGE_PROMPT_SETTINGS" });
       this.enabled = resp.enabled || false;
-      this.imageModelId = resp.imageModelId || '';
+      this.imageModelId = resp.imageModelId || "";
     } catch (e) {
-      console.error('[ImagePrompt] Failed to load settings:', e);
+      console.error("[ImagePrompt] Failed to load settings:", e);
     }
   }
-  
   startDetection() {
     if (this.observer) return;
-    
-    // Initial scan
     this.scanImages();
-    
-    // Setup MutationObserver with debounce
     let debounceTimer = null;
-    this.observer = new MutationObserver((mutations) => {
+    this.observer = new MutationObserver(() => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => this.scanImages(), 300);
     });
-    
-    this.observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    
-    // Global click listener to hide button
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.image-prompt-btn')) {
-        this.hideButton();
-      }
+    this.observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".image-prompt-btn")) this.hideButton();
     });
   }
-  
   stopDetection() {
     if (this.observer) {
       this.observer.disconnect();
@@ -92,118 +53,62 @@ class ImagePromptHandler {
     }
     this.hideButton();
   }
-  
   scanImages() {
     if (!this.enabled) return;
-    
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
+    document.querySelectorAll("img").forEach((img) => {
       if (this.processedImages.has(img)) return;
       if (!this.isValidImage(img)) return;
-      
       this.processedImages.add(img);
       this.attachHoverListener(img);
     });
   }
-  
   isValidImage(img) {
-    // Check if already processed
     if (img.dataset.imagePromptAttached) return false;
-    
-    // Check CSS display size
     const rect = img.getBoundingClientRect();
     if (rect.width < 100 || rect.height < 100) return false;
-    
-    // Check if visible
     if (!this.isVisible(img)) return false;
-    
-    // Check if SVG
-    if (img.tagName.toLowerCase() === 'svg' || img.src?.endsWith('.svg')) return false;
-    
-    // Check if from ad domain
+    if (img.tagName.toLowerCase() === "svg" || img.src?.endsWith(".svg")) return false;
     if (this.isAdImage(img)) return false;
-    
-    // Check if transparent/empty
-    if (!img.src || (img.src.startsWith('data:') && img.naturalWidth === 0)) return false;
-    
+    if (!img.src || (img.src.startsWith("data:") && img.naturalWidth === 0)) return false;
     return true;
   }
-  
   isVisible(el) {
     const style = window.getComputedStyle(el);
-    return style.display !== 'none' && 
-           style.visibility !== 'hidden' && 
-           style.opacity !== '0';
+    return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
   }
-  
   isAdImage(img) {
-    const src = img.src || '';
-    return this.adDomains.some(domain => src.includes(domain));
+    return this.adDomains.some((domain) => (img.src || "").includes(domain));
   }
-  
   attachHoverListener(img) {
-    img.dataset.imagePromptAttached = 'true';
-    
-    img.addEventListener('mouseenter', () => {
-      this.hoverTimer = setTimeout(() => {
-        this.showButton(img);
-      }, 300);
+    img.dataset.imagePromptAttached = "true";
+    img.addEventListener("mouseenter", () => {
+      this.hoverTimer = setTimeout(() => this.showButton(img), 300);
     });
-    
-    img.addEventListener('mouseleave', () => {
+    img.addEventListener("mouseleave", () => {
       if (this.hoverTimer) {
         clearTimeout(this.hoverTimer);
         this.hoverTimer = null;
       }
     });
   }
-  
   showButton(img) {
-    // Hide any existing button
     this.hideButton();
-    
     this.currentImg = img;
-    
-    // Create button
-    const btn = document.createElement('button');
-    btn.className = 'image-prompt-btn';
-    btn.innerHTML = '✨';
-    btn.title = 'Generate Image Prompt';
-    
-    // Position at top-right of image
+    const btn = document.createElement("button");
+    btn.className = "image-prompt-btn";
+    btn.innerHTML = "✨";
+    btn.title = "Generate Image Prompt";
     const rect = img.getBoundingClientRect();
-    btn.style.cssText = `
-      position: fixed;
-      top: ${rect.top + 8}px;
-      left: ${rect.right - 32}px;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      border: none;
-      cursor: pointer;
-      z-index: 2147483647;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-      pointer-events: auto;
-    `;
-    
-    btn.addEventListener('mouseenter', () => btn.style.opacity = '1');
-    btn.addEventListener('mouseleave', () => btn.style.opacity = '0.7');
-    btn.addEventListener('click', (e) => {
+    btn.style.cssText = `position:fixed;top:${rect.top + 8}px;left:${rect.right - 32}px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;z-index:2147483647;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.2s;pointer-events:auto;`;
+    btn.addEventListener("mouseenter", () => (btn.style.opacity = "1"));
+    btn.addEventListener("mouseleave", () => (btn.style.opacity = "0.7"));
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.handleImageClick(img);
     });
-    
     document.body.appendChild(btn);
     this.currentButton = btn;
   }
-  
   hideButton() {
     if (this.currentButton) {
       this.currentButton.remove();
@@ -211,20 +116,17 @@ class ImagePromptHandler {
     }
     this.currentImg = null;
   }
-  
   async handleImageClick(img) {
     try {
-      // Send message to background to open popup with image analysis
-      await chrome.runtime.sendMessage({
-        type: 'ANALYZE_IMAGE',
-        imageUrl: img.src,
-        imageModelId: this.imageModelId
-      });
+      await chrome.runtime.sendMessage({ type: "ANALYZE_IMAGE", imageUrl: img.src, imageModelId: this.imageModelId });
     } catch (e) {
-      console.error('[ImagePrompt] Failed to analyze image:', e);
+      console.error("[ImagePrompt] Failed to analyze image:", e);
     }
   }
 }
+
+// content.js - Prompt Ark Content Script
+// Unified deep traversal strategy for all platforms
 
 class AIPromptManager {
   constructor() {
