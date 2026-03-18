@@ -48,6 +48,11 @@ class PopupManager {
 
     // Check for pending image analysis
     await this.checkPendingImageAnalysis();
+
+    // Listen for async AI enrichment updates from background
+    chrome.runtime.onMessage.addListener((msg) => {
+
+    // Listen for async AI enrichment updates from background
     await this.loadSettings();
     this.renderCategories();
     this.renderPrompts();
@@ -159,6 +164,7 @@ class PopupManager {
     // Render image recognition model selector
     this.renderImageModelSelector(imgResp.imageModelId);
   }
+  }
 
   toggleSyncUI(backend) {
     document.querySelectorAll('.sync-config-panel').forEach(el => el.classList.add('hidden'));
@@ -232,6 +238,10 @@ class PopupManager {
     });
 
     this.showToast(i18n.t('settingsSaved'));
+      obsidianLocalApiKey: document.getElementById('obsidianLocalApiKeyInput')?.value?.trim() || ''
+    });
+
+    this.showToast(i18n.t('settingsSaved'));
   }
 
   // --- Provider Management ---
@@ -286,6 +296,107 @@ class PopupManager {
     }).join('');
     
     select.innerHTML = `<option value="">${i18n.t('selectProvider') || '选择模型'}</option>` + options;
+  }
+
+  // --- Image Prompt Modal ---
+
+  async checkPendingImageAnalysis() {
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'GET_PENDING_IMAGE_ANALYSIS' });
+      if (resp.pending) {
+        // Show image prompt modal with the pending image
+        this.showImagePromptModal(resp.pending.imageUrl, resp.pending.imageModelId);
+      }
+    } catch (e) {
+      console.error('[Popup] Failed to check pending image analysis:', e);
+    }
+  }
+
+  showImagePromptModal(imageUrl, imageModelId) {
+    const modal = document.getElementById('imagePromptModal');
+    const loading = document.getElementById('imagePromptLoading');
+    const error = document.getElementById('imagePromptError');
+    const result = document.getElementById('imagePromptResult');
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    
+    // Show loading state
+    loading.classList.remove('hidden');
+    error.classList.add('hidden');
+    result.classList.add('hidden');
+    
+    // Set thumbnail
+    document.getElementById('imagePromptThumbnail').src = imageUrl;
+    
+    // Store for later use
+    this.currentImageUrl = imageUrl;
+    this.currentImageModelId = imageModelId;
+    
+    // Start analysis
+    this.analyzeImage(imageUrl, imageModelId);
+  }
+
+  hideImagePromptModal() {
+    document.getElementById('imagePromptModal').classList.add('hidden');
+  }
+
+  async analyzeImage(imageUrl, imageModelId) {
+    const loading = document.getElementById('imagePromptLoading');
+    const error = document.getElementById('imagePromptError');
+    const result = document.getElementById('imagePromptResult');
+    
+    try {
+      // Import the image prompt module dynamically
+      const { generateImagePrompt } = await import('./lib/ai/image-prompt.js');
+      
+      const analysis = await generateImagePrompt(imageUrl, imageModelId);
+      
+      // Hide loading, show result
+      loading.classList.add('hidden');
+      result.classList.remove('hidden');
+      
+      // Fill in analysis results
+      document.getElementById('imagePromptSubject').textContent = analysis.subject || 'N/A';
+      document.getElementById('imagePromptStyle').textContent = analysis.style || 'N/A';
+      document.getElementById('imagePromptLighting').textContent = analysis.lighting || 'N/A';
+      document.getElementById('imagePromptColorScheme').textContent = analysis.color_scheme || 'N/A';
+      document.getElementById('imagePromptComposition').textContent = analysis.composition || 'N/A';
+      document.getElementById('imagePromptDetails').textContent = analysis.details || 'N/A';
+      document.getElementById('imagePromptOutput').value = analysis.prompt || '';
+      
+      // Store for save/regenerate
+      this.currentImageAnalysis = analysis;
+      
+    } catch (e) {
+      console.error('[Popup] Image analysis failed:', e);
+      loading.classList.add('hidden');
+      error.classList.remove('hidden');
+    }
+  }
+
+  async saveImagePrompt() {
+    if (!this.currentImageAnalysis) return;
+    
+    const analysis = this.currentImageAnalysis;
+    const newPrompt = {
+      title: analysis.subject || 'Image Prompt',
+      content: analysis.prompt || '',
+      category: analysis.style || 'Image Analysis',
+      tags: [analysis.style, analysis.lighting].filter(Boolean)
+    };
+    
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'SAVE_PROMPT',
+        prompt: newPrompt
+      });
+      this.showToast(i18n.t('imagePromptSave') || 'Saved to Prompt Ark');
+    } catch (e) {
+      console.error('[Popup] Failed to save image prompt:', e);
+      this.showToast('Failed to save prompt');
+    }
+  }
   }
 
   showProviderForm(provider = null) {
@@ -844,7 +955,7 @@ ${p.sourceContext ? `
         this.debouncedSaveSettings();
       }
     });
-    
+
     // Image Prompt toggle validation
     document.getElementById('imagePromptEnabled')?.addEventListener('change', async (e) => {
       if (e.target.checked) {
@@ -858,6 +969,7 @@ ${p.sourceContext ? `
     });
 
     // Sync Backend select
+    document.getElementById('syncBackendSelect')?.addEventListener('change', (e) => this.toggleSyncUI(e.target.value));
     document.getElementById('syncBackendSelect')?.addEventListener('change', (e) => this.toggleSyncUI(e.target.value));
 
     document.getElementById('forceSyncGistBtn')?.addEventListener('click', async (e) => {
@@ -1059,33 +1171,6 @@ ${p.sourceContext ? `
     document.getElementById('youtubePromptBtn')?.addEventListener('click', () => this.showYoutubeModal());
     document.getElementById('closeYoutubeModal')?.addEventListener('click', () => this.hideYoutubeModal());
 
-    // --- Image Prompt ---
-    document.getElementById('closeImagePromptModal')?.addEventListener('click', () => this.hideImagePromptModal());
-    document.getElementById('imagePromptCancelBtn')?.addEventListener('click', () => this.hideImagePromptModal());
-    document.getElementById('imagePromptRetryBtn')?.addEventListener('click', () => {
-      document.getElementById('imagePromptError').classList.add('hidden');
-      document.getElementById('imagePromptLoading').classList.remove('hidden');
-      this.analyzeImage(this.currentImageUrl, this.currentImageModelId);
-    });
-    document.getElementById('imagePromptCopyBtn')?.addEventListener('click', () => {
-      const output = document.getElementById('imagePromptOutput');
-      output.select();
-      document.execCommand('copy');
-      this.showToast(i18n.t('copySuccess'));
-    });
-    document.getElementById('imagePromptSaveBtn')?.addEventListener('click', () => this.saveImagePrompt());
-    document.getElementById('imagePromptRegenerateBtn')?.addEventListener('click', () => {
-      document.getElementById('imagePromptResult').classList.add('hidden');
-      document.getElementById('imagePromptLoading').classList.remove('hidden');
-      this.analyzeImage(this.currentImageUrl, this.currentImageModelId);
-    });
-    document.getElementById('imagePromptNanobananaBtn')?.addEventListener('click', () => {
-      window.open('https://nanobanana.com', '_blank');
-    });
-
-    document.getElementById('youtubePromptBtn')?.addEventListener('click', () => this.showYoutubeModal());
-    document.getElementById('closeYoutubeModal')?.addEventListener('click', () => this.hideYoutubeModal());
-
     // --- Skill Manager ---
     document.getElementById('skillManagerBtn')?.addEventListener('click', () => this.showSkillManager());
     document.getElementById('closeSkillManagerModal')?.addEventListener('click', () => this.hideSkillManager());
@@ -1110,107 +1195,46 @@ ${p.sourceContext ? `
         }
       }
     });
+
+    // --- Image Prompt ---
+    document.getElementById('closeImagePromptModal')?.addEventListener('click', () => this.hideImagePromptModal());
+    document.getElementById('imagePromptCancelBtn')?.addEventListener('click', () => this.hideImagePromptModal());
+    document.getElementById('imagePromptRetryBtn')?.addEventListener('click', () => {
+      document.getElementById('imagePromptError').classList.add('hidden');
+      document.getElementById('imagePromptLoading').classList.remove('hidden');
+      this.analyzeImage(this.currentImageUrl, this.currentImageModelId);
+    });
+    document.getElementById('imagePromptCopyBtn')?.addEventListener('click', () => {
+      const output = document.getElementById('imagePromptOutput');
+      output.select();
+      document.execCommand('copy');
+      this.showToast(i18n.t('copySuccess'));
+    });
+    document.getElementById('imagePromptSaveBtn')?.addEventListener('click', () => this.saveImagePrompt());
+    document.getElementById('imagePromptRegenerateBtn')?.addEventListener('click', () => {
+      document.getElementById('imagePromptResult').classList.add('hidden');
+      document.getElementById('imagePromptLoading').classList.remove('hidden');
+      this.analyzeImage(this.currentImageUrl, this.currentImageModelId);
+    });
+    document.getElementById('imagePromptNanobananaBtn')?.addEventListener('click', () => {
+      window.open('https://nanobanana.com', '_blank');
+    });
   }
 
 
   // --- Image Prompt Modal ---
-
-  async checkPendingImageAnalysis() {
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_PENDING_IMAGE_ANALYSIS' });
-      if (resp.pending) {
-        // Show image prompt modal with the pending image
-        this.showImagePromptModal(resp.pending.imageUrl, resp.pending.imageModelId);
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === 'VIDEO_PROMPT_PROGRESS') {
+        const statusEl = document.getElementById('youtubeStatus');
+        if (statusEl && !statusEl.classList.contains('hidden')) {
+          statusEl.textContent = msg.message;
+        }
       }
-    } catch (e) {
-      console.error('[Popup] Failed to check pending image analysis:', e);
-    }
+    });
   }
 
-  showImagePromptModal(imageUrl, imageModelId) {
-    const modal = document.getElementById('imagePromptModal');
-    const loading = document.getElementById('imagePromptLoading');
-    const error = document.getElementById('imagePromptError');
-    const result = document.getElementById('imagePromptResult');
-    
-    // Show modal
-    modal.classList.remove('hidden');
-    
-    // Show loading state
-    loading.classList.remove('hidden');
-    error.classList.add('hidden');
-    result.classList.add('hidden');
-    
-    // Set thumbnail
-    document.getElementById('imagePromptThumbnail').src = imageUrl;
-    
-    // Start analysis
-    this.analyzeImage(imageUrl, imageModelId);
-  }
 
-  hideImagePromptModal() {
-    document.getElementById('imagePromptModal').classList.add('hidden');
-  }
 
-  async analyzeImage(imageUrl, imageModelId) {
-    const loading = document.getElementById('imagePromptLoading');
-    const error = document.getElementById('imagePromptError');
-    const result = document.getElementById('imagePromptResult');
-    
-    try {
-      // Import the image prompt module dynamically
-      const { generateImagePrompt } = await import('./lib/ai/image-prompt.js');
-      
-      const analysis = await generateImagePrompt(imageUrl, imageModelId);
-      
-      // Hide loading, show result
-      loading.classList.add('hidden');
-      result.classList.remove('hidden');
-      
-      // Fill in analysis results
-      document.getElementById('imagePromptSubject').textContent = analysis.subject || 'N/A';
-      document.getElementById('imagePromptStyle').textContent = analysis.style || 'N/A';
-      document.getElementById('imagePromptLighting').textContent = analysis.lighting || 'N/A';
-      document.getElementById('imagePromptColorScheme').textContent = analysis.color_scheme || 'N/A';
-      document.getElementById('imagePromptComposition').textContent = analysis.composition || 'N/A';
-      document.getElementById('imagePromptDetails').textContent = analysis.details || 'N/A';
-      document.getElementById('imagePromptOutput').value = analysis.prompt || '';
-      
-      // Store for save/regenerate
-      this.currentImageAnalysis = analysis;
-      this.currentImageUrl = imageUrl;
-      
-    } catch (e) {
-      console.error('[Popup] Image analysis failed:', e);
-      loading.classList.add('hidden');
-      error.classList.remove('hidden');
-    }
-  }
-
-  async saveImagePrompt() {
-    if (!this.currentImageAnalysis) return;
-    
-    const analysis = this.currentImageAnalysis;
-    const newPrompt = {
-      title: analysis.subject || 'Image Prompt',
-      content: analysis.prompt || '',
-      category: analysis.style || 'Image Analysis',
-      tags: [analysis.style, analysis.lighting].filter(Boolean)
-    };
-    
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'SAVE_PROMPT',
-        prompt: newPrompt
-      });
-      this.showToast(i18n.t('imagePromptSave') || 'Saved to Prompt Ark');
-    } catch (e) {
-      console.error('[Popup] Failed to save image prompt:', e);
-      this.showToast('Failed to save prompt');
-    }
-  }
-
-  // --- YouTube → Prompt Modal ---
   // --- YouTube → Prompt Modal ---
 
   showYoutubeModal() {
