@@ -48,34 +48,34 @@
     "message": "译为英文"
   },
   "qaTranslatePrompt": {
-    "message": "请将上面的文本翻译为专业、地道的英文表达。"
+    "message": "请将以上文本翻译成英文，保持原意和专业性。"
   },
   "qaExplainLabel": {
-    "message": "简单解释"
+    "message": "解释说明"
   },
   "qaExplainPrompt": {
-    "message": "请用通俗易懂的语言简单解释一下上方文本传达的概念。"
+    "message": "请解释以上内容的含义和背景，帮助读者理解。"
   },
   "contextMenuConvertStart": {
-    "message": "正在智能转换..."
+    "message": "正在智能转化..."
   },
   "contextMenuConvertSuccess": {
-    "message": "智能 Prompt 已保存！"
+    "message": "智能 Prompt 保存成功！"
   },
   "contextMenuConvertError": {
-    "message": "智能转换失败，已保存原文"
+    "message": "智能转化失败，已保存原文"
   },
   "noPageText": {
     "message": "未找到页面可读取的文本内容"
   },
   "smartConvertNoProvider": {
-    "message": "智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置。"
+    "message": "智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置"
   },
   "openPickerDesc": {
     "message": "打开 Prompt 选择器"
   },
   "grabContextDesc": {
-    "message": "智能抓取网页正文为 Prompt"
+    "message": "智能抓取页面文本转为 Prompt"
   },
   "shareArticleDesc": {
     "message": "分享文章到社交平台"
@@ -87,16 +87,16 @@
     "message": "添加到 Prompt Ark"
   },
   "selectionToolbarConvert": {
-    "message": "智能转化为 Prompt"
+    "message": "智能转换"
   },
   "buildRules": {
-    "message": "🎯 设定输出规则"
+    "message": "🎯 输出规则构建器"
   },
   "ruleFormat": {
-    "message": "输出格式"
+    "message": "格式"
   },
   "ruleFormatAuto": {
-    "message": "自动判定"
+    "message": "自动"
   },
   "ruleFormatMarkdown": {
     "message": "Markdown"
@@ -105,7 +105,7 @@
     "message": "JSON"
   },
   "ruleFormatTable": {
-    "message": "对比表格"
+    "message": "表格"
   },
   "ruleFormatText": {
     "message": "纯文本"
@@ -114,37 +114,37 @@
     "message": "代码"
   },
   "ruleLength": {
-    "message": "字数上限"
+    "message": "最大长度"
   },
   "ruleLengthSuffix": {
     "message": "字"
   },
   "ruleTone": {
-    "message": "语气风格"
+    "message": "语气"
   },
   "ruleToneDefault": {
     "message": "默认"
   },
   "ruleToneProfessional": {
-    "message": "专业严谨"
+    "message": "专业"
   },
   "ruleToneConcise": {
-    "message": "极其简练"
+    "message": "简洁"
   },
   "ruleToneCreative": {
-    "message": "生动有趣"
+    "message": "创意"
   },
   "ruleExclusions": {
-    "message": "排除项 (Do NOT)"
+    "message": "排除项（不包含）"
   },
   "insertRules": {
-    "message": "生成并插入规则"
+    "message": "插入规则"
   },
   "ruleToastEmpty": {
     "message": "请至少配置一项规则"
   },
   "ruleToastExists": {
-    "message": "规则块已存在，请直接修改。"
+    "message": "规则块已存在，请直接修改"
   },
   "ruleToastSuccess": {
     "message": "📎 规则已添加"
