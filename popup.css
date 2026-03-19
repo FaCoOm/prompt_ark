@@ -3419,3 +3419,115 @@ body::before {
 @keyframes p2s-spin {
   to { transform: rotate(360deg); }
 }
+
+/* --- Image Prompt Modal Styles --- */
+.image-prompt-body {
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.image-prompt-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+}
+
+.image-prompt-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.image-prompt-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.image-prompt-preview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.image-prompt-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.image-prompt-analysis {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.analysis-field {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.analysis-field label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.analysis-field div {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.image-prompt-output {
+  margin-bottom: 16px;
+}
+
+.image-prompt-output label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.image-prompt-output textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 100px;
+  background: var(--bg-secondary);
+}
+
+.image-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-prompt-actions button {
+  flex: 1;
+  min-width: 120px;
+}

@@ -154,5 +154,47 @@
   },
   "ruleExclusionsPlaceholder": {
     "message": "e.g. jargon, apologies, disclaimers"
+  },
+  "imagePromptFeature": {
+    "message": "🖼️ Image-to-Prompt (Beta)"
+  },
+  "imagePromptFeatureHint": {
+    "message": "Hover over web images to generate AI image prompts"
+  },
+  "imagePromptEnable": {
+    "message": "Enable Image-to-Prompt feature"
+  },
+  "imageRecognitionModel": {
+    "message": "🎯 Image Recognition Model"
+  },
+  "imageRecognitionModelHint": {
+    "message": "Used to analyze web images and generate prompts"
+  },
+  "imagePromptNoProvider": {
+    "message": "No available image recognition model configured"
+  },
+  "imagePromptGenerating": {
+    "message": "Analyzing image..."
+  },
+  "imagePromptRetry": {
+    "message": "Retry"
+  },
+  "imagePromptCancel": {
+    "message": "Cancel"
+  },
+  "imagePromptCopy": {
+    "message": "Copy"
+  },
+  "imagePromptSave": {
+    "message": "Save to Prompt Ark"
+  },
+  "imagePromptRegenerate": {
+    "message": "Regenerate"
+  },
+  "imagePromptNanobanana": {
+    "message": "Open nanobanana"
+  },
+  "imagePromptError": {
+    "message": "Failed to analyze image, please try again"
   }
 }

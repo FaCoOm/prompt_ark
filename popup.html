@@ -282,6 +282,17 @@
             <input type="password" id="openclawApiKeyInput" class="settings-input"
               placeholder="API Key (Optional)">
           </div>
+
+          <div class="settings-section-header" style="margin-top: 16px;">
+            <label data-i18n="imagePromptFeature">🖼️ 图像生成提示词（Beta）</label>
+          </div>
+          <span class="settings-hint" data-i18n="imagePromptFeatureHint">悬停网页图片生成 AI 图像提示词</span>
+          <div class="form-row" style="margin-top: 8px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="imagePromptEnabled">
+              <span data-i18n="imagePromptEnable">启用图像生成提示词功能</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -329,6 +340,17 @@
               <button id="saveProviderBtn" class="btn btn-primary btn-small" data-i18n="save">保存</button>
             </div>
           </div>
+
+          <!-- Image Recognition Model Selector -->
+          <div id="imageModelSelector" class="form-row hidden" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+            <label data-i18n="imageRecognitionModel">🎯 图像识别模型</label>
+            <span class="settings-hint" data-i18n="imageRecognitionModelHint">用于分析网页图片生成提示词</span>
+            <select id="imageRecognitionModelSelect" class="settings-input" style="margin-top: 8px;">
+              <!-- Rendered dynamically -->
+            </select>
+          </div>
+
+          <!-- Provider Add/Edit Form (hidden) -->
         </div>
       </div>
 
@@ -896,6 +918,15 @@
       </div>
     </div>
   </div>
+
+
+
+  <script src="popup.js" type="module"></script>
+
+</body>
+
+</html>
+  <script src="popup.js" type="module"></script>
 
   <script src="popup.js" type="module"></script>
 

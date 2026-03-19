@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Prompt Analysis - Prompt Ark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Design Tokens */
+    :root {
+      --bg-base: #0f1117;
+      --bg-surface: #171921;
+      --bg-elevated: #1e2030;
+      --bg-input: #12141c;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(255, 255, 255, 0.12);
+      --text-primary: #e8e8ed;
+      --text-secondary: #8b8fa3;
+      --text-muted: #565a6e;
+      --accent: #f0a050;
+      --accent-soft: rgba(240, 160, 80, 0.12);
+      --accent-glow: rgba(240, 160, 80, 0.2);
+      --danger: #e5484d;
+      --danger-soft: rgba(229, 72, 77, 0.12);
+      --success: #46a758;
+      --success-soft: rgba(70, 167, 88, 0.12);
+      --info: #52a8ff;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --transition: 180ms ease;
+      --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--bg-base);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      box-shadow: 0 0 16px rgba(240, 160, 80, 0.3);
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    /* Image Preview */
+    .image-section {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .image-preview {
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      background: var(--bg-input);
+    }
+
+    .image-url {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      word-break: break-all;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Loading State */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      gap: 20px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    .loading-subtext {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Error State */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .error-icon {
+      font-size: 48px;
+      opacity: 0.6;
+    }
+
+    .error-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--danger);
+    }
+
+    .error-message {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 400px;
+    }
+
+    /* Result State */
+    .result-state {
+      display: none;
+    }
+
+    .result-section {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .analysis-item {
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .analysis-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .analysis-value {
+      font-size: 14px;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    /* Generated Prompt */
+    .prompt-output {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg-base);
+    }
+
+    .btn-primary:hover {
+      background: #f5b06a;
+      box-shadow: 0 0 20px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+      border-color: var(--border-hover);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #3d8f4c;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      padding: 12px 24px;
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: rgba(70, 167, 88, 0.3);
+    }
+
+    .toast.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: rgba(229, 72, 77, 0.3);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container {
+        padding: 20px 16px;
+      }
+
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-input);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <img src="icons/icon48.png" alt="Prompt Ark" class="logo">
+      <h1 class="header-title">🖼️ Image Prompt Analysis</h1>
+      <span class="header-subtitle">Powered by Prompt Ark</span>
+    </header>
+
+    <!-- Image Preview Section -->
+    <section class="image-section">
+      <img id="sourceImage" class="image-preview" src="" alt="Source image">
+      <div id="imageUrl" class="image-url"></div>
+    </section>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state">
+      <div class="spinner"></div>
+      <div class="loading-text">Analyzing image...</div>
+      <div class="loading-subtext">AI is generating detailed prompt from your image</div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="error-state" style="display: none;">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">Analysis Failed</div>
+      <div id="errorMessage" class="error-message">Something went wrong while analyzing the image.</div>
+      <button id="retryBtn" class="btn btn-primary">Retry</button>
+    </div>
+
+    <!-- Result State -->
+    <div id="resultState" class="result-state">
+      <!-- Analysis Results -->
+      <section class="result-section">
+        <h2 class="section-title">📊 Analysis Results</h2>
+        <div class="analysis-grid">
+          <div class="analysis-item">
+            <div class="analysis-label">Subject</div>
+            <div id="subjectValue" class="analysis-value">-</div>
+          </div>
+          <div class="analysis-item">
+            <div class="analysis-label">Style</div>
+            <div id="styleValue" class="analysis-value">-</div>
+          </div>
+          <div class="analysis-item">
+            <div class="analysis-label">Lighting</div>
+            <div id="lightingValue" class="analysis-value">-</div>
+          </div>
+          <div class="analysis-item">
+            <div class="analysis-label">Color Scheme</div>
+            <div id="colorSchemeValue" class="analysis-value">-</div>
+          </div>
+          <div class="analysis-item">
+            <div class="analysis-label">Composition</div>
+            <div id="compositionValue" class="analysis-value">-</div>
+          </div>
+          <div class="analysis-item">
+            <div class="analysis-label">Details</div>
+            <div id="detailsValue" class="analysis-value">-</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Generated Prompt -->
+      <section class="result-section">
+        <h2 class="section-title">✨ Generated Prompt</h2>
+        <div id="promptOutput" class="prompt-output"></div>
+        <div class="actions">
+          <button id="copyBtn" class="btn btn-secondary">
+            📋 Copy Prompt
+          </button>
+          <button id="saveBtn" class="btn btn-primary">
+            💾 Save to Prompt Ark
+          </button>
+          <button id="regenerateBtn" class="btn btn-secondary">
+            🔄 Regenerate
+          </button>
+          <a id="nanobananaBtn" class="btn btn-success" href="https://nanobanana.io" target="_blank" rel="noopener">
+            🎨 Open nanobanana
+          </a>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="image-prompt.js"></script>
+</body>
+</html>

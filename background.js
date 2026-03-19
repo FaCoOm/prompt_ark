@@ -342,6 +342,22 @@ async function handleMessage(message, sendResponse) {
         sendResponse({ success: true });
         break;
 
+      case 'GET_IMAGE_PROMPT_SETTINGS':
+        sendResponse(await LocalStorage.get('imagePrompt') || { enabled: false, imageModelId: '' });
+        break;
+
+      case 'SAVE_IMAGE_PROMPT_SETTINGS':
+        await LocalStorage.set('imagePrompt', { enabled: message.enabled, imageModelId: message.imageModelId });
+        // Broadcast to all tabs to enable/disable image prompt feature
+        chrome.tabs.query({}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, { type: 'IMAGE_PROMPT_SETTINGS_CHANGED', enabled: message.enabled }).catch(() => {});
+          });
+        });
+        sendResponse({ success: true });
+        break;
+
+        
       case 'GENERATE_SKILL': {
         const skillPayload = await generateSkillWithAI(message.promptData);
         const skills = await LocalStorage.get('skills') || [];

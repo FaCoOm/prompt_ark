@@ -38,6 +38,12 @@
     "https://hunyuan.tencent.com/*",
     "<all_urls>"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["image-prompt.html", "image-prompt.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

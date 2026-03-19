@@ -195,6 +195,14 @@ class PopupManager {
     if (obsidianLocalApiKeyInput && syncResp.obsidianLocalApiKey) obsidianLocalApiKeyInput.value = syncResp.obsidianLocalApiKey;
 
     this.toggleSyncUI(syncResp.syncBackend);
+    
+    // Load Image Prompt settings
+    const imgResp = await chrome.runtime.sendMessage({ type: 'GET_IMAGE_PROMPT_SETTINGS' });
+    const imagePromptEnabled = document.getElementById('imagePromptEnabled');
+    if (imagePromptEnabled) imagePromptEnabled.checked = imgResp.enabled || false;
+    
+    // Render image recognition model selector
+    this.renderImageModelSelector(imgResp.imageModelId);
   }
 
   toggleSyncUI(backend) {
@@ -257,6 +265,16 @@ class PopupManager {
       obsidianLocalPort: parseInt(document.getElementById('obsidianLocalPortInput')?.value) || 27123,
       obsidianLocalApiKey: document.getElementById('obsidianLocalApiKeyInput')?.value?.trim() || ''
     });
+    
+    // Save Image Prompt settings
+    const imagePromptEnabled = document.getElementById('imagePromptEnabled')?.checked || false;
+    const imageModelSelect = document.getElementById('imageRecognitionModelSelect');
+    const imageModelId = imageModelSelect?.value || '';
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_IMAGE_PROMPT_SETTINGS',
+      enabled: imagePromptEnabled,
+      imageModelId: imageModelId
+    });
 
     this.showToast(i18n.t('settingsSaved'));
   }
@@ -288,6 +306,31 @@ class PopupManager {
         </div>
       `;
     }).join('');
+    
+    // Update image model selector visibility and options
+    this.renderImageModelSelector();
+  }
+  
+  renderImageModelSelector(selectedId = '') {
+    const selector = document.getElementById('imageModelSelector');
+    const select = document.getElementById('imageRecognitionModelSelect');
+    if (!selector || !select) return;
+    
+    // Show selector only if providers exist
+    if (this.providers.length === 0) {
+      selector.classList.add('hidden');
+      return;
+    }
+    
+    selector.classList.remove('hidden');
+    
+    // Generate options
+    const options = this.providers.map(p => {
+      const isSelected = p.id === selectedId || p.id === this.activeProviderId;
+      return `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${this.escapeHtml(p.name)}</option>`;
+    }).join('');
+    
+    select.innerHTML = `<option value="">${i18n.t('selectProvider') || '选择模型'}</option>` + options;
   }
 
   showProviderForm(provider = null) {
@@ -844,6 +887,27 @@ ${p.sourceContext ? `
       if (e.target.closest('#providerForm')) return;
       if (e.target.matches('.settings-input, input[type="radio"], select')) {
         this.debouncedSaveSettings();
+      }
+    });
+    
+    // Image Prompt toggle change handler - save settings when toggled
+    document.getElementById('imagePromptEnabled')?.addEventListener('change', async (e) => {
+      await this.saveSettings();
+    });
+    document.getElementById('imagePromptEnabled')?.addEventListener('change', async (e) => {
+      if (e.target.checked) {
+        // Check if any provider is available for image recognition
+        // FIXME: Temporarily disabled for testing hover button
+        // const hasProvider = this.providers.length > 0;
+        // if (!hasProvider) {
+        //   e.target.checked = false;
+        //   this.showToast(i18n.t('imagePromptNoProvider'));
+        // }
+        // const hasProvider = this.providers.length > 0;
+        // if (!hasProvider) {
+        //   e.target.checked = false;
+        //   this.showToast(i18n.t('imagePromptNoProvider'));
+        // }
       }
     });
 
