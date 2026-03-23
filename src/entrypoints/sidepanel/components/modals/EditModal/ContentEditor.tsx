@@ -18,30 +18,17 @@ function escapeHtml(text: string): string {
 }
 
 function renderMarkdownWithHighlightedVars(content: string): string {
-  const variables: { placeholder: string; content: string }[] = [];
-  let varIndex = 0;
-
-  const contentWithPlaceholders = content.replace(/\{\{([^}]+)\}\}/g, match => {
-    const placeholder = `___VAR_${varIndex}___`;
-    variables.push({ placeholder, content: match });
-    varIndex++;
-    return placeholder;
+  // Process variables first - replace {{var}} with highlighted spans before markdown parsing
+  const processedContent = content.replace(/\{\{([^}]+)\}\}/g, (_match, varName) => {
+    return `<span class="content-editor-variable">{{${varName}}}</span>`;
   });
 
   let html = '';
   try {
-    html = marked.parse(contentWithPlaceholders, { async: false }) as string;
+    html = marked.parse(processedContent, { async: false }) as string;
   } catch {
-    html = escapeHtml(contentWithPlaceholders);
+    html = escapeHtml(processedContent);
   }
-
-  variables.forEach(({ placeholder, content }) => {
-    const highlighted = `<span class="content-editor-variable">${escapeHtml(content)}</span>`;
-    html = html.replace(
-      new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-      highlighted
-    );
-  });
 
   return html;
 }

@@ -165,6 +165,8 @@ describe('CategoryTabs', () => {
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('Coding')).toBeInTheDocument();
     expect(screen.getByText('Writing')).toBeInTheDocument();
-    expect(screen.queryByText('')).not.toBeInTheDocument();
+    // Empty category should not create a tab - verify only 3 category buttons exist
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBe(3); // All, Coding, Writing only
   });
 });
