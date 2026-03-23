@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@layer components {
+  .sidepanel-container {
+    min-height: 100vh;
+    background-color: #f9fafb;
+    padding: 1rem;
+  }
+
+  .sidepanel-header {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .sidepanel-header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .search-box {
+    margin-bottom: 1rem;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    outline: none;
+  }
+
+  .search-box input:focus {
+    --tw-ring-opacity: 1;
+    --tw-ring-color: rgb(59 130 246 / var(--tw-ring-opacity));
+    box-shadow: 0 0 0 2px var(--tw-ring-color);
+  }
+
+  .loading {
+    text-align: center;
+    padding: 2rem 0;
+    color: #6b7280;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 2rem 0;
+    color: #6b7280;
+  }
+
+  .prompt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .prompt-card {
+    width: 100%;
+    text-align: left;
+    padding: 1rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    border: 1px solid #f3f4f6;
+  }
+
+  .prompt-card:hover {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  .prompt-card h3 {
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+  }
+
+  .prompt-content {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .category-tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background-color: #f3f4f6;
+    border-radius: 0.25rem;
+    color: #4b5563;
+  }
+}

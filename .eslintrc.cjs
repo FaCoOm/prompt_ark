@@ -56,7 +56,8 @@ module.exports = {
     'locales.js',
     'i18n-manager.js',
     'lib/**/*.js',
-    'prompt-ark-hub/**/*.js',
-    'obsidian-plugin/**/*.js',
+    'prompt-ark-hub/**/*',
+    'obsidian-plugin/**/*',
+    'prompt-ark-hub-supabase/**/*',
   ],
 };
