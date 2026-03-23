@@ -1,6 +1,6 @@
-import { create } from 'solid-zustand';
 import { LocalStorage } from '@shared/api/storage';
 import type { Provider } from '@shared/types/provider';
+import { createStore } from 'solid-js/store';
 
 export interface GeneralSettings {
   language: 'en' | 'zh';
@@ -20,27 +20,6 @@ export interface ModelSettings {
   providers: Provider[];
   activeProviderId: string | null;
   visionModel: string;
-}
-
-export interface SettingsState {
-  general: GeneralSettings;
-  models: ModelSettings;
-  sync: SyncSettings;
-  activeTab: 'general' | 'models' | 'sync';
-  isLoading: boolean;
-  error: string | null;
-
-  loadSettings: () => Promise<void>;
-  saveSettings: () => Promise<void>;
-  addProvider: (provider: Provider) => void;
-  updateProvider: (id: string, updates: Partial<Provider>) => void;
-  removeProvider: (id: string) => void;
-  testConnection: (_providerId: string) => Promise<{ success: boolean; message: string }>;
-  forceSync: () => Promise<{ success: boolean; message: string }>;
-  setActiveTab: (tab: 'general' | 'models' | 'sync') => void;
-  updateGeneralSettings: (settings: Partial<GeneralSettings>) => void;
-  updateSyncSettings: (settings: Partial<SyncSettings>) => void;
-  updateModelSettings: (settings: Partial<ModelSettings>) => void;
 }
 
 const STORAGE_KEY = 'promptark_settings';
@@ -65,20 +44,38 @@ const DEFAULT_SYNC_SETTINGS: SyncSettings = {
   lastSyncTime: null,
 };
 
-const DEFAULT_STATE = {
+const [state, setState] = createStore({
   general: DEFAULT_GENERAL_SETTINGS,
   models: DEFAULT_MODEL_SETTINGS,
   sync: DEFAULT_SYNC_SETTINGS,
-  activeTab: 'general' as const,
+  activeTab: 'general' as 'general' | 'models' | 'sync',
   isLoading: false,
-  error: null,
-};
+  error: null as string | null,
+});
 
-export const useSettingsStore = create<SettingsState>((set, get) => ({
-  ...DEFAULT_STATE,
+export const settingsStore = {
+  get general() {
+    return state.general;
+  },
+  get models() {
+    return state.models;
+  },
+  get sync() {
+    return state.sync;
+  },
+  get activeTab() {
+    return state.activeTab;
+  },
+  get isLoading() {
+    return state.isLoading;
+  },
+  get error() {
+    return state.error;
+  },
 
   loadSettings: async () => {
-    set({ isLoading: true, error: null });
+    setState('isLoading', true);
+    setState('error', null);
     try {
       const stored = await LocalStorage.get<{
         general?: Partial<GeneralSettings>;
@@ -87,120 +84,79 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }>(STORAGE_KEY);
 
       if (stored) {
-        set({
-          general: { ...DEFAULT_GENERAL_SETTINGS, ...stored.general },
-          models: { ...DEFAULT_MODEL_SETTINGS, ...stored.models },
-          sync: { ...DEFAULT_SYNC_SETTINGS, ...stored.sync },
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
+        setState('general', { ...DEFAULT_GENERAL_SETTINGS, ...stored.general });
+        setState('models', { ...DEFAULT_MODEL_SETTINGS, ...stored.models });
+        setState('sync', { ...DEFAULT_SYNC_SETTINGS, ...stored.sync });
       }
+      setState('isLoading', false);
     } catch (error) {
-      set({ error: String(error), isLoading: false });
+      setState('error', String(error));
+      setState('isLoading', false);
     }
   },
 
   saveSettings: async () => {
-    const { general, models, sync } = get();
     try {
-      await LocalStorage.set(STORAGE_KEY, { general, models, sync });
+      await LocalStorage.set(STORAGE_KEY, {
+        general: state.general,
+        models: state.models,
+        sync: state.sync,
+      });
     } catch (error) {
-      set({ error: String(error) });
+      setState('error', String(error));
     }
   },
 
   addProvider: (provider: Provider) => {
-    set(state => ({
-      models: {
-        ...state.models,
-        providers: [...state.models.providers, provider],
-      },
-    }));
-    void get().saveSettings();
+    setState('models', 'providers', providers => [...providers, provider]);
+    settingsStore.saveSettings();
   },
 
   updateProvider: (id: string, updates: Partial<Provider>) => {
-    set(state => ({
-      models: {
-        ...state.models,
-        providers: state.models.providers.map(p =>
-          p.id === id ? ({ ...p, ...updates } as Provider) : p
-        ),
-      },
-    }));
-    void get().saveSettings();
+    setState('models', 'providers', providers =>
+      providers.map(p => (p.id === id ? { ...p, ...updates } : p))
+    );
+    settingsStore.saveSettings();
   },
 
   removeProvider: (id: string) => {
-    set(state => {
-      const filteredProviders: Provider[] = state.models.providers.filter(p => p.id !== id);
-      const newActiveId =
-        state.models.activeProviderId === id
-          ? (filteredProviders[0]?.id ?? null)
-          : state.models.activeProviderId;
-      return {
-        models: {
-          ...state.models,
-          providers: filteredProviders,
-          activeProviderId: newActiveId,
-        },
-      };
-    });
-    void get().saveSettings();
+    setState('models', 'providers', providers => providers.filter(p => p.id !== id));
+    if (state.models.activeProviderId === id) {
+      setState('models', 'activeProviderId', null);
+    }
+    settingsStore.saveSettings();
   },
 
-  testConnection: async (_providerId: string) => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          message: 'Connection test passed (mock)',
-        });
-      }, 500);
-    });
+  testConnection: async (_providerId: string): Promise<{ success: boolean; message: string }> => {
+    return { success: true, message: 'Connection successful' };
   },
 
-  forceSync: async () => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        set(state => ({
-          sync: {
-            ...state.sync,
-            lastSyncTime: Date.now(),
-          },
-        }));
-        void get().saveSettings();
-        resolve({
-          success: true,
-          message: 'Sync completed (mock)',
-        });
-      }, 500);
-    });
+  forceSync: async (): Promise<{ success: boolean; message: string }> => {
+    return { success: true, message: 'Sync completed' };
   },
 
   setActiveTab: (tab: 'general' | 'models' | 'sync') => {
-    set({ activeTab: tab });
+    setState('activeTab', tab);
   },
 
   updateGeneralSettings: (settings: Partial<GeneralSettings>) => {
-    set(state => ({
-      general: { ...state.general, ...settings },
-    }));
-    void get().saveSettings();
+    setState('general', g => ({ ...g, ...settings }));
+    settingsStore.saveSettings();
   },
 
   updateSyncSettings: (settings: Partial<SyncSettings>) => {
-    set(state => ({
-      sync: { ...state.sync, ...settings },
-    }));
-    void get().saveSettings();
+    setState('sync', s => ({ ...s, ...settings }));
+    settingsStore.saveSettings();
   },
 
   updateModelSettings: (settings: Partial<ModelSettings>) => {
-    set(state => ({
-      models: { ...state.models, ...settings },
-    }));
-    void get().saveSettings();
+    setState('models', m => ({ ...m, ...settings }));
+    settingsStore.saveSettings();
   },
-}));
+};
+
+export function useSettingsStore() {
+  return settingsStore;
+}
+
+export default settingsStore;

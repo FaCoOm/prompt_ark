@@ -1,4 +1,4 @@
-import { create } from 'solid-zustand';
+import { createStore, produce } from 'solid-js/store';
 
 export interface Notification {
   id: string;
@@ -18,27 +18,7 @@ export interface ModalState {
 
 export type EditModalTab = 'basic' | 'content' | 'advanced';
 
-export interface UIState {
-  modals: ModalState;
-  loading: Record<string, boolean>;
-  notifications: Notification[];
-  isSettingsOpen: boolean;
-  editModalTab: EditModalTab;
-}
-
-export interface UIActions {
-  openModal: (name: keyof ModalState) => void;
-  closeModal: (name: keyof ModalState) => void;
-  toggleModal: (name: keyof ModalState) => void;
-  setLoading: (key: string, value: boolean) => void;
-  showNotification: (notification: Omit<Notification, 'id'>) => void;
-  dismissNotification: (id: string) => void;
-  openSettings: () => void;
-  closeSettings: () => void;
-  setEditModalTab: (tab: EditModalTab) => void;
-}
-
-const initialState: UIState = {
+const [state, setState] = createStore({
   modals: {
     edit: false,
     import: false,
@@ -46,70 +26,102 @@ const initialState: UIState = {
     share: false,
     youtube: false,
     skillManager: false,
-  },
-  loading: {},
-  notifications: [],
+  } as ModalState,
+  loading: {} as Record<string, boolean>,
+  notifications: [] as Notification[],
   isSettingsOpen: false,
-  editModalTab: 'basic',
-};
+  editModalTab: 'basic' as EditModalTab,
+});
 
-export const useUIStore = create<UIState & UIActions>((set, get) => ({
-  ...initialState,
+export const uiStore = {
+  get modals() {
+    return state.modals;
+  },
+  get loading() {
+    return state.loading;
+  },
+  get notifications() {
+    return state.notifications;
+  },
+  get isSettingsOpen() {
+    return state.isSettingsOpen;
+  },
+  get editModalTab() {
+    return state.editModalTab;
+  },
 
   openModal: (name: keyof ModalState) => {
-    set(state => ({
-      modals: { ...state.modals, [name]: true },
-    }));
+    setState(
+      produce(s => {
+        s.modals[name] = true;
+      })
+    );
   },
 
   closeModal: (name: keyof ModalState) => {
-    set(state => ({
-      modals: { ...state.modals, [name]: false },
-    }));
+    setState(
+      produce(s => {
+        s.modals[name] = false;
+      })
+    );
   },
 
   toggleModal: (name: keyof ModalState) => {
-    set(state => ({
-      modals: { ...state.modals, [name]: !state.modals[name] },
-    }));
+    setState(
+      produce(s => {
+        s.modals[name] = !s.modals[name];
+      })
+    );
   },
 
   setLoading: (key: string, value: boolean) => {
-    set(state => ({
-      loading: { ...state.loading, [key]: value },
-    }));
+    setState(
+      produce(s => {
+        s.loading[key] = value;
+      })
+    );
   },
 
   showNotification: (notification: Omit<Notification, 'id'>) => {
     const id = crypto.randomUUID();
     const duration = notification.duration ?? 3000;
 
-    set(state => ({
-      notifications: [...state.notifications, { ...notification, id }],
-    }));
+    setState(
+      produce(s => {
+        s.notifications.push({ ...notification, id });
+      })
+    );
 
     if (duration > 0) {
       setTimeout(() => {
-        get().dismissNotification(id);
+        uiStore.dismissNotification(id);
       }, duration);
     }
   },
 
   dismissNotification: (id: string) => {
-    set(state => ({
-      notifications: state.notifications.filter(n => n.id !== id),
-    }));
+    setState(
+      produce(s => {
+        s.notifications = s.notifications.filter(n => n.id !== id);
+      })
+    );
   },
 
   openSettings: () => {
-    set({ isSettingsOpen: true });
+    setState('isSettingsOpen', true);
   },
 
   closeSettings: () => {
-    set({ isSettingsOpen: false });
+    setState('isSettingsOpen', false);
   },
 
   setEditModalTab: (tab: EditModalTab) => {
-    set({ editModalTab: tab });
+    setState('editModalTab', tab);
   },
-}));
+};
+
+export function useUIStore() {
+  return uiStore;
+}
+
+export default uiStore;

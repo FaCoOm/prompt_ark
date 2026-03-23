@@ -1,70 +1,88 @@
-import { create } from 'solid-zustand';
 import { PromptStorage } from '@shared/api/storage';
 import type { Prompt } from '@shared/types/prompt';
+import { createStore, produce } from 'solid-js/store';
 
-interface PromptState {
-  prompts: Prompt[];
-  isLoading: boolean;
-  error: string | null;
-  selectedCategory: string;
-  searchQuery: string;
-  filteredPrompts: Prompt[];
-  currentCategory: string;
-  activeSmartFilter: 'favorites' | 'frequent' | 'recent' | null;
-  currentPage: number;
-  pageSize: number;
-  totalCount: number;
-  editingPrompt: Prompt | null;
-  selectedIds: Set<string>;
-  isPackMode: boolean;
-  loadPrompts: () => Promise<void>;
-  addPrompt: (
-    prompt: Omit<Prompt, 'id' | 'createdAt' | 'usageCount' | 'lastUsedAt' | 'favorite' | 'versions'>
-  ) => Promise<void>;
-  updatePrompt: (id: string, updates: Partial<Prompt>) => Promise<void>;
-  deletePrompt: (id: string) => Promise<void>;
-  toggleFavorite: (id: string) => Promise<void>;
-  trackUsage: (id: string) => Promise<void>;
-  setCategory: (category: string) => void;
-  setSearchQuery: (query: string) => void;
-  filterPrompts: () => void;
-  setPage: (page: number) => void;
-  setPageSize: (size: number) => void;
-  selectPrompt: (id: string) => void;
-  clearSelection: () => void;
-  setPackMode: (enabled: boolean) => void;
-  setSmartFilter: (filter: 'favorites' | 'frequent' | 'recent' | null) => void;
-  setEditingPrompt: (prompt: Prompt | null) => void;
-}
-
-export const usePromptStore = create<PromptState>((set, get) => ({
-  prompts: [],
+const [state, setState] = createStore({
+  prompts: [] as Prompt[],
   isLoading: false,
-  error: null,
+  error: null as string | null,
   selectedCategory: 'all',
   searchQuery: '',
-  filteredPrompts: [],
+  filteredPrompts: [] as Prompt[],
   currentCategory: 'all',
-  activeSmartFilter: null,
+  activeSmartFilter: null as 'favorites' | 'frequent' | 'recent' | null,
   currentPage: 1,
   pageSize: 20,
   totalCount: 0,
-  editingPrompt: null,
-  selectedIds: new Set(),
+  editingPrompt: null as Prompt | null,
+  selectedIds: new Set<string>(),
   isPackMode: false,
+});
+
+export const promptStore = {
+  get prompts() {
+    return state.prompts;
+  },
+  get isLoading() {
+    return state.isLoading;
+  },
+  get error() {
+    return state.error;
+  },
+  get selectedCategory() {
+    return state.selectedCategory;
+  },
+  get searchQuery() {
+    return state.searchQuery;
+  },
+  get filteredPrompts() {
+    return state.filteredPrompts;
+  },
+  get currentCategory() {
+    return state.currentCategory;
+  },
+  get activeSmartFilter() {
+    return state.activeSmartFilter;
+  },
+  get currentPage() {
+    return state.currentPage;
+  },
+  get pageSize() {
+    return state.pageSize;
+  },
+  get totalCount() {
+    return state.totalCount;
+  },
+  get editingPrompt() {
+    return state.editingPrompt;
+  },
+  get selectedIds() {
+    return state.selectedIds;
+  },
+  get isPackMode() {
+    return state.isPackMode;
+  },
 
   loadPrompts: async () => {
-    set({ isLoading: true, error: null });
+    setState('isLoading', true);
+    setState('error', null);
     try {
       const prompts = await PromptStorage.get();
-      set({ prompts, isLoading: false });
-      get().filterPrompts();
+      setState('prompts', prompts);
+      setState('isLoading', false);
+      promptStore.filterPrompts();
     } catch (error) {
-      set({ error: String(error), isLoading: false });
+      setState('error', String(error));
+      setState('isLoading', false);
     }
   },
 
-  addPrompt: async promptData => {
+  addPrompt: async (
+    promptData: Omit<
+      Prompt,
+      'id' | 'createdAt' | 'usageCount' | 'lastUsedAt' | 'favorite' | 'versions'
+    >
+  ) => {
     const newPrompt: Prompt = {
       ...promptData,
       id: crypto.randomUUID(),
@@ -76,53 +94,52 @@ export const usePromptStore = create<PromptState>((set, get) => ({
     };
 
     await PromptStorage.save(newPrompt);
-    set(state => ({ prompts: [...state.prompts, newPrompt] }));
-    get().filterPrompts();
+    setState('prompts', prompts => [...prompts, newPrompt]);
+    promptStore.filterPrompts();
   },
 
-  updatePrompt: async (id, updates) => {
-    const { prompts } = get();
-    const existing = prompts.find(p => p.id === id);
+  updatePrompt: async (id: string, updates: Partial<Prompt>) => {
+    const existing = state.prompts.find(p => p.id === id);
     if (!existing) return;
 
     const updated = { ...existing, ...updates, updatedAt: Date.now() };
     await PromptStorage.update(updated);
-    set(state => ({
-      prompts: state.prompts.map(p => (p.id === id ? updated : p)),
-    }));
-    get().filterPrompts();
-    if (get().editingPrompt?.id === id) {
-      set({ editingPrompt: updated });
+
+    setState('prompts', prompts => prompts.map(p => (p.id === id ? updated : p)));
+    promptStore.filterPrompts();
+
+    if (state.editingPrompt?.id === id) {
+      setState('editingPrompt', updated);
     }
   },
 
-  deletePrompt: async id => {
+  deletePrompt: async (id: string) => {
     await PromptStorage.delete(id);
-    set(state => ({
-      prompts: state.prompts.filter(p => p.id !== id),
-      selectedIds: new Set([...state.selectedIds].filter(sid => sid !== id)),
-    }));
-    get().filterPrompts();
+    setState(
+      produce(s => {
+        s.prompts = s.prompts.filter(p => p.id !== id);
+        s.selectedIds.delete(id);
+      })
+    );
+    promptStore.filterPrompts();
   },
 
-  toggleFavorite: async id => {
-    const { prompts } = get();
-    const prompt = prompts.find(p => p.id === id);
+  toggleFavorite: async (id: string) => {
+    const prompt = state.prompts.find(p => p.id === id);
     if (!prompt) return;
 
     const updated = { ...prompt, favorite: !prompt.favorite };
     await PromptStorage.update(updated);
-    set(state => ({
-      prompts: state.prompts.map(p => (p.id === id ? updated : p)),
-    }));
-    if (get().activeSmartFilter === 'favorites') {
-      get().filterPrompts();
+
+    setState('prompts', prompts => prompts.map(p => (p.id === id ? updated : p)));
+
+    if (state.activeSmartFilter === 'favorites') {
+      promptStore.filterPrompts();
     }
   },
 
-  trackUsage: async id => {
-    const { prompts } = get();
-    const prompt = prompts.find(p => p.id === id);
+  trackUsage: async (id: string) => {
+    const prompt = state.prompts.find(p => p.id === id);
     if (!prompt) return;
 
     const updated = {
@@ -131,35 +148,36 @@ export const usePromptStore = create<PromptState>((set, get) => ({
       lastUsedAt: Date.now(),
     };
     await PromptStorage.update(updated);
-    set(state => ({
-      prompts: state.prompts.map(p => (p.id === id ? updated : p)),
-    }));
-    if (get().activeSmartFilter === 'frequent' || get().activeSmartFilter === 'recent') {
-      get().filterPrompts();
+
+    setState('prompts', prompts => prompts.map(p => (p.id === id ? updated : p)));
+
+    if (state.activeSmartFilter === 'frequent' || state.activeSmartFilter === 'recent') {
+      promptStore.filterPrompts();
     }
   },
 
-  setCategory: category => {
-    set({ selectedCategory: category, currentCategory: category, currentPage: 1 });
-    get().filterPrompts();
+  setCategory: (category: string) => {
+    setState('selectedCategory', category);
+    setState('currentCategory', category);
+    setState('currentPage', 1);
+    promptStore.filterPrompts();
   },
 
-  setSearchQuery: query => {
-    set({ searchQuery: query, currentPage: 1 });
-    get().filterPrompts();
+  setSearchQuery: (query: string) => {
+    setState('searchQuery', query);
+    setState('currentPage', 1);
+    promptStore.filterPrompts();
   },
 
   filterPrompts: () => {
-    const { prompts, currentCategory, searchQuery, activeSmartFilter } = get();
+    let filtered = [...state.prompts];
 
-    let filtered = [...prompts];
-
-    if (currentCategory && currentCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === currentCategory);
+    if (state.currentCategory && state.currentCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === state.currentCategory);
     }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    if (state.searchQuery.trim()) {
+      const query = state.searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
         p =>
           p.title.toLowerCase().includes(query) ||
@@ -168,8 +186,8 @@ export const usePromptStore = create<PromptState>((set, get) => ({
       );
     }
 
-    if (activeSmartFilter) {
-      switch (activeSmartFilter) {
+    if (state.activeSmartFilter) {
+      switch (state.activeSmartFilter) {
         case 'favorites':
           filtered = filtered.filter(p => p.favorite);
           break;
@@ -185,52 +203,60 @@ export const usePromptStore = create<PromptState>((set, get) => ({
     }
 
     const totalCount = filtered.length;
-    const { currentPage, pageSize } = get();
-    const start = (currentPage - 1) * pageSize;
-    const paginated = filtered.slice(start, start + pageSize);
+    const start = (state.currentPage - 1) * state.pageSize;
+    const paginated = filtered.slice(start, start + state.pageSize);
 
-    set({ filteredPrompts: paginated, totalCount });
+    setState('filteredPrompts', paginated);
+    setState('totalCount', totalCount);
   },
 
-  setPage: page => {
-    set({ currentPage: Math.max(1, page) });
-    get().filterPrompts();
+  setPage: (page: number) => {
+    setState('currentPage', Math.max(1, page));
+    promptStore.filterPrompts();
   },
 
-  setPageSize: size => {
-    set({ pageSize: Math.max(1, size), currentPage: 1 });
-    get().filterPrompts();
+  setPageSize: (size: number) => {
+    setState('pageSize', Math.max(1, size));
+    setState('currentPage', 1);
+    promptStore.filterPrompts();
   },
 
-  selectPrompt: id => {
-    set(state => {
-      const newSelected = new Set(state.selectedIds);
-      if (newSelected.has(id)) {
-        newSelected.delete(id);
-      } else {
-        newSelected.add(id);
-      }
-      return { selectedIds: newSelected };
-    });
+  selectPrompt: (id: string) => {
+    setState(
+      produce(s => {
+        if (s.selectedIds.has(id)) {
+          s.selectedIds.delete(id);
+        } else {
+          s.selectedIds.add(id);
+        }
+      })
+    );
   },
 
   clearSelection: () => {
-    set({ selectedIds: new Set() });
+    setState('selectedIds', new Set());
   },
 
-  setPackMode: enabled => {
-    set({ isPackMode: enabled });
+  setPackMode: (enabled: boolean) => {
+    setState('isPackMode', enabled);
     if (!enabled) {
-      set({ selectedIds: new Set() });
+      setState('selectedIds', new Set());
     }
   },
 
-  setSmartFilter: filter => {
-    set({ activeSmartFilter: filter, currentPage: 1 });
-    get().filterPrompts();
+  setSmartFilter: (filter: 'favorites' | 'frequent' | 'recent' | null) => {
+    setState('activeSmartFilter', filter);
+    setState('currentPage', 1);
+    promptStore.filterPrompts();
   },
 
-  setEditingPrompt: prompt => {
-    set({ editingPrompt: prompt });
+  setEditingPrompt: (prompt: Prompt | null) => {
+    setState('editingPrompt', prompt);
   },
-}));
+};
+
+export function usePromptStore() {
+  return promptStore;
+}
+
+export default promptStore;
