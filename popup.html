@@ -301,7 +301,7 @@
         <div class="settings-card">
           <div class="settings-section-header">
             <label data-i18n="aiModels">AI 模型</label>
-            <button id="addProviderBtn" class="btn-icon-small" title="添加">+</button>
+            <button id="addProviderBtn" class="btn-icon-small" data-i18n-title="addProvider">+</button>
           </div>
           <div id="providerList" class="provider-list">
             <!-- Rendered dynamically -->
@@ -461,9 +461,9 @@
 
     <!-- Smart Filters -->
     <div class="smart-filters" id="smartFilters">
-      <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites" title="收藏">⭐</button>
-      <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed" title="常用">🔥</button>
-      <button class="smart-filter-btn" data-filter="recent" data-i18n-title="recentlyUsed" title="最近使用">🕐</button>
+      <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites">⭐</button>
+      <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed">🔥</button>
+      <button class="smart-filter-btn" data-filter="recent" data-i18n-title="recentlyUsed">🕐</button>
     </div>
 
     <!-- 分类标签 -->
@@ -480,10 +480,10 @@
     <footer class="footer">
       <button id="importBtn" class="btn btn-secondary btn-small" data-i18n="import">导入</button>
       <button id="exportBtn" class="btn btn-secondary btn-small" data-i18n="export">导出</button>
-      <button id="packBtn" class="btn btn-secondary btn-small" title="Share Prompt Pack">📦</button>
+      <button id="packBtn" class="btn btn-secondary btn-small" data-i18n-title="sharePromptPack">📦</button>
       <button id="youtubePromptBtn" class="btn btn-secondary btn-small"
-        title="从视频生成 Prompt（YouTube / TikTok / 抖音 / 快手）">🎬</button>
-      <button id="skillManagerBtn" class="btn btn-secondary btn-small" title="Skill Manager">🧩</button>
+        data-i18n-title="videoToPrompt">🎬</button>
+      <button id="skillManagerBtn" class="btn btn-secondary btn-small" data-i18n-title="skillManager">🧩</button>
       <span class="shortcut-hint" data-i18n="shortcutHint">Ctrl+Shift+P 快捷插入</span>
     </footer>
   </div>
@@ -542,7 +542,7 @@
               <label>
                 <span data-i18n="knowledgeSnippets">📚 知识片段</span>
                 <span class="hint" data-i18n="knowledgeSnippetsHint">附加参考资料，会自动拼接到 prompt 中</span>
-                <button type="button" id="addSnippetBtn" class="btn-icon-small" title="Add snippet">+</button>
+                <button type="button" id="addSnippetBtn" class="btn-icon-small" data-i18n-title="addSnippet">+</button>
               </label>
               <div id="snippetsList" class="snippets-list">
                 <!-- Dynamically rendered -->
@@ -557,7 +557,7 @@
             <span data-i18n="content">Prompt 内容</span>
             <span class="hint" data-i18n="contentHint">使用 {{变量名}} 创建动态变量</span>
             <span class="hint">Markdown ✓</span>
-            <button type="button" id="historyBtn" class="btn-history hidden" title="版本历史">
+            <button type="button" id="historyBtn" class="btn-history hidden" data-i18n-title="versionHistory">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
@@ -575,14 +575,12 @@
           </button>
           <!-- Provider dropdown for optimize -->
           <div class="optimize-provider-wrapper">
-            <button type="button" id="optimizeProviderBtn" class="btn-optimize-provider" data-i18n-title="selectModel"
-              title="选择模型">▾</button>
+            <button type="button" id="optimizeProviderBtn" class="btn-optimize-provider" data-i18n-title="selectModel">▾</button>
             <div id="optimizeProviderMenu" class="optimize-provider-menu hidden">
               <!-- dynamically populated -->
             </div>
           </div>
-          <button type="button" id="enhanceBtn" class="btn-enhance" data-i18n-title="addOutputRulesDesc"
-            title="Add Output Rules">📎</button>
+          <button type="button" id="enhanceBtn" class="btn-enhance" data-i18n-title="addOutputRulesDesc">📎</button>
 
           <!-- Output Rules Builder Panel -->
           <div id="contractBuilderPanel" class="contract-builder-panel hidden">
@@ -661,7 +659,7 @@
               <option value="French">Français</option>
               <option value="German">Deutsch</option>
             </select>
-            <button type="button" id="translateBtn" class="btn btn-secondary btn-small" title="Translate Prompt">
+            <button type="button" id="translateBtn" class="btn btn-secondary btn-small" data-i18n-title="translatePrompt">
               🌐 <span data-i18n="translate">Translate</span>
             </button>
           </div>
@@ -842,9 +840,9 @@
         <p class="youtube-modal-hint">粘贴视频链接（YouTube / Shorts / TikTok / 抖音 / 快手），AI 自动生成可直接粘贴到 Sora / Kling / Runway /
           即梦 的分镜视频 Prompt。</p>
         <div class="youtube-mode-selector" id="youtubeModeSelector">
-          <button class="youtube-mode-btn" data-mode="style" title="提取视频的视觉风格（色调、镜头、氛围），应用到你自己的创意内容">🎨 风格迁移</button>
-          <button class="youtube-mode-btn active" data-mode="both" title="同时提取风格和内容，生成完整分镜">✨ 完整分析</button>
-          <button class="youtube-mode-btn" data-mode="content" title="基于视频内容启发灵感，生成更有吸引力和信息密度的短视频">💡 灵感创作</button>
+          <button class="youtube-mode-btn" data-mode="style" data-i18n-title="styleTransferDesc">🎨 <span data-i18n="styleTransfer">风格迁移</span></button>
+          <button class="youtube-mode-btn active" data-mode="both" data-i18n-title="completeAnalysisDesc">✨ <span data-i18n="completeAnalysis">完整分析</span></button>
+          <button class="youtube-mode-btn" data-mode="content" data-i18n-title="inspirationCreationDesc">💡 <span data-i18n="inspirationCreation">灵感创作</span></button>
         </div>
         <div class="youtube-lang-row">
           <label for="youtubeTargetLang" class="youtube-lang-label">🌐 输出语言</label>
@@ -878,7 +876,7 @@
           <div id="youtubeVisualVocabulary" class="youtube-vocab hidden">
             <div class="youtube-vocab-header">
               <div class="youtube-vocab-title">📖 视觉词典 <span class="youtube-vocab-hint">(点击术语 → 高亮它在分镜中的用法)</span></div>
-              <button id="youtubeVocabCopyAll" class="btn btn-secondary btn-sm" title="复制所有术语为风格描述段">📋 复制风格块</button>
+              <button id="youtubeVocabCopyAll" class="btn btn-secondary btn-sm" data-i18n-title="copyAllVocab">📋 <span data-i18n="copyStyleBlock">复制风格块</span></button>
             </div>
             <div class="youtube-vocab-tags" id="youtubeVocabTags"></div>
           </div>

@@ -528,6 +528,7 @@ async function handleMessage(message, sendResponse) {
             });
           });
         });
+        sendResponse({ success: true });
         break;
       }
 

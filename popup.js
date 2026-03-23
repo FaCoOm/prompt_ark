@@ -407,7 +407,7 @@ class PopupManager {
       return `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${this.escapeHtml(p.name)}</option>`;
     }).join('');
     
-    select.innerHTML = `<option value="">${i18n.t('selectProvider') || '选择模型'}</option>` + options;
+    select.innerHTML = `<option value="">${i18n.t('selectProvider')}</option>` + options;
   }
 
   showProviderForm(provider = null) {
@@ -579,16 +579,16 @@ class PopupManager {
           <div class="prompt-header">
             <div class="prompt-title" title="${this.escapeHtml(p.title)}">${this.escapeHtml(p.title)}</div>
             <div class="prompt-actions">
-              <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="Favorite">
+              <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}">
                 ${p.favorite ? '⭐' : '☆'}
               </button>
-              <button class="action-btn share-btn" title="Share">
+              <button class="action-btn share-btn" title="${i18n.t('share')}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                 </svg>
               </button>
-              <button class="action-btn p2s-btn" title="Prompt to Skill (Push to OpenClaw)">
+              <button class="action-btn p2s-btn" title="${i18n.t('promptToSkill')}">
                 🧩
               </button>
               <button class="action-btn insert-btn" title="${i18n.t('insert')}">
@@ -608,7 +608,7 @@ class PopupManager {
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
               </button>
-              <button class="action-btn translate-list-btn" title="Translate">
+              <button class="action-btn translate-list-btn" title="${i18n.t('translate')}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
@@ -634,17 +634,17 @@ class PopupManager {
 ${p.sourceContext ? `
           <div class="source-panel">
             <div class="source-toggle" data-source-toggle>
-              <span>📋 Source</span>
+              <span>📋 ${i18n.t('source')}</span>
               <span class="source-arrow">▶</span>
             </div>
             <div class="source-content hidden">
-              ${p.sourceContext.pageTitle ? `<div class="source-meta"><strong>From:</strong> ${p.sourceContext.pageUrl ? `<a href="${this.escapeHtml(p.sourceContext.pageUrl)}" target="_blank" title="${this.escapeHtml(p.sourceContext.pageUrl)}">${this.escapeHtml(p.sourceContext.pageTitle)}</a>` : this.escapeHtml(p.sourceContext.pageTitle)}</div>` : ''}
-              ${p.sourceContext.capturedAt ? `<div class="source-meta"><strong>Captured:</strong> ${formatRelativeTime(p.sourceContext.capturedAt)}</div>` : ''}
-              <div class="source-meta"><strong>Method:</strong> ${p.sourceContext.convertMethod === 'smart_convert' ? '🤖 Smart Convert' : '📎 Quick Add'}</div>
+              ${p.sourceContext.pageTitle ? `<div class="source-meta"><strong>${i18n.t('from')}:</strong> ${p.sourceContext.pageUrl ? `<a href="${this.escapeHtml(p.sourceContext.pageUrl)}" target="_blank" title="${this.escapeHtml(p.sourceContext.pageUrl)}">${this.escapeHtml(p.sourceContext.pageTitle)}</a>` : this.escapeHtml(p.sourceContext.pageTitle)}</div>` : ''}
+              ${p.sourceContext.capturedAt ? `<div class="source-meta"><strong>${i18n.t('captured')}:</strong> ${formatRelativeTime(p.sourceContext.capturedAt)}</div>` : ''}
+              <div class="source-meta"><strong>${i18n.t('method')}:</strong> ${p.sourceContext.convertMethod === 'smart_convert' ? i18n.t('smartConvert') : i18n.t('quickAdd')}</div>
               <div class="source-text">${this.escapeHtml(p.sourceContext.text?.substring(0, 500) || '')}${(p.sourceContext.text?.length || 0) > 500 ? '...' : ''}</div>
               <div class="source-actions">
-                <button class="source-action-btn copy-source-btn" title="Copy source text">📋 Copy</button>
-                ${p.sourceContext.pageUrl ? `<button class="source-action-btn open-source-btn" data-url="${this.escapeHtml(p.sourceContext.pageUrl)}" title="Open source page">🔗 Open</button>` : ''}
+                <button class="source-action-btn copy-source-btn" title="${i18n.t('copySourceText')}">${i18n.t('copyBtn')}</button>
+                ${p.sourceContext.pageUrl ? `<button class="source-action-btn open-source-btn" data-url="${this.escapeHtml(p.sourceContext.pageUrl)}" title="${i18n.t('openSourcePage')}">${i18n.t('openBtn')}</button>` : ''}
               </div>
             </div>
           </div>
@@ -781,7 +781,7 @@ ${p.sourceContext ? `
         const prompt = this.prompts.find(p => p.id === id);
         if (prompt?.sourceContext?.text) {
           navigator.clipboard.writeText(prompt.sourceContext.text);
-          this.showToast('Source text copied');
+          this.showToast(i18n.t('sourceTextCopied'));
         }
         return;
       }
@@ -1508,8 +1508,8 @@ ${p.sourceContext ? `
         ${s.description ? `<div class="youtube-beat-desc">${this.escapeHtml(s.description)}</div>` : ''}
         <div class="youtube-beat-prompt">
           <div class="youtube-beat-prompt-header">
-            <span class="youtube-beat-prompt-label">📹 Video Prompt</span>
-            <button class="youtube-copy-btn" title="复制">📋</button>
+            <span class="youtube-beat-prompt-label">${i18n.t('videoPrompt')}</span>
+            <button class="youtube-copy-btn" title="${i18n.t('copy')}">📋</button>
           </div>
           <div class="youtube-beat-prompt-text" data-original="${this.escapeHtml(rawPrompt)}">${this.escapeHtml(rawPrompt)}</div>
         </div>
@@ -1552,7 +1552,7 @@ ${p.sourceContext ? `
           // Content/Both: character + scene + action + style
           parts = [getAnchor('character_anchor'), getAnchor('scene_anchor'), shotText, getAnchor('style_consistency')].filter(Boolean);
         }
-        navigator.clipboard.writeText(parts.join('. ')).then(() => this.showToast('✅ 完整 Prompt 已复制'));
+        navigator.clipboard.writeText(parts.join('. ')).then(() => this.showToast(i18n.t('promptCopied')));
       };
       if (copyBtn) copyBtn.addEventListener('click', doCopy);
       if (promptText) promptText.addEventListener('click', doCopy);
@@ -1615,7 +1615,7 @@ ${p.sourceContext ? `
     const resp = await chrome.runtime.sendMessage({
       type: 'SAVE_PROMPT',
       prompt: {
-        title: d.title || 'YouTube Video Prompt',
+        title: d.title || i18n.t('youtubeVideoPrompt'),
         content: sections.join('\n'),
         category: d.category || 'Creative',
         tags: allTags,
@@ -1623,13 +1623,13 @@ ${p.sourceContext ? `
       }
     });
     if (resp.success) {
-      this.showToast('✅ 完整视频分析已保存（含词典 + 分镜）');
+      this.showToast(i18n.t('videoAnalysisSaved'));
       this.hideYoutubeModal();
       await this.loadPrompts();
       this.renderCategories();
       this.renderPrompts();
     } else {
-      this.showToast('❌ 保存失败', 3000);
+      this.showToast(i18n.t('saveFailed'), 3000);
     }
   }
 

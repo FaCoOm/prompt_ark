@@ -43,7 +43,8 @@ export class I18nManager {
   // 获取翻译文本
   t(key, params = {}) {
     const dict = translations[this.locale] || translations['en'];
-    let text = dict[key] || key;
+    const fallbackDict = translations['en'];
+    let text = dict[key] || fallbackDict[key] || key;
     
     // 替换参数 {count}
     Object.keys(params).forEach(param => {
