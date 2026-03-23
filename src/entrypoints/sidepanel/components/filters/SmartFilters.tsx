@@ -1,15 +1,24 @@
 import { usePromptStore } from '@/stores';
+import { useUIStore } from '../../stores/uiStore';
 import type { JSX } from 'solid-js';
 
 export function SmartFilters(): JSX.Element {
   const promptStore = usePromptStore();
+  const uiStore = useUIStore();
   const activeFilter = () => promptStore.activeSmartFilter;
 
   const handleFilterClick = (filter: 'favorites' | 'frequent' | 'recent') => {
-    if (activeFilter() === filter) {
-      promptStore.setSmartFilter(null);
-    } else {
-      promptStore.setSmartFilter(filter);
+    try {
+      if (activeFilter() === filter) {
+        promptStore.setSmartFilter(null);
+      } else {
+        promptStore.setSmartFilter(filter);
+      }
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to apply filter',
+      });
     }
   };
 

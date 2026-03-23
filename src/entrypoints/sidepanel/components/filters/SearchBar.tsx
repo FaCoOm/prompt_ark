@@ -1,8 +1,10 @@
 import { createSignal, createEffect, type JSX } from 'solid-js';
 import { usePromptStore } from '@/stores';
+import { useUIStore } from '../../stores/uiStore';
 
 export function SearchBar(): JSX.Element {
   const promptStore = usePromptStore();
+  const uiStore = useUIStore();
   const [localQuery, setLocalQuery] = createSignal('');
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -14,7 +16,14 @@ export function SearchBar(): JSX.Element {
     }
 
     debounceTimer = setTimeout(() => {
-      promptStore.setSearchQuery(query);
+      try {
+        promptStore.setSearchQuery(query);
+      } catch (error) {
+        uiStore.showNotification({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Failed to set search query',
+        });
+      }
     }, 300);
 
     return () => {
@@ -25,11 +34,18 @@ export function SearchBar(): JSX.Element {
   });
 
   const handleClear = () => {
-    setLocalQuery('');
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
+    try {
+      setLocalQuery('');
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      promptStore.setSearchQuery('');
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to clear search',
+      });
     }
-    promptStore.setSearchQuery('');
   };
 
   const hasText = () => localQuery().length > 0;

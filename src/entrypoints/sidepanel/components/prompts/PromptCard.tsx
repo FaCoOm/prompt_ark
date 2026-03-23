@@ -253,38 +253,84 @@ export function PromptCard(props: PromptCardProps): JSX.Element {
     return 60;
   });
 
-  const handleFavorite = () => {
-    promptStore.toggleFavorite(props.prompt.id);
+  const handleFavorite = async () => {
+    try {
+      await promptStore.toggleFavorite(props.prompt.id);
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to toggle favorite',
+      });
+    }
   };
 
   const handleShare = () => {
-    promptStore.setEditingPrompt(props.prompt);
-    uiStore.openModal('share');
+    try {
+      promptStore.setEditingPrompt(props.prompt);
+      uiStore.openModal('share');
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to open share modal',
+      });
+    }
   };
 
   const handleSkillToggle = () => {
-    setIsSkillActive(!isSkillActive());
-    uiStore.showNotification({
-      type: 'info',
-      message: isSkillActive() ? 'Skill deactivated' : 'Skill activated',
-    });
-  };
-
-  const handleInsert = () => {
-    if (props.onInsert) {
-      props.onInsert(props.prompt);
-    } else {
+    try {
+      const newState = !isSkillActive();
+      setIsSkillActive(newState);
       uiStore.showNotification({
-        type: 'success',
-        message: 'Prompt ready to insert',
+        type: 'info',
+        message: newState ? 'Skill activated' : 'Skill deactivated',
+      });
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to toggle skill',
       });
     }
-    promptStore.trackUsage(props.prompt.id);
+  };
+
+  const handleInsert = async () => {
+    try {
+      if (props.onInsert) {
+        props.onInsert(props.prompt);
+      } else {
+        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) {
+          throw new Error('No active tab found');
+        }
+
+        await browser.tabs.sendMessage(tab.id, {
+          type: 'INSERT_PROMPT',
+          prompt: props.prompt,
+        });
+
+        uiStore.showNotification({
+          type: 'success',
+          message: 'Prompt inserted successfully',
+        });
+      }
+      await promptStore.trackUsage(props.prompt.id);
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to insert prompt',
+      });
+    }
   };
 
   const handleEdit = () => {
-    promptStore.setEditingPrompt(props.prompt);
-    uiStore.openModal('edit');
+    try {
+      promptStore.setEditingPrompt(props.prompt);
+      uiStore.openModal('edit');
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to open edit modal',
+      });
+    }
   };
 
   const handleCopy = async () => {
@@ -303,35 +349,69 @@ export function PromptCard(props: PromptCardProps): JSX.Element {
   };
 
   const handleTranslate = () => {
-    uiStore.showNotification({
-      type: 'info',
-      message: 'Translation feature coming soon',
-    });
+    try {
+      promptStore.setEditingPrompt(props.prompt);
+      uiStore.openModal('edit');
+      uiStore.setEditModalTab('advanced');
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to open translation panel',
+      });
+    }
   };
 
-  const handleDelete = () => {
-    if (confirm(`Delete "${props.prompt.title}"?`)) {
-      promptStore.deletePrompt(props.prompt.id);
+  const handleDelete = async () => {
+    try {
+      if (confirm(`Delete "${props.prompt.title}"?`)) {
+        await promptStore.deletePrompt(props.prompt.id);
+        uiStore.showNotification({
+          type: 'success',
+          message: 'Prompt deleted',
+        });
+      }
+    } catch (error) {
       uiStore.showNotification({
-        type: 'success',
-        message: 'Prompt deleted',
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to delete prompt',
       });
     }
   };
 
   const handlePackSelect = () => {
-    if (props.onSelect) {
-      props.onSelect(props.prompt.id);
+    try {
+      if (props.onSelect) {
+        props.onSelect(props.prompt.id);
+      }
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to select prompt',
+      });
     }
   };
 
   const handlePreview = () => {
-    setShowPreview(!showPreview());
+    try {
+      setShowPreview(!showPreview());
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to toggle preview',
+      });
+    }
   };
 
   const handleHistory = () => {
-    promptStore.setEditingPrompt(props.prompt);
-    uiStore.openModal('history');
+    try {
+      promptStore.setEditingPrompt(props.prompt);
+      uiStore.openModal('history');
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to open history modal',
+      });
+    }
   };
 
   return (

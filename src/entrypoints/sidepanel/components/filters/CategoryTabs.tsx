@@ -1,8 +1,10 @@
 import { createMemo, type JSX } from 'solid-js';
 import { usePromptStore } from '@/stores';
+import { useUIStore } from '../../stores/uiStore';
 
 export function CategoryTabs(): JSX.Element {
   const promptStore = usePromptStore();
+  const uiStore = useUIStore();
 
   const categories = createMemo(() => {
     const uniqueCategories = new Set<string>();
@@ -23,8 +25,15 @@ export function CategoryTabs(): JSX.Element {
   };
 
   const handleCategoryClick = (category: string) => {
-    const categoryValue = category === 'All' ? 'all' : category;
-    promptStore.setCategory(categoryValue);
+    try {
+      const categoryValue = category === 'All' ? 'all' : category;
+      promptStore.setCategory(categoryValue);
+    } catch (error) {
+      uiStore.showNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to change category',
+      });
+    }
   };
 
   return (

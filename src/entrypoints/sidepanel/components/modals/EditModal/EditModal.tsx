@@ -11,8 +11,8 @@ import { OptimizePanel } from './OptimizePanel';
 import { ContractBuilder } from './ContractBuilder';
 import { TranslationPanel } from './TranslationPanel';
 import type { Prompt } from '@shared/types/prompt';
-import { getProviders, getActiveProvider, fetchWithTimeout } from '@shared/api/ai';
-import type { Provider, GeminiProvider, OpenAIProvider } from '@shared/types/provider';
+import { getProviders, getActiveProvider } from '@shared/api/ai';
+import type { Provider } from '@shared/types/provider';
 
 interface FormErrors {
   title?: string;
@@ -50,16 +50,20 @@ const DEFAULT_FORM_STATE: FormState = {
 };
 
 export function EditModal(): JSX.Element {
-  const { modals, closeModal, openModal, showNotification } = useUIStore();
+  const { modals, closeModal, openModal, showNotification, editModalTab } = useUIStore();
   const { editingPrompt, addPrompt, updatePrompt, prompts } = usePromptStore();
 
   // Form state
   const [formState, setFormState] = createSignal<FormState>({ ...DEFAULT_FORM_STATE });
   const [errors, setErrors] = createSignal<FormErrors>({});
   const [isSaving, setIsSaving] = createSignal(false);
-  const [activeTab, setActiveTab] = createSignal<'basic' | 'content' | 'advanced'>('basic');
+  const [activeTab, setActiveTab] = createSignal<'basic' | 'content' | 'advanced'>(editModalTab);
   const [providers, setProviders] = createSignal<Provider[]>([]);
   const [activeProviderId, setActiveProviderId] = createSignal<string | null>(null);
+
+  createEffect(() => {
+    setActiveTab(editModalTab);
+  });
 
   const isEditMode = createMemo(() => editingPrompt !== null);
   const modalTitle = createMemo(() => (isEditMode() ? 'Edit Prompt' : 'New Prompt'));
@@ -205,101 +209,22 @@ export function EditModal(): JSX.Element {
   };
 
   const handleOptimize = async (providerId: string): Promise<string> => {
-    const provider = providers().find(p => p.id === providerId);
-    if (!provider) {
-      throw new Error('Provider not found');
-    }
-
     const content = formState().content;
     if (!content.trim()) {
       throw new Error('No content to optimize');
     }
 
-    const systemPrompt =
-      'You are a prompt optimization expert. Improve the following prompt to make it more effective, clear, and concise. Return only the optimized prompt without any explanation.';
-
-    if (provider.type === 'gemini') {
-      return callGeminiOptimize(provider, content, systemPrompt);
-    } else if (provider.type === 'openai') {
-      return callOpenAIOptimize(provider, content, systemPrompt);
-    } else if (provider.type === 'gemini-web') {
-      throw new Error('Gemini Web optimization not yet implemented');
-    }
-
-    throw new Error('Unsupported provider type');
-  };
-
-  const callGeminiOptimize = async (
-    provider: GeminiProvider,
-    content: string,
-    systemPrompt: string
-  ): Promise<string> => {
-    const model = provider.model || 'gemini-2.0-flash';
-    const resp = await fetchWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ parts: [{ text: content }] }],
-          generationConfig: {
-            responseModalities: ['TEXT'],
-          },
-        }),
-      }
-    );
-
-    if (!resp.ok) {
-      throw new Error(`Gemini API ${resp.status}`);
-    }
-
-    const data = (await resp.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('No optimization result');
-    return text;
-  };
-
-  const callOpenAIOptimize = async (
-    provider: OpenAIProvider,
-    content: string,
-    systemPrompt: string
-  ): Promise<string> => {
-    const resp = await fetchWithTimeout(`${provider.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${provider.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: provider.model || 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: content },
-        ],
-      }),
+    const response = await chrome.runtime.sendMessage({
+      type: 'OPTIMIZE_PROMPT',
+      content,
+      providerId,
     });
 
-    if (!resp.ok) {
-      throw new Error(`OpenAI API ${resp.status}`);
+    if (!response.success) {
+      throw new Error(response.error || 'Optimization failed');
     }
 
-    const data = (await resp.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
-      }>;
-    };
-    const text = data.choices?.[0]?.message?.content;
-    if (!text) throw new Error('No optimization result');
-    return text;
+    return response.optimizedContent;
   };
 
   const handleOptimizeAccept = (optimizedContent: string) => {
@@ -313,31 +238,21 @@ export function EditModal(): JSX.Element {
   const handleOptimizeReject = () => {};
 
   const handleTranslate = async (content: string, targetLang: string): Promise<string> => {
-    const provider = await getActiveProvider();
-    if (!provider) {
-      throw new Error('No AI provider configured');
+    if (!content.trim()) {
+      throw new Error('No content to translate');
     }
 
-    const targetLanguageNames: Record<string, string> = {
-      EN: 'English',
-      ZH: 'Chinese',
-      JP: 'Japanese',
-      ES: 'Spanish',
-      FR: 'French',
-      DE: 'German',
-      KO: 'Korean',
-    };
+    const response = await chrome.runtime.sendMessage({
+      type: 'TRANSLATE_PROMPT',
+      content,
+      targetLang,
+    });
 
-    const targetLanguage = targetLanguageNames[targetLang] || targetLang;
-    const systemPrompt = `Translate the following content to ${targetLanguage}. Maintain the formatting and structure. Return only the translated text.`;
-
-    if (provider.type === 'gemini') {
-      return callGeminiOptimize(provider, content, systemPrompt);
-    } else if (provider.type === 'openai') {
-      return callOpenAIOptimize(provider, content, systemPrompt);
+    if (!response.success) {
+      throw new Error(response.error || 'Translation failed');
     }
 
-    throw new Error('Translation not supported for this provider');
+    return response.translatedContent;
   };
 
   const handleTranslateAccept = (translatedContent: string) => {

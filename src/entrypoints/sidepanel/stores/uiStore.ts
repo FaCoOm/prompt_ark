@@ -16,11 +16,14 @@ export interface ModalState {
   skillManager: boolean;
 }
 
+export type EditModalTab = 'basic' | 'content' | 'advanced';
+
 export interface UIState {
   modals: ModalState;
   loading: Record<string, boolean>;
   notifications: Notification[];
   isSettingsOpen: boolean;
+  editModalTab: EditModalTab;
 }
 
 export interface UIActions {
@@ -32,6 +35,7 @@ export interface UIActions {
   dismissNotification: (id: string) => void;
   openSettings: () => void;
   closeSettings: () => void;
+  setEditModalTab: (tab: EditModalTab) => void;
 }
 
 const initialState: UIState = {
@@ -46,6 +50,7 @@ const initialState: UIState = {
   loading: {},
   notifications: [],
   isSettingsOpen: false,
+  editModalTab: 'basic',
 };
 
 export const useUIStore = create<UIState & UIActions>((set, get) => ({
@@ -102,5 +107,9 @@ export const useUIStore = create<UIState & UIActions>((set, get) => ({
 
   closeSettings: () => {
     set({ isSettingsOpen: false });
+  },
+
+  setEditModalTab: (tab: EditModalTab) => {
+    set({ editModalTab: tab });
   },
 }));
