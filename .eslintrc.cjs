@@ -59,5 +59,9 @@ module.exports = {
     'prompt-ark-hub/**/*',
     'obsidian-plugin/**/*',
     'prompt-ark-hub-supabase/**/*',
+    // Test files (not included in tsconfig)
+    'tests/**/*',
+    '**/*.test.ts',
+    '**/*.test.tsx',
   ],
 };
