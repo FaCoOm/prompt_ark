@@ -1,8 +1,7 @@
 import type { JSX } from 'solid-js';
 import { createSignal, createMemo, Show } from 'solid-js';
 
-// @ts-ignore - marked is a plain JS file
-import { marked } from '../../../../../lib/marked.min.js';
+import { marked } from 'marked';
 
 export interface ContentEditorProps {
   content: string;

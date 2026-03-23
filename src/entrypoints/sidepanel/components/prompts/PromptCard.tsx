@@ -4,8 +4,7 @@ import type { Prompt } from '@shared/types/prompt';
 import { usePromptStore } from '@stores/promptStore';
 import { useUIStore } from '../../stores/uiStore';
 
-// @ts-ignore - marked is a plain JS file
-import { marked } from '../../../../lib/marked.min.js';
+import { marked } from 'marked';
 
 const StarIcon = (props: { filled?: boolean }) => (
   <svg
