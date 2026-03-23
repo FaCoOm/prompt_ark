@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'solid-zustand';
 import { PromptStorage } from '@shared/api/storage';
 import type { Prompt } from '@shared/types/prompt';
 

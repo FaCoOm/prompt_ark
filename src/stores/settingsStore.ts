@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'solid-zustand';
 import { LocalStorage } from '@shared/api/storage';
 import type { Provider } from '@shared/types/provider';
 

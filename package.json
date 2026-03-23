@@ -29,6 +29,7 @@
     "@webext-core/storage": "^1.0.0",
     "marked": "^17.0.5",
     "solid-js": "^1.8.0",
+    "solid-zustand": "^2.0.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

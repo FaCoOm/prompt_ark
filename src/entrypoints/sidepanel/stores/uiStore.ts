@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'solid-zustand';
 
 export interface Notification {
   id: string;
