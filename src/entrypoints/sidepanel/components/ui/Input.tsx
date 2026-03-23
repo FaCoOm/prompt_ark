@@ -2,6 +2,7 @@ import type { JSX } from 'solid-js';
 import { splitProps } from 'solid-js';
 
 export interface InputProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;

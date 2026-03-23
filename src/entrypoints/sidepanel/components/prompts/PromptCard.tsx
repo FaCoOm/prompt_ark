@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import { createSignal, createMemo, Show } from 'solid-js';
+import { createSignal, createMemo, Show, untrack } from 'solid-js';
 import type { Prompt } from '@shared/types/prompt';
 import { usePromptStore } from '@stores/promptStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -226,8 +226,8 @@ export function PromptCard(props: PromptCardProps): JSX.Element {
   const [showPreview, setShowPreview] = createSignal(false);
 
   const markdownPreview = createMemo(() => {
-    const content = props.prompt.content;
-    const truncated = truncateText(content, 150);
+    const prompt = untrack(() => props.prompt);
+    const truncated = truncateText(prompt.content, 150);
     try {
       const html = marked.parse(truncated, { async: false }) as string;
       const textOnly = html

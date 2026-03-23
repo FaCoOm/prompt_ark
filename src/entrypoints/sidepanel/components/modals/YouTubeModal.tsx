@@ -215,6 +215,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
             YouTube URL
           </label>
           <Input
+            id="youtube-url"
             value={url()}
             onChange={setUrl}
             placeholder="https://youtube.com/watch?v=..."

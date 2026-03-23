@@ -59,7 +59,6 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="gist-token">Gist Token</label>
               <Input
-                // @ts-expect-error id is passed through rest props
                 id="gist-token"
                 type="password"
                 value={settings['gistToken'] || ''}
@@ -70,7 +69,6 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="gist-id">Gist ID</label>
               <Input
-                // @ts-expect-error id is passed through rest props
                 id="gist-id"
                 value={settings['gistId'] || ''}
                 onChange={value => handleSettingChange('gistId', value)}
@@ -86,7 +84,6 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-url">WebDAV URL</label>
               <Input
-                // @ts-expect-error id is passed through rest props
                 id="webdav-url"
                 value={settings['webdavUrl'] || ''}
                 onChange={value => handleSettingChange('webdavUrl', value)}
@@ -96,7 +93,6 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-username">Username</label>
               <Input
-                // @ts-expect-error id is passed through rest props
                 id="webdav-username"
                 value={settings['webdavUsername'] || ''}
                 onChange={value => handleSettingChange('webdavUsername', value)}
@@ -106,7 +102,6 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-password">Password</label>
               <Input
-                // @ts-expect-error id is passed through rest props
                 id="webdav-password"
                 type="password"
                 value={settings['webdavPassword'] || ''}
@@ -122,7 +117,6 @@ export function SyncTab(): JSX.Element {
           <div class="form-group">
             <label for="obsidian-vault">Vault Path</label>
             <Input
-              // @ts-expect-error id is passed through rest props
               id="obsidian-vault"
               value={settings['obsidianVault'] || ''}
               onChange={value => handleSettingChange('obsidianVault', value)}

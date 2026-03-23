@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/en/">📖 Docs</a> · <a href="docs/zh/">📖 中文文档</a> · <a href="#-30-second-quick-start">🚀 Quick Start</a>
+  <a href="docs/en/">📖 Docs</a> · <a href="docs/zh/">📖 中文文档</a> · <a href="#-quick-start">🚀 Quick Start</a>
 </p>
 
 ---
@@ -19,7 +19,7 @@
 You've spent hours crafting the perfect prompt. It works beautifully. But then...
 
 - 📋 It's buried in a note app you'll never find again
-- 🔄 You rewrite it from scratch every single time  
+- 🔄 You rewrite it from scratch every single time
 - 🤦 You paste it, then realize you forgot to change the `[topic]` placeholder
 - 🚫 You can't share that killer prompt with your team without copy-pasting
 
@@ -27,17 +27,17 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 
 ## ✨ What It Does (in 10 seconds)
 
-| You want to... | Prompt Ark does... |
-|---|---|
-| **Reuse a prompt** | ✨ Click → Pick → Auto-inject into any AI chat box |
-| **Customize each time** | `{{topic}}` variables become fill-in forms; enum dropdowns with `{{lang:EN\|ZH\|JP}}` |
-| **Smart-convert any text** | 🪄 Select text → Right-click → AI rewrites it into a reusable prompt instantly |
-| **Quick-transform text** | ⚡ One-click Rewrite / Summarize / Translate / Expand |
-| **Translate a prompt** | 🌐 Click translate on any card → Pick language → Auto-translated & saved |
-| **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
-| **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
-| **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
-| **Use across devices** | ☁️ Chrome Sync, GitHub Gist, or WebDAV |
+| You want to...                 | Prompt Ark does...                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------- |
+| **Reuse a prompt**             | ✨ Click → Pick → Auto-inject into any AI chat box                                    |
+| **Customize each time**        | `{{topic}}` variables become fill-in forms; enum dropdowns with `{{lang:EN\|ZH\|JP}}` |
+| **Smart-convert any text**     | 🪄 Select text → Right-click → AI rewrites it into a reusable prompt instantly        |
+| **Quick-transform text**       | ⚡ One-click Rewrite / Summarize / Translate / Expand                                 |
+| **Translate a prompt**         | 🌐 Click translate on any card → Pick language → Auto-translated & saved              |
+| **Grab page context**          | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts            |
+| **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent                                      |
+| **Share with others**          | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS   |
+| **Use across devices**         | ☁️ Chrome Sync, GitHub Gist, or WebDAV                                                |
 
 ## 🔌 Works Everywhere You Chat with AI
 
@@ -48,26 +48,30 @@ ChatGPT · Claude · Gemini · NotebookLM · AI Studio · DeepSeek · Kimi · Do
 ## 🚀 Quick Start
 
 ### Step 1: Install & Pin
-1. Download or clone this repo → Open `chrome://extensions/` (or `edge://extensions/`) → Enable **Developer mode** → Click **Load unpacked** → Select the project folder
-2. Click the **🧩 Puzzle icon** in your toolbar → Click **📌 Pin** next to Prompt Ark
+
+1. Clone this repo → `pnpm install` → `pnpm build`
+2. Open `chrome://extensions/` (or `edge://extensions/`) → Enable **Developer mode** → Click **Load unpacked** → Select the `.output/chrome-mv3-dev` folder
+3. Click the **🧩 Puzzle icon** in your toolbar → Click **📌 Pin** next to Prompt Ark
 
 > 💡 Prompt Ark also supports **Side Panel** mode — click the extension icon to dock it as a persistent sidebar.
 
 ### Step 2: Zero Config — It Just Works
+
 Prompt Ark ships with **Gemini Web** as the default AI backend. As long as you're logged into [gemini.google.com](https://gemini.google.com), all AI features work **immediately**:
 
-| Feature | Status | What you do |
-|---|---|---|
-| ✨ Prompt Picker | ✅ Always works | Just click |
-| ⚡ Quick Actions (Rewrite, Translate...) | ✅ Always works | Just click — uses the platform's own AI |
-| 🔮 AI Prompt Optimization | ✅ Works by default | Be logged into Gemini |
-| 🏷️ Auto-extract title/category/tags | ✅ Works by default | Save a prompt without filling in a title |
+| Feature                                  | Status              | What you do                              |
+| ---------------------------------------- | ------------------- | ---------------------------------------- |
+| ✨ Prompt Picker                         | ✅ Always works     | Just click                               |
+| ⚡ Quick Actions (Rewrite, Translate...) | ✅ Always works     | Just click — uses the platform's own AI  |
+| 🔮 AI Prompt Optimization                | ✅ Works by default | Be logged into Gemini                    |
+| 🏷️ Auto-extract title/category/tags      | ✅ Works by default | Save a prompt without filling in a title |
 
 > 💡 No API key. No setup wizard. Just install and use.
 >
 > Want faster responses or a specific model? Go to **Settings → Models → +** to add your own provider (Gemini API / OpenAI Compatible). See [Model Configuration](docs/en/02-model-configuration.md).
 
 ### Step 3: Create Your First Prompt
+
 1. Click the **Prompt Ark icon** to open the Dashboard
 2. Click the blue **+ New** button
 3. Write your prompt content — use `{{topic}}` or `{{language}}` to create **dynamic variables**
@@ -75,32 +79,34 @@ Prompt Ark ships with **Gemini Web** as the default AI backend. As long as you'r
 5. Click **Preview** to check the Markdown rendering
 
 ### Step 4: Use It on AI Platforms
+
 Open [ChatGPT](https://chatgpt.com), [Claude](https://claude.ai), [Gemini](https://gemini.google.com) or any supported platform. You'll see two new buttons next to the chat input:
 
-| Button / Shortcut | What it does |
-|---|---|
-| **✨ Picker** | Browse your prompt library → Select → Auto-inject into chat box |
-| **⚡ Quick Actions** | One-click Rewrite / Summarize / Translate / Expand / Explain |
-| **`/slash`** | Type `/keyword` in the chat box for instant prompt expansion |
-| **`Ctrl+Shift+P`** | Summon the Picker overlay from anywhere |
-| **`Ctrl+Shift+G`** | **Grab Context** — snapshot the current page (title, URL, selected text) for use inside prompts |
-| **Right-click any text** | "Add to Prompt Ark" to save it · "Smart Convert" to turn it into a reusable prompt |
+| Button / Shortcut        | What it does                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| **✨ Picker**            | Browse your prompt library → Select → Auto-inject into chat box                                 |
+| **⚡ Quick Actions**     | One-click Rewrite / Summarize / Translate / Expand / Explain                                    |
+| **`/slash`**             | Type `/keyword` in the chat box for instant prompt expansion                                    |
+| **`Ctrl+Shift+P`**       | Summon the Picker overlay from anywhere                                                         |
+| **`Ctrl+Shift+G`**       | **Grab Context** — snapshot the current page (title, URL, selected text) for use inside prompts |
+| **Right-click any text** | "Add to Prompt Ark" to save it · "Smart Convert" to turn it into a reusable prompt              |
 
 ### Step 5: Sync Across Devices (Optional)
+
 Go to **Settings → Sync** and choose your sync engine:
 
-| Method | Best for |
-|---|---|
-| **Chrome Sync** (default) | Zero config, automatic, ~100KB limit |
-| **GitHub Gist** | Unlimited storage, team sharing |
-| **WebDAV** | Self-hosted, privacy-first (e.g., Jianguoyun) |
+| Method                    | Best for                                      |
+| ------------------------- | --------------------------------------------- |
+| **Chrome Sync** (default) | Zero config, automatic, ~100KB limit          |
+| **GitHub Gist**           | Unlimited storage, team sharing               |
+| **WebDAV**                | Self-hosted, privacy-first (e.g., Jianguoyun) |
 
 > 📚 **[Full Documentation →](docs/en/)** for more details on every feature.
-
 
 ## ⚡ Power Moves
 
 ### One-click text transforms
+
 The **⚡** button appears next to every AI chat input. Click it to instantly:
 
 **✏️ Rewrite** · **📋 Summarize** · **➕ Expand** · **🌐 Translate** · **💡 Explain**
@@ -108,26 +114,31 @@ The **⚡** button appears next to every AI chat input. Click it to instantly:
 > No API key needed — these use the platform's own AI.
 
 ### Dynamic variables — 3 types
+
 Write variables in your prompt content and they become fill-in forms at use time:
 
-| Syntax | Type | Example |
-|---|---|---|
-| `{{topic}}` | Free-text input | Any text |
-| `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Pick one option |
-| `{{style:formal}}` | Pre-filled default | Editable, pre-filled |
+| Syntax                | Type               | Example              |
+| --------------------- | ------------------ | -------------------- |
+| `{{topic}}`           | Free-text input    | Any text             |
+| `{{lang:EN\|ZH\|JP}}` | Dropdown (enum)    | Pick one option      |
+| `{{style:formal}}`    | Pre-filled default | Editable, pre-filled |
 
 ### Context variables (`{{@...}}`)
+
 Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@date}}` to auto-fill live context from the current browser tab — no typing needed.
 
 > **Grab Context** (`Ctrl+Shift+G`) pre-captures a page snapshot so context variables work even after switching tabs.
 
-### Slash commands  
+### Slash commands
+
 Type `/email` in any chat box → Your "Professional Email Writer" prompt expands instantly. Like text shortcuts, but for AI.
 
 ### AI Prompt Optimizer
+
 Click ✨ Optimize on any prompt → Get 3 professional rewrites (Concise / Enhanced / Professional) with diff view. Accept with one click.
 
 ### AI Prompt Translation
+
 **Translate any saved prompt** into 7 languages with one click — directly from the prompt list or the edit modal.
 
 - Click the **🌐** button on any prompt card in the list
@@ -138,52 +149,149 @@ Click ✨ Optimize on any prompt → Get 3 professional rewrites (Concise / Enha
 > Uses your configured AI provider (Gemini Web by default — no API key needed).
 
 ### 🪄 Smart Convert
+
 Select any text on any webpage → Right-click → **"Smart Convert to Prompt"**. AI infers the intent, adds a role, structures it with variables, and saves it as a reusable prompt — no manual editing needed.
 
 ### One-click Social Sharing
+
 Share a prompt with an AI-generated post — tailored per platform:
 **Twitter** · **Reddit** · **Zhihu (知乎)** · **WeChat (微信)** · **Xiaohongshu (小红书)**
 
 ### Right-click to save
+
 See a great prompt on a webpage? Select text → Right-click → **"Add to Prompt Ark"**. It's saved with AI-generated title, category, and tags.
 
 ### Page-aware prompts
+
 Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@page_text}}` in your prompts — they auto-fill with live content from the current tab.
 
 ## 📚 100 Built-in Prompts, Ready to Go
 
 Don't start from zero. Prompt Ark ships with **100 curated prompts** (50 English + 50 Chinese):
 
-| Category | Examples |
-|---|---|
-| 💼 Productivity | Meeting notes, email drafts, SWOT analysis |
-| ✍️ Writing | Blog outlines, copywriting, proofreading |
-| 💻 Coding | Code review, debugging, SQL generation |
-| 🎓 Education | Concept explainer, quiz generator, study plans |
-| 🎨 Creative | Storytelling, brainstorming, naming |
-| 📊 Analysis | Data interpretation, market research |
+| Category        | Examples                                       |
+| --------------- | ---------------------------------------------- |
+| 💼 Productivity | Meeting notes, email drafts, SWOT analysis     |
+| ✍️ Writing      | Blog outlines, copywriting, proofreading       |
+| 💻 Coding       | Code review, debugging, SQL generation         |
+| 🎓 Education    | Concept explainer, quiz generator, study plans |
+| 🎨 Creative     | Storytelling, brainstorming, naming            |
+| 📊 Analysis     | Data interpretation, market research           |
 
 ## ☁️ Your Data, Your Way
 
-| Method | Best for |
-|---|---|
+| Method                    | Best for                                              |
+| ------------------------- | ----------------------------------------------------- |
 | **Chrome Sync** (default) | Automatic, zero config, works across Chrome instances |
-| **GitHub Gist** | Unlimited storage, version history, share with team |
-| **WebDAV** | Self-hosted, privacy-first users (e.g., Jianguoyun) |
+| **GitHub Gist**           | Unlimited storage, version history, share with team   |
+| **WebDAV**                | Self-hosted, privacy-first users (e.g., Jianguoyun)   |
 
 Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 
-## 🛠 For Developers
+## 🛠 Development
 
-- **Manifest V3** — `storage`, `contextMenus`, `scripting`, `sidePanel`, `cookies`
-- **Deep DOM traversal** — Shadow DOM, React fiber bypass, per-platform injection
-- **Zero-config AI** — Gemini Web session reverse-engineered as default backend; auto-redirects to login on session expiry; explicit cookie handling for Edge
-- **Multi-provider AI** — Gemini API · OpenAI protocol · Gemini Web (free) — unified dispatch, hot-swap at runtime
-- **Prompt files** — All LLM prompts live in `prompts/*.md`, editable without touching JS
-- **Context Grabber** — `Ctrl+Shift+G` captures page snapshot (10 min TTL) for cross-tab `{{@variable}}` resolution
-- **Smart Convert** — Meta-prompt that reverse-engineers selected text into a structured, variable-ized reusable prompt
-- **Runtime i18n** — Live Chinese/English switching
-- **Auto-save** — 600ms debounce across all settings
+### Tech Stack
+
+- **WXT** — Modern web extension toolkit for Manifest V3
+- **TypeScript** — Type-safe development
+- **Solid.js** — Reactive UI with fine-grained reactivity
+- **Zustand** — Lightweight state management
+- **Tailwind CSS** — Utility-first styling
+- **Vitest** — Unit and integration testing
+
+### Project Structure
+
+```
+src/
+├── entrypoints/          # Extension entry points
+│   ├── background.ts     # Service worker
+│   ├── content.ts        # Content script for platform injection
+│   ├── popup/            # Popup UI (main dashboard)
+│   │   ├── main.tsx
+│   │   └── App.tsx
+│   └── sidepanel/        # Side panel UI
+│       ├── main.tsx
+│       ├── SidePanelApp.tsx
+│       └── components/   # UI components
+│           ├── prompts/    # PromptList, PromptCard
+│           ├── filters/    # SearchBar, CategoryTabs, SmartFilters
+│           ├── modals/     # EditModal, SharePanel, HistoryModal
+│           ├── settings/   # SyncTab, ModelsTab, GeneralTab
+│           └── layout/     # Header, SettingsPanel
+├── shared/               # Shared utilities
+│   ├── types/            # TypeScript interfaces
+│   ├── api/              # Storage, AI providers
+│   ├── utils/            # Variables, text analysis
+│   └── constants/        # App constants
+├── stores/               # Global state (Zustand)
+└── platforms/            # Platform-specific adapters
+```
+
+### Development Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start development server with hot reload
+pnpm dev
+
+# Type check
+pnpm check
+
+# Run tests
+pnpm test
+
+# Build for production
+pnpm build
+
+# Build and package for distribution
+pnpm build:zip
+```
+
+### Component Organization
+
+Components are organized by feature:
+
+- **`prompts/`** — Prompt display and interaction
+  - `PromptList.tsx` — Paginated list with Solid.js `createMemo` optimization
+  - `PromptCard.tsx` — Individual prompt card with memoized markdown preview
+  - `Pagination.tsx` — Page navigation
+
+- **`filters/`** — Search and filtering
+  - `SearchBar.tsx` — Real-time search
+  - `CategoryTabs.tsx` — Category filtering
+  - `SmartFilters.tsx` — Favorites, frequent, recent filters
+
+- **`modals/`** — Dialog windows
+  - `EditModal/` — Prompt editing with tabs
+  - `SharePanel/` — Social sharing
+  - `HistoryModal/` — Version history
+
+- **`settings/`** — Configuration panels
+  - `SyncTab.tsx` — Sync providers
+  - `ModelsTab.tsx` — AI model configuration
+  - `GeneralTab.tsx` — App settings
+
+### Performance Optimizations
+
+The UI is optimized for handling 1000+ prompts:
+
+- **Solid.js `createMemo`** — Memoized computations for pagination, filtering
+- **Pagination** — 20 items per page by default
+- **Untrack for expensive operations** — Markdown parsing doesn't trigger re-renders
+- **Efficient list rendering** — `For` component for optimal DOM updates
+
+### Key Files
+
+| File                            | Purpose                               |
+| ------------------------------- | ------------------------------------- |
+| `wxt.config.ts`                 | Extension manifest and build config   |
+| `src/entrypoints/background.ts` | Service worker with message handlers  |
+| `src/entrypoints/content.ts`    | Content script for platform injection |
+| `src/stores/promptStore.ts`     | Prompt state management               |
+| `src/shared/api/storage.ts`     | Chrome storage abstraction            |
+| `src/shared/api/ai.ts`          | AI provider dispatch                  |
 
 ## 📄 License
 

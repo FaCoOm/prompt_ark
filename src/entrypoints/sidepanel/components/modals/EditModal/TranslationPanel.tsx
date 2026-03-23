@@ -24,8 +24,8 @@ export function TranslationPanel(props: TranslationPanelProps): JSX.Element {
   const [translatedContent, setTranslatedContent] = createSignal<string>('');
   const [error, setError] = createSignal<string>('');
 
-  const langSelectId = () => `lang-select-${Math.random().toString(36).substring(2, 9)}`;
-  const resultId = () => `translation-result-${Math.random().toString(36).substring(2, 9)}`;
+  const langSelectId = `lang-select-${Math.random().toString(36).substring(2, 9)}`;
+  const resultId = `translation-result-${Math.random().toString(36).substring(2, 9)}`;
 
   const handleTranslate = async () => {
     if (!props.originalContent.trim()) {
@@ -57,9 +57,9 @@ export function TranslationPanel(props: TranslationPanelProps): JSX.Element {
   return (
     <div class="translation-panel">
       <div class="form-group">
-        <label for={langSelectId()}>Target Language</label>
+        <label for={langSelectId}>Target Language</label>
         <select
-          id={langSelectId()}
+          id={langSelectId}
           class="language-selector"
           value={selectedLang()}
           onChange={e => setSelectedLang(e.currentTarget.value)}
@@ -96,8 +96,8 @@ export function TranslationPanel(props: TranslationPanelProps): JSX.Element {
 
       <Show when={translatedContent() && !isTranslating()}>
         <div class="translation-result">
-          <label for={resultId()}>Translated Result</label>
-          <div id={resultId()} class="translation-content">
+          <label for={resultId}>Translated Result</label>
+          <div id={resultId} class="translation-content">
             {translatedContent()}
           </div>
           <div class="translation-actions">

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { extractVariables, parseVariableSpec } from '../../src/shared/utils/variables';
+import { describe, it, expect } from 'vitest';
+import { extractVariables, parseVariableSpec } from '@/shared/utils/variables';
 
 describe('variables', () => {
   describe('parseVariableSpec', () => {
