@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import { createSignal, createMemo, Show, untrack } from 'solid-js';
+import { createSignal, createMemo, Show, untrack, For } from 'solid-js';
 import type { Prompt } from '@shared/types/prompt';
 import { usePromptStore } from '@stores/promptStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -215,7 +215,7 @@ function highlightVariables(content: string): string {
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trim() + '...';
+  return `${text.slice(0, maxLength).trim()  }...`;
 }
 
 export function PromptCard(props: PromptCardProps): JSX.Element {
@@ -228,7 +228,7 @@ export function PromptCard(props: PromptCardProps): JSX.Element {
     const prompt = untrack(() => props.prompt);
     const truncated = truncateText(prompt.content, 150);
     try {
-      const html = marked.parse(truncated, { async: false }) as string;
+      const html = marked.parse(truncated, { async: false });
       const textOnly = html
         .replace(/<[^>]*>/g, ' ')
         .replace(/\s+/g, ' ')
@@ -447,9 +447,9 @@ export function PromptCard(props: PromptCardProps): JSX.Element {
         <div class="prompt-meta">
           <span class="prompt-category">{props.prompt.category}</span>
 
-          {props.prompt.tags.slice(0, 3).map(tag => (
+          <For each={props.prompt.tags.slice(0, 3)}>{tag => (
             <span class="prompt-tag">{tag}</span>
-          ))}
+          )}</For>
 
           {variables().length > 0 && (
             <span class="prompt-vars" title={`Variables: ${variables().join(', ')}`}>

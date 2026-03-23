@@ -15,7 +15,7 @@ export function PackToolbar(props: PackToolbarProps): JSX.Element {
   if (!props.isPackMode) {
     return (
       <div class="pack-toolbar">
-        <Button onClick={props.onTogglePackMode} variant="secondary" className="pack-toggle">
+        <Button onClick={props.onTogglePackMode} variant="secondary" class="pack-toggle">
           Enter Pack Mode
         </Button>
       </div>
@@ -24,7 +24,7 @@ export function PackToolbar(props: PackToolbarProps): JSX.Element {
 
   return (
     <div class="pack-toolbar">
-      <Button onClick={props.onTogglePackMode} variant="ghost" className="pack-toggle">
+      <Button onClick={props.onTogglePackMode} variant="ghost" class="pack-toggle">
         Exit Pack Mode
       </Button>
 
@@ -34,7 +34,7 @@ export function PackToolbar(props: PackToolbarProps): JSX.Element {
         value={props.packTitle}
         onChange={props.onPackTitleChange}
         placeholder="Enter pack title..."
-        className="pack-title-input"
+        class="pack-title-input"
       />
 
       <Button onClick={props.onSharePack} variant="primary" disabled={props.selectedCount === 0}>

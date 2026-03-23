@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, Show, For } from 'solid-js';
 import { Button } from '../../ui/Button';
 
 const LANGUAGES = [
@@ -65,11 +65,11 @@ export function TranslationPanel(props: TranslationPanelProps): JSX.Element {
           onChange={e => setSelectedLang(e.currentTarget.value)}
           disabled={isTranslating()}
         >
-          {LANGUAGES.map(lang => (
+          <For each={LANGUAGES}>{lang => (
             <option value={lang.code}>
               {lang.code} ({lang.name})
             </option>
-          ))}
+          )}</For>
         </select>
       </div>
 

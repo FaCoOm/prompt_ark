@@ -1,4 +1,4 @@
-import { createMemo, type JSX } from 'solid-js';
+import { createMemo, type JSX, For } from 'solid-js';
 import { usePromptStore } from '@/stores';
 import { useUIStore } from '../../stores/uiStore';
 
@@ -38,7 +38,7 @@ export function CategoryTabs(): JSX.Element {
 
   return (
     <div class="categories">
-      {categories().map(category => (
+      <For each={categories()}>{category => (
         <button
           type="button"
           class={`category-tag ${isActive(category) ? 'active' : ''}`}
@@ -46,7 +46,7 @@ export function CategoryTabs(): JSX.Element {
         >
           {category}
         </button>
-      ))}
+      )}</For>
     </div>
   );
 }

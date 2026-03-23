@@ -1,3 +1,4 @@
+import { For } from "solid-js";
 import type { JSX } from 'solid-js';
 
 export interface ContractBuilderProps {
@@ -47,9 +48,9 @@ export function ContractBuilder(props: ContractBuilderProps): JSX.Element {
           onChange={e => props.onOutputFormatChange(e.currentTarget.value)}
           class="settings-select"
         >
-          {OUTPUT_FORMATS.map(format => (
+          <For each={OUTPUT_FORMATS}>{format => (
             <option value={format.value}>{format.label}</option>
-          ))}
+          )}</For>
         </select>
       </div>
 
@@ -81,9 +82,9 @@ export function ContractBuilder(props: ContractBuilderProps): JSX.Element {
           onChange={e => props.onToneChange(e.currentTarget.value)}
           class="settings-select"
         >
-          {TONES.map(tone => (
+          <For each={TONES}>{tone => (
             <option value={tone.value}>{tone.label}</option>
-          ))}
+          )}</For>
         </select>
       </div>
 

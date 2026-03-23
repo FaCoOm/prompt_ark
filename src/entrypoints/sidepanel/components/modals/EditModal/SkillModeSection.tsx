@@ -79,7 +79,7 @@ export function SkillModeSection(props: SkillModeSectionProps): JSX.Element {
                     <Button
                       variant="danger"
                       onClick={() => handleRemoveFragment(index())}
-                      className="remove-fragment-btn"
+                      class="remove-fragment-btn"
                     >
                       Remove
                     </Button>
@@ -87,7 +87,7 @@ export function SkillModeSection(props: SkillModeSectionProps): JSX.Element {
                 )}
               </For>
             </div>
-            <Button variant="secondary" onClick={handleAddFragment} className="add-fragment-btn">
+            <Button variant="secondary" onClick={handleAddFragment} class="add-fragment-btn">
               Add Fragment
             </Button>
           </div>

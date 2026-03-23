@@ -5,18 +5,12 @@ export interface ButtonProps extends ParentProps {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   onClick?: () => void;
   disabled?: boolean;
-  className?: string;
+  class?: string;
   type?: 'button' | 'submit' | 'reset';
 }
 
 export function Button(props: ButtonProps): JSX.Element {
-  const [local, rest] = splitProps(props, [
-    'variant',
-    'onClick',
-    'disabled',
-    'className',
-    'children',
-  ]);
+  const [local, rest] = splitProps(props, ['variant', 'onClick', 'disabled', 'class', 'children']);
 
   const variantClass = () => {
     switch (local.variant) {
@@ -42,7 +36,7 @@ export function Button(props: ButtonProps): JSX.Element {
   return (
     <button
       type={props.type || 'button'}
-      class={`btn ${variantClass()} ${local.className || ''}`}
+      class={`btn ${variantClass()} ${local.class || ''}`}
       classList={{ 'opacity-50 cursor-not-allowed': local.disabled }}
       onClick={handleClick}
       disabled={local.disabled}

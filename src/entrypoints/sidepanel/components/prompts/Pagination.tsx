@@ -1,3 +1,4 @@
+import { For } from "solid-js";
 import type { JSX } from 'solid-js';
 import { usePromptStore } from '@stores/promptStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -119,9 +120,9 @@ export function Pagination(props: PaginationProps): JSX.Element {
           value={promptStore.pageSize}
           onChange={handlePageSizeChange}
         >
-          {pageSizeOptions.map(size => (
+          <For each={pageSizeOptions}>{size => (
             <option value={size}>{size}</option>
-          ))}
+          )}</For>
         </select>
         <span>per page</span>
       </div>

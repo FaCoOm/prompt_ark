@@ -7,7 +7,7 @@ export interface ModalProps extends ParentProps {
   onClose: () => void;
   title?: string;
   footer?: JSX.Element;
-  className?: string;
+  class?: string;
 }
 
 export function Modal(props: ModalProps): JSX.Element {
@@ -16,7 +16,7 @@ export function Modal(props: ModalProps): JSX.Element {
     'onClose',
     'title',
     'footer',
-    'className',
+    'class',
     'children',
   ]);
 
@@ -36,7 +36,7 @@ export function Modal(props: ModalProps): JSX.Element {
     <Show when={local.isOpen}>
       <Portal>
         <div
-          class={`modal ${local.className || ''}`}
+          class={`modal ${local.class || ''}`}
           onClick={handleBackdropClick}
           onKeyDown={handleKeyDown}
           role="dialog"

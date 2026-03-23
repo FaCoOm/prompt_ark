@@ -284,7 +284,7 @@ export function EditModal(): JSX.Element {
       onClose={handleClose}
       title={modalTitle()}
       footer={footer()}
-      className="edit-modal"
+      class="edit-modal"
     >
       <div class="edit-modal-container">
         <div class="edit-modal-tabs">

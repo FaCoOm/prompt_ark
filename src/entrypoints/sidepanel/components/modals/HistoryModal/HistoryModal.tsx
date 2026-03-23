@@ -132,7 +132,7 @@ export function HistoryModal(props: HistoryModalProps): JSX.Element {
       onClose={handleClose}
       title="Version History"
       footer={footer()}
-      className="history-modal"
+      class="history-modal"
     >
       <div class="history-modal-content">
         <div class="history-list">

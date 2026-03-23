@@ -1,5 +1,5 @@
 import type { Prompt } from '@shared/types/prompt';
-import { createSignal, createEffect } from 'solid-js';
+import { createSignal, createEffect, For } from 'solid-js';
 
 export function App() {
   const [prompts, setPrompts] = createSignal<Prompt[]>([]);
@@ -64,7 +64,7 @@ export function App() {
       </div>
 
       <div class="mb-4 flex gap-2 overflow-x-auto">
-        {categories().map(cat => (
+        <For each={categories()}>{cat => (
           <button
             type="button"
             onClick={() => setSelectedCategory(cat)}
@@ -77,7 +77,7 @@ export function App() {
           >
             {cat === 'all' ? 'All' : cat}
           </button>
-        ))}
+        )}</For>
       </div>
 
       {loading() ? (

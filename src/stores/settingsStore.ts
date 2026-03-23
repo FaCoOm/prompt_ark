@@ -12,7 +12,7 @@ export interface GeneralSettings {
 
 export interface SyncSettings {
   engine: 'local' | 'chrome' | 'gist' | 'webdav' | 'obsidian';
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   lastSyncTime: number | null;
 }
 
@@ -117,7 +117,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         providers: [...state.models.providers, provider],
       },
     }));
-    get().saveSettings();
+    void get().saveSettings();
   },
 
   updateProvider: (id: string, updates: Partial<Provider>) => {
@@ -129,7 +129,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ),
       },
     }));
-    get().saveSettings();
+    void get().saveSettings();
   },
 
   removeProvider: (id: string) => {
@@ -147,7 +147,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         },
       };
     });
-    get().saveSettings();
+    void get().saveSettings();
   },
 
   testConnection: async (_providerId: string) => {
@@ -170,7 +170,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             lastSyncTime: Date.now(),
           },
         }));
-        get().saveSettings();
+        void get().saveSettings();
         resolve({
           success: true,
           message: 'Sync completed (mock)',
@@ -187,20 +187,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set(state => ({
       general: { ...state.general, ...settings },
     }));
-    get().saveSettings();
+    void get().saveSettings();
   },
 
   updateSyncSettings: (settings: Partial<SyncSettings>) => {
     set(state => ({
       sync: { ...state.sync, ...settings },
     }));
-    get().saveSettings();
+    void get().saveSettings();
   },
 
   updateModelSettings: (settings: Partial<ModelSettings>) => {
     set(state => ({
       models: { ...state.models, ...settings },
     }));
-    get().saveSettings();
+    void get().saveSettings();
   },
 }));

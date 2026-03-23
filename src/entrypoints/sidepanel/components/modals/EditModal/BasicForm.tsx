@@ -1,3 +1,4 @@
+import { For } from "solid-js";
 import type { JSX } from 'solid-js';
 
 export interface BasicFormProps {
@@ -44,9 +45,9 @@ export function BasicForm(props: BasicFormProps): JSX.Element {
           list={categoryDatalistId}
         />
         <datalist id={categoryDatalistId}>
-          {props.existingCategories.map(cat => (
+          <For each={props.existingCategories}>{cat => (
             <option value={cat} />
-          ))}
+          )}</For>
         </datalist>
       </div>
 

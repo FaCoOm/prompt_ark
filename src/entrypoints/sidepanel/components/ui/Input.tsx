@@ -8,17 +8,18 @@ export interface InputProps {
   placeholder?: string;
   type?: string;
   disabled?: boolean;
-  className?: string;
+  class?: string;
 }
 
 export function Input(props: InputProps): JSX.Element {
   const [local, rest] = splitProps(props, [
+    'id',
     'value',
     'onChange',
     'placeholder',
     'type',
     'disabled',
-    'className',
+    'class',
   ]);
 
   const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
@@ -28,7 +29,8 @@ export function Input(props: InputProps): JSX.Element {
   return (
     <input
       type={local.type || 'text'}
-      class={`settings-input ${local.className || ''}`}
+      id={local.id}
+      class={`settings-input ${local.class || ''}`}
       value={local.value}
       onInput={handleInput}
       placeholder={local.placeholder}

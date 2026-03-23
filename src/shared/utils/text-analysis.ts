@@ -50,7 +50,7 @@ export function extractTitleHeuristic(text: string): string {
   if (headingMatch) {
     const h = headingMatch[1].trim();
     if (h.length <= 50) return h;
-    return h.substring(0, 47) + '...';
+    return `${h.substring(0, 47)  }...`;
   }
 
   const firstLine = text.split(/[\n\r]/)[0].trim();
@@ -65,7 +65,7 @@ export function extractTitleHeuristic(text: string): string {
   if (text.length <= 30) return text;
   const truncated = text.substring(0, 30);
   const lastSpace = truncated.lastIndexOf(' ');
-  return (lastSpace > 15 ? truncated.substring(0, lastSpace) : truncated) + '...';
+  return `${lastSpace > 15 ? truncated.substring(0, lastSpace) : truncated  }...`;
 }
 
 export function matchCategory(text: string, lang: 'zh' | 'en'): string {

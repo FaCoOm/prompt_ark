@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import { createMemo, createSignal } from 'solid-js';
+import { createMemo, createSignal, For } from 'solid-js';
 import { useSettingsStore, type SyncSettings } from '@/stores/settingsStore';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -61,7 +61,7 @@ export function SyncTab(): JSX.Element {
               <Input
                 id="gist-token"
                 type="password"
-                value={settings['gistToken'] || ''}
+                value={(settings['gistToken'] as string) ?? ''}
                 onChange={value => handleSettingChange('gistToken', value)}
                 placeholder="Enter your GitHub personal access token"
               />
@@ -70,7 +70,7 @@ export function SyncTab(): JSX.Element {
               <label for="gist-id">Gist ID</label>
               <Input
                 id="gist-id"
-                value={settings['gistId'] || ''}
+                value={(settings['gistId'] as string) ?? ''}
                 onChange={value => handleSettingChange('gistId', value)}
                 placeholder="Enter your Gist ID (optional, will create new if empty)"
               />
@@ -85,7 +85,7 @@ export function SyncTab(): JSX.Element {
               <label for="webdav-url">WebDAV URL</label>
               <Input
                 id="webdav-url"
-                value={settings['webdavUrl'] || ''}
+                value={(settings['webdavUrl'] as string) ?? ''}
                 onChange={value => handleSettingChange('webdavUrl', value)}
                 placeholder="https://example.com/webdav/"
               />
@@ -94,7 +94,7 @@ export function SyncTab(): JSX.Element {
               <label for="webdav-username">Username</label>
               <Input
                 id="webdav-username"
-                value={settings['webdavUsername'] || ''}
+                value={(settings['webdavUsername'] as string) ?? ''}
                 onChange={value => handleSettingChange('webdavUsername', value)}
                 placeholder="Enter your WebDAV username"
               />
@@ -104,7 +104,7 @@ export function SyncTab(): JSX.Element {
               <Input
                 id="webdav-password"
                 type="password"
-                value={settings['webdavPassword'] || ''}
+                value={(settings['webdavPassword'] as string) ?? ''}
                 onChange={value => handleSettingChange('webdavPassword', value)}
                 placeholder="Enter your WebDAV password"
               />
@@ -118,7 +118,7 @@ export function SyncTab(): JSX.Element {
             <label for="obsidian-vault">Vault Path</label>
             <Input
               id="obsidian-vault"
-              value={settings['obsidianVault'] || ''}
+              value={(settings['obsidianVault'] as string) ?? ''}
               onChange={value => handleSettingChange('obsidianVault', value)}
               placeholder="Enter your Obsidian vault path"
             />
@@ -149,9 +149,9 @@ export function SyncTab(): JSX.Element {
           value={currentEngine()}
           onChange={handleEngineChange}
         >
-          {ENGINE_OPTIONS.map(option => (
+          <For each={ENGINE_OPTIONS}>{option => (
             <option value={option.value}>{option.label}</option>
-          ))}
+          )}</For>
         </select>
       </div>
 

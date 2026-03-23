@@ -198,7 +198,7 @@ async function handleMessage(
         prompt: Prompt;
         contentOverride?: string;
       };
-      const composed = composePrompt(prompt, contentOverride || null);
+      const composed = composePrompt(prompt, contentOverride ?? null);
       const variables = extractVariables(composed).filter(v => v.type !== 'context');
       sendResponse({
         success: true,
@@ -216,7 +216,7 @@ async function handleMessage(
           const providers = await getProviders();
           const result2 = await chrome.storage.local.get('activeProviderId');
           const activeId = result2['activeProviderId'];
-          return providers.find(p => p.id === activeId) || providers[0] || null;
+          return providers.find(p => p.id === activeId) ?? providers[0] ?? null;
         },
         callCloudAPI as (
           text: string,
@@ -650,7 +650,7 @@ async function handleMessage(
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
         const activeId = result['activeProviderId'];
-        const provider = providers.find(p => p.id === activeId) || providers[0];
+        const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
         if (!provider) {
           sendResponse({ success: false, error: 'No AI provider configured' });
@@ -775,7 +775,7 @@ async function handleMessage(
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
         const activeId = result['activeProviderId'];
-        const provider = providers.find(p => p.id === activeId) || providers[0];
+        const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
         if (!provider) {
           sendResponse({ success: false, error: 'No AI provider configured' });
@@ -999,7 +999,7 @@ async function enrichPrompt(id: string, content: string): Promise<void> {
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
         const activeId = result['activeProviderId'];
-        return providers.find(p => p.id === activeId) || providers[0] || null;
+        return providers.find(p => p.id === activeId) ?? providers[0] ?? null;
       },
       callCloudAPI as (
         text: string,
@@ -1055,7 +1055,7 @@ async function optimizePrompt(content: string, providerId?: string): Promise<str
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
   const activeId = providerId || result['activeProviderId'];
-  const provider = providers.find(p => p.id === activeId) || providers[0];
+  const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
     throw new Error('No AI provider configured');
@@ -1065,9 +1065,9 @@ async function optimizePrompt(content: string, providerId?: string): Promise<str
     'You are a prompt optimization expert. Improve the following prompt to make it more effective, clear, and concise. Return only the optimized prompt without any explanation.';
 
   if (provider.type === 'gemini') {
-    return callGeminiOptimize(provider as GeminiProvider, content, systemPrompt);
+    return callGeminiOptimize(provider, content, systemPrompt);
   } else if (provider.type === 'openai') {
-    return callOpenAIOptimize(provider as OpenAIProvider, content, systemPrompt);
+    return callOpenAIOptimize(provider, content, systemPrompt);
   }
 
   throw new Error('Unsupported provider type for optimization');
@@ -1081,7 +1081,7 @@ async function translatePrompt(
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
   const activeId = providerId || result['activeProviderId'];
-  const provider = providers.find(p => p.id === activeId) || providers[0];
+  const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
     throw new Error('No AI provider configured');
@@ -1101,9 +1101,9 @@ async function translatePrompt(
   const systemPrompt = `Translate the following content to ${targetLanguage}. Maintain the formatting and structure. Return only the translated text.`;
 
   if (provider.type === 'gemini') {
-    return callGeminiOptimize(provider as GeminiProvider, content, systemPrompt);
+    return callGeminiOptimize(provider, content, systemPrompt);
   } else if (provider.type === 'openai') {
-    return callOpenAIOptimize(provider as OpenAIProvider, content, systemPrompt);
+    return callOpenAIOptimize(provider, content, systemPrompt);
   }
 
   throw new Error('Unsupported provider type for translation');
@@ -1117,16 +1117,16 @@ async function generateText(
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
   const activeId = providerId || result['activeProviderId'];
-  const provider = providers.find(p => p.id === activeId) || providers[0];
+  const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
     throw new Error('No AI provider configured');
   }
 
   if (provider.type === 'gemini') {
-    return generateWithGemini(provider as GeminiProvider, prompt, options);
+    return generateWithGemini(provider, prompt, options);
   } else if (provider.type === 'openai') {
-    return generateWithOpenAI(provider as OpenAIProvider, prompt, options);
+    return generateWithOpenAI(provider, prompt, options);
   }
 
   throw new Error('Unsupported provider type for text generation');
@@ -1184,7 +1184,7 @@ async function callOpenAIOptimize(
       model: provider.model || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: content },
+        { role: 'user', content },
       ],
     }),
   });
@@ -1277,7 +1277,7 @@ async function generateVideoPrompt(url: string, transcript?: string): Promise<st
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
   const activeId = result['activeProviderId'];
-  const provider = providers.find(p => p.id === activeId) || providers[0];
+  const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) throw new Error('No AI provider configured');
 
@@ -1299,9 +1299,9 @@ async function generateSkillWithProvider(
 
   let response: string;
   if (provider.type === 'gemini') {
-    response = await generateWithGemini(provider as GeminiProvider, prompt);
+    response = await generateWithGemini(provider, prompt);
   } else if (provider.type === 'openai') {
-    response = await generateWithOpenAI(provider as OpenAIProvider, prompt);
+    response = await generateWithOpenAI(provider, prompt);
   } else {
     throw new Error('Provider type not supported for skill generation');
   }
@@ -1312,7 +1312,7 @@ async function generateSkillWithProvider(
   } catch {
     return {
       name: 'Generated Skill',
-      description: description,
+      description,
       prompt: response,
       category: 'General',
     };
@@ -1327,9 +1327,9 @@ async function smartConvertWithProvider(
 
   let response: string;
   if (provider.type === 'gemini') {
-    response = await generateWithGemini(provider as GeminiProvider, prompt);
+    response = await generateWithGemini(provider, prompt);
   } else if (provider.type === 'openai') {
-    response = await generateWithOpenAI(provider as OpenAIProvider, prompt);
+    response = await generateWithOpenAI(provider, prompt);
   } else {
     throw new Error('Provider type not supported for smart convert');
   }

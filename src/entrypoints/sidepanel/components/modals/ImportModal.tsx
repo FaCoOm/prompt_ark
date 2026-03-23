@@ -388,7 +388,7 @@ export function ImportModal(): JSX.Element {
       onClose={handleClose}
       title="Import Prompts"
       footer={footer()}
-      className="modal import-modal"
+      class="modal import-modal"
     >
       <div class="import-modal-container">
         <div class="import-tabs">
@@ -436,7 +436,7 @@ Or just paste plain text paragraphs`}
                   value={url()}
                   onChange={setUrl}
                   placeholder="https://github.com/user/repo or any webpage"
-                  className="url-input"
+                  class="url-input"
                 />
                 <Button
                   variant="primary"

@@ -25,7 +25,7 @@ function renderMarkdownWithHighlightedVars(content: string): string {
 
   let html = '';
   try {
-    html = marked.parse(processedContent, { async: false }) as string;
+    html = marked.parse(processedContent, { async: false });
   } catch {
     html = escapeHtml(processedContent);
   }

@@ -1,3 +1,4 @@
+import { For } from "solid-js";
 import type { JSX } from 'solid-js';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Input } from '../ui/Input';
@@ -64,9 +65,9 @@ export function GeneralTab(): JSX.Element {
           value={store.general.language}
           onChange={handleLanguageChange}
         >
-          {LANGUAGES.map(lang => (
+          <For each={LANGUAGES}>{lang => (
             <option value={lang.value}>{lang.label}</option>
-          ))}
+          )}</For>
         </select>
       </div>
 
@@ -78,9 +79,9 @@ export function GeneralTab(): JSX.Element {
           value={store.general.defaultPlatform}
           onChange={handlePlatformChange}
         >
-          {PLATFORMS.map(platform => (
+          <For each={PLATFORMS}>{platform => (
             <option value={platform.value}>{platform.label}</option>
-          ))}
+          )}</For>
         </select>
       </div>
 

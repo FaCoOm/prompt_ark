@@ -42,16 +42,16 @@ export function ModelsTab(): JSX.Element {
       type: provider.type,
       apiUrl:
         provider.type === 'openai'
-          ? (provider as Extract<Provider, { type: 'openai' }>).apiUrl
+          ? (provider).apiUrl
           : '',
       apiKey:
         provider.type === 'gemini-web'
           ? ''
-          : (provider as Extract<Provider, { type: 'gemini' | 'openai' }>).apiKey,
+          : (provider).apiKey,
       model:
         provider.type === 'gemini-web'
           ? ''
-          : (provider as Extract<Provider, { type: 'gemini' | 'openai' }>).model,
+          : (provider).model,
     });
     setIsModalOpen(true);
   };
@@ -140,7 +140,7 @@ export function ModelsTab(): JSX.Element {
       <div class="settings-section">
         <div class="settings-section-header">
           <h3>AI Providers</h3>
-          <Button variant="primary" onClick={handleOpenAdd} className="btn-small">
+          <Button variant="primary" onClick={handleOpenAdd} class="btn-small">
             + Add Provider
           </Button>
         </div>
@@ -197,7 +197,7 @@ export function ModelsTab(): JSX.Element {
             value={visionModel()}
             onChange={handleVisionModelChange}
             placeholder="e.g., gemini-pro-vision"
-            className="settings-input"
+            class="settings-input"
           />
           <p class="hint">Model used for image analysis and vision tasks</p>
         </div>
@@ -225,7 +225,7 @@ export function ModelsTab(): JSX.Element {
               value={formData().name}
               onChange={value => setFormData({ ...formData(), name: value })}
               placeholder="e.g., My OpenAI Provider"
-              className="settings-input"
+              class="settings-input"
             />
           </div>
 
@@ -252,7 +252,7 @@ export function ModelsTab(): JSX.Element {
                 value={formData().apiUrl}
                 onChange={value => setFormData({ ...formData(), apiUrl: value })}
                 placeholder="https://api.openai.com/v1/chat/completions"
-                className="settings-input"
+                class="settings-input"
               />
             </div>
           </Show>
@@ -265,7 +265,7 @@ export function ModelsTab(): JSX.Element {
                 value={formData().apiKey}
                 onChange={value => setFormData({ ...formData(), apiKey: value })}
                 placeholder="sk-..."
-                className="settings-input"
+                class="settings-input"
               />
             </div>
           </Show>
@@ -277,7 +277,7 @@ export function ModelsTab(): JSX.Element {
                 value={formData().model}
                 onChange={value => setFormData({ ...formData(), model: value })}
                 placeholder="e.g., gpt-4, gemini-pro"
-                className="settings-input"
+                class="settings-input"
               />
             </div>
           </Show>

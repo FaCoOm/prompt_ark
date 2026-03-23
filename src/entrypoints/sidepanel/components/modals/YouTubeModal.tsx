@@ -172,7 +172,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
       isOpen={props.isOpen}
       onClose={handleClose}
       title="YouTube Video Analysis"
-      className="youtube-modal"
+      class="youtube-modal"
     >
       <div class="youtube-modal-content">
         {/* Mode Selector */}
@@ -219,7 +219,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
             value={url()}
             onChange={setUrl}
             placeholder="https://youtube.com/watch?v=..."
-            className="youtube-url-input"
+            class="youtube-url-input"
           />
         </div>
 
@@ -234,7 +234,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
             variant="primary"
             onClick={handleGenerate}
             disabled={isGenerating() || !isValidUrl()}
-            className="generate-btn"
+            class="generate-btn"
           >
             {isGenerating() ? 'Generating...' : 'Generate'}
           </Button>
@@ -312,7 +312,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
                               value={variableValues()[variable] || ''}
                               onChange={value => handleVariableChange(variable, value)}
                               placeholder={`Enter ${variable}...`}
-                              className="variable-input"
+                              class="variable-input"
                             />
                           </div>
                         )}
@@ -360,7 +360,7 @@ export function YouTubeModal(props: YouTubeModalProps): JSX.Element {
         {/* Save Button */}
         <Show when={result()}>
           <div class="save-section">
-            <Button variant="primary" onClick={handleSave} className="save-btn">
+            <Button variant="primary" onClick={handleSave} class="save-btn">
               Save as Prompt
             </Button>
           </div>

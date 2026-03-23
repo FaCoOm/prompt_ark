@@ -9,13 +9,13 @@ export interface SharePanelProps {
 
 function generateShareText(prompt: Prompt): string {
   const truncatedContent =
-    prompt.content.length > 200 ? prompt.content.substring(0, 200) + '...' : prompt.content;
+    prompt.content.length > 200 ? `${prompt.content.substring(0, 200)  }...` : prompt.content;
 
   return `Check out this prompt: "${prompt.title}"
 
 ${truncatedContent}
 
-#${prompt.category}${prompt.tags.length > 0 ? ' #' + prompt.tags.join(' #') : ''}`;
+#${prompt.category}${prompt.tags.length > 0 ? ` #${  prompt.tags.join(' #')}` : ''}`;
 }
 
 export function SharePanel(props: SharePanelProps): JSX.Element {
