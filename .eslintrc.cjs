@@ -42,5 +42,21 @@ module.exports = {
       typescript: {},
     },
   },
-  ignorePatterns: ['dist/', '.output/', 'node_modules/', '*.config.*'],
+  ignorePatterns: [
+    'dist/',
+    '.output/',
+    'node_modules/',
+    '*.config.*',
+    // Legacy JS files (shadow migration - will be removed in Phase 9)
+    'popup.js',
+    'popup.html',
+    'content.js',
+    'background.js',
+    'image-prompt.js',
+    'locales.js',
+    'i18n-manager.js',
+    'lib/**/*.js',
+    'prompt-ark-hub/**/*.js',
+    'obsidian-plugin/**/*.js',
+  ],
 };
