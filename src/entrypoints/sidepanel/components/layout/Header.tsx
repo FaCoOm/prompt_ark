@@ -1,7 +1,6 @@
 import type { JSX } from 'solid-js';
 import { useUIStore } from '../../stores/uiStore';
 
-// Mock Hub user data - will be replaced with actual Hub integration
 const mockHubUser = {
   name: 'Demo User',
   avatar: null as string | null,
@@ -25,7 +24,6 @@ export function Header(): JSX.Element {
         <img src="/icons/icon128.png" alt="Prompt Ark" class="header-logo" width="26" height="26" />
         <h1>Prompt Ark</h1>
 
-        {/* Hub User Info - using mock data */}
         <div class="hub-user-info">
           {mockHubUser.avatar ? (
             <img src={mockHubUser.avatar} alt={mockHubUser.name} class="hub-user-avatar" />
@@ -37,11 +35,10 @@ export function Header(): JSX.Element {
       </div>
 
       <div class="header-right">
-        {/* Settings Button */}
         <button
+          type="button"
           class="btn-icon header-btn"
           onClick={handleSettingsClick}
-          title="Settings"
           aria-label="Open settings"
         >
           <svg
@@ -55,16 +52,16 @@ export function Header(): JSX.Element {
             stroke-linecap="round"
             stroke-linejoin="round"
           >
+            <title>Settings</title>
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
 
-        {/* New Prompt Button */}
         <button
+          type="button"
           class="btn btn-primary btn-small"
           onClick={handleNewPromptClick}
-          title="New Prompt"
           aria-label="Create new prompt"
         >
           <svg
@@ -79,6 +76,7 @@ export function Header(): JSX.Element {
             stroke-linejoin="round"
             style={{ 'margin-right': '4px' }}
           >
+            <title>New Prompt</title>
             <path d="M12 5v14M5 12h14" />
           </svg>
           New
