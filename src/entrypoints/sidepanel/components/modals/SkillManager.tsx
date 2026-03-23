@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, Show, For } from 'solid-js';
 import type { JSX } from 'solid-js';
 import { Button } from '../ui/Button';
 
@@ -29,42 +29,46 @@ export function SkillManager(props: SkillManagerProps): JSX.Element {
     }
   };
 
-  if (!selectedSkill()) {
-    return (
-      <div class="skill-manager">
-        <div class="skill-list">
-          {props.skills.length === 0 ? (
-            <div class="empty-state">No skills available</div>
-          ) : (
-            props.skills.map(skill => (
-              <button type="button" class="skill-item" onClick={() => setSelectedSkill(skill)}>
-                <span class="skill-name">{skill.name}</span>
-                <span class="skill-date">{new Date(skill.createdAt).toLocaleDateString()}</span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const skill = selectedSkill()!;
   return (
     <div class="skill-manager">
-      <div class="skill-detail">
-        <div class="detail-header">
-          <Button variant="ghost" onClick={handleBack}>
-            ← Back
-          </Button>
-          <h3 class="detail-title">{skill.name}</h3>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-        </div>
-        <div class="skill-content">
-          <pre class="content-pre">{skill.content}</pre>
-        </div>
-      </div>
+      <Show
+        when={selectedSkill()}
+        fallback={
+          <div class="skill-list">
+            <Show when={props.skills.length === 0}>
+              <div class="empty-state">No skills available</div>
+            </Show>
+            <For each={props.skills}>
+              {skill => (
+                <button type="button" class="skill-item" onClick={() => setSelectedSkill(skill)}>
+                  <span class="skill-name">{skill.name}</span>
+                  <span class="skill-date">{new Date(skill.createdAt).toLocaleDateString()}</span>
+                </button>
+              )}
+            </For>
+          </div>
+        }
+      >
+        {skill => {
+          const s = skill();
+          return (
+            <div class="skill-detail">
+              <div class="detail-header">
+                <Button variant="ghost" onClick={handleBack}>
+                  ← Back
+                </Button>
+                <h3 class="detail-title">{s.name}</h3>
+                <Button variant="danger" onClick={handleDelete}>
+                  Delete
+                </Button>
+              </div>
+              <div class="skill-content">
+                <pre class="content-pre">{s.content}</pre>
+              </div>
+            </div>
+          );
+        }}
+      </Show>
     </div>
   );
 }
