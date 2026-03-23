@@ -43,13 +43,15 @@ export default defineBackground(() => {
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch(error => console.error('Side panel setup failed:', error));
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    handleMessage(message, sendResponse).catch(err => {
-      console.error('[Background] Error handling message:', err);
-      sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) });
-    });
-    return true;
-  });
+  chrome.runtime.onMessage.addListener(
+    (message: { type: string; [key: string]: unknown }, _sender, sendResponse) => {
+      void handleMessage(message, sendResponse).catch((err: Error | unknown) => {
+        console.error('[Background] Error handling message:', err);
+        sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) });
+      });
+      return true;
+    }
+  );
 
   chrome.runtime.onInstalled.addListener(() => {
     console.log('[Background] Extension installed/updated');
@@ -215,7 +217,7 @@ async function handleMessage(
         async () => {
           const providers = await getProviders();
           const result2 = await chrome.storage.local.get('activeProviderId');
-          const activeId = result2['activeProviderId'];
+          const activeId = result2['activeProviderId'] as string | undefined;
           return providers.find(p => p.id === activeId) ?? providers[0] ?? null;
         },
         callCloudAPI as (
@@ -458,7 +460,7 @@ async function handleMessage(
       const settings = await LocalStorage.get<SyncSettings>('syncSettings');
       sendResponse({
         success: true,
-        settings: settings || { mode: 'chrome', autoSync: true, syncInterval: 30 },
+        settings: settings ?? { mode: 'chrome', autoSync: true, syncInterval: 30 },
       });
       break;
     }
@@ -528,7 +530,7 @@ async function handleMessage(
 
     case 'GET_DEFAULT_PLATFORM': {
       const platform = await LocalStorage.get<string>('defaultPlatform');
-      sendResponse({ success: true, platform: platform || 'chatgpt' });
+      sendResponse({ success: true, platform: platform ?? 'chatgpt' });
       break;
     }
 
@@ -541,7 +543,7 @@ async function handleMessage(
 
     case 'GET_PLATFORM': {
       const platform = await LocalStorage.get<string>('defaultPlatform');
-      sendResponse({ success: true, platform: platform || 'chatgpt' });
+      sendResponse({ success: true, platform: platform ?? 'chatgpt' });
       break;
     }
 
@@ -614,14 +616,14 @@ async function handleMessage(
     }
 
     case 'GET_SKILLS': {
-      const skills = (await LocalStorage.get<Skill[]>('skills')) || [];
+      const skills = (await LocalStorage.get<Skill[]>('skills')) ?? [];
       sendResponse({ success: true, skills });
       break;
     }
 
     case 'PUSH_SKILL': {
       const { skill } = message as unknown as { skill: Omit<Skill, 'id' | 'createdAt'> };
-      const skills = (await LocalStorage.get<Skill[]>('skills')) || [];
+      const skills = (await LocalStorage.get<Skill[]>('skills')) ?? [];
 
       const newSkill: Skill = {
         ...skill,
@@ -637,7 +639,7 @@ async function handleMessage(
 
     case 'DELETE_SKILL': {
       const { id } = message as unknown as { id: string };
-      const skills = (await LocalStorage.get<Skill[]>('skills')) || [];
+      const skills = (await LocalStorage.get<Skill[]>('skills')) ?? [];
       const filtered = skills.filter(s => s.id !== id);
       await LocalStorage.set('skills', filtered);
       sendResponse({ success: true });
@@ -672,7 +674,7 @@ async function handleMessage(
       const settings = await LocalStorage.get<ImagePromptSettings>('imagePromptSettings');
       sendResponse({
         success: true,
-        settings: settings || { enabled: false },
+        settings: settings ?? { enabled: false },
       });
       break;
     }
@@ -693,7 +695,7 @@ async function handleMessage(
 
     case 'GET_OPENCLAW_SETTINGS': {
       const settings = await LocalStorage.get<Record<string, unknown>>('openclawSettings');
-      sendResponse({ success: true, settings: settings || {} });
+      sendResponse({ success: true, settings: settings ?? {} });
       break;
     }
 
@@ -726,7 +728,7 @@ async function handleMessage(
     }
 
     case 'GET_SHORTCUTS': {
-      const shortcuts = (await LocalStorage.get<Record<string, string>>('shortcuts')) || {};
+      const shortcuts = (await LocalStorage.get<Record<string, string>>('shortcuts')) ?? {};
       sendResponse({ success: true, shortcuts });
       break;
     }
@@ -1048,13 +1050,13 @@ async function handleArticleShare(platform: string, data: unknown): Promise<void
 
 async function getI18nDictionary(lang: string): Promise<Record<string, string>> {
   const dict = await LocalStorage.get<Record<string, string>>(`i18n_${lang}`);
-  return dict || {};
+  return dict ?? {};
 }
 
 async function optimizePrompt(content: string, providerId?: string): Promise<string> {
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
-  const activeId = providerId || result['activeProviderId'];
+  const activeId = providerId ?? (result['activeProviderId'] as string | undefined);
   const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
@@ -1080,7 +1082,7 @@ async function translatePrompt(
 ): Promise<string> {
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
-  const activeId = providerId || result['activeProviderId'];
+  const activeId = providerId ?? (result['activeProviderId'] as string | undefined);
   const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
@@ -1116,7 +1118,7 @@ async function generateText(
 ): Promise<string> {
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
-  const activeId = providerId || result['activeProviderId'];
+  const activeId = providerId ?? (result['activeProviderId'] as string | undefined);
   const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) {
