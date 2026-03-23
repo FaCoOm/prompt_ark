@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import solid from 'vite-plugin-solid';
 
 export default defineConfig({
   srcDir: 'src',
@@ -107,6 +108,7 @@ export default defineConfig({
   
   // Vite configuration
   vite: () => ({
+    plugins: [solid()],
     resolve: {
       alias: {
         '@': '/src',
