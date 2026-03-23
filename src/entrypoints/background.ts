@@ -51,7 +51,7 @@ export default defineBackground(() => {
     return true;
   });
 
-  chrome.runtime.onInstalled.addListener(async () => {
+  chrome.runtime.onInstalled.addListener(() => {
     console.log('[Background] Extension installed/updated');
   });
 });
@@ -175,7 +175,7 @@ async function handleMessage(
     case 'GET_PROVIDERS': {
       const providers = await getProviders();
       const result = await chrome.storage.local.get('activeProviderId');
-      const activeProviderId = result['activeProviderId'];
+      const activeProviderId = result['activeProviderId'] as string | undefined;
       sendResponse({ success: true, providers, activeProviderId });
       break;
     }
@@ -295,7 +295,7 @@ async function handleMessage(
     case 'GET_PAGE_CONTEXT': {
       try {
         const context = await LocalStorage.get<Record<string, unknown>>('pageContext');
-        sendResponse({ success: true, context: context || {} });
+        sendResponse({ success: true, context: context ?? {} });
       } catch {
         sendResponse({ success: false, error: 'Failed to get page context' });
       }
@@ -310,9 +310,9 @@ async function handleMessage(
             .sendMessage(tab.id, { type: 'GET_SELECTION' })
             .catch(() => null)) as { text?: string } | null;
           const context = {
-            url: tab.url || '',
-            title: tab.title || '',
-            selection: response?.text || '',
+            url: tab.url ?? '',
+            title: tab.title ?? '',
+            selection: response?.text ?? '',
             capturedAt: Date.now(),
           };
           await LocalStorage.set('pageContext', context);
@@ -337,9 +337,9 @@ async function handleMessage(
             .sendMessage(tab.id, { type: 'GET_SELECTION' })
             .catch(() => null)) as { text?: string } | null;
           const context = {
-            url: tab.url || '',
-            title: tab.title || '',
-            selection: selectionResp?.text || '',
+            url: tab.url ?? '',
+            title: tab.title ?? '',
+            selection: selectionResp?.text ?? '',
             capturedAt: Date.now(),
           };
           await LocalStorage.set('pageContext', context);
@@ -363,7 +363,7 @@ async function handleMessage(
           const response = (await chrome.tabs
             .sendMessage(tab.id, { type: 'GET_SELECTION' })
             .catch(() => null)) as { text?: string } | null;
-          sendResponse({ success: true, text: response?.text || '' });
+          sendResponse({ success: true, text: response?.text ?? '' });
         } else {
           sendResponse({ success: true, text: '' });
         }
@@ -380,7 +380,7 @@ async function handleMessage(
           const response = (await chrome.tabs
             .sendMessage(tab.id, { type: 'GET_PAGE_TEXT' })
             .catch(() => null)) as { text?: string } | null;
-          sendResponse({ success: true, text: response?.text || '' });
+          sendResponse({ success: true, text: response?.text ?? '' });
         } else {
           sendResponse({ success: true, text: '' });
         }
@@ -515,7 +515,7 @@ async function handleMessage(
 
     case 'GET_GITHUB_TOKEN': {
       const token = await LocalStorage.get<string>('githubToken');
-      sendResponse({ success: true, token: token || '' });
+      sendResponse({ success: true, token: token ?? '' });
       break;
     }
 
@@ -649,7 +649,7 @@ async function handleMessage(
       try {
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
-        const activeId = result['activeProviderId'];
+        const activeId = result['activeProviderId'] as string | undefined;
         const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
         if (!provider) {
@@ -774,7 +774,7 @@ async function handleMessage(
       try {
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
-        const activeId = result['activeProviderId'];
+        const activeId = result['activeProviderId'] as string | undefined;
         const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
         if (!provider) {
@@ -998,7 +998,7 @@ async function enrichPrompt(id: string, content: string): Promise<void> {
       async () => {
         const providers = await getProviders();
         const result = await chrome.storage.local.get('activeProviderId');
-        const activeId = result['activeProviderId'];
+        const activeId = result['activeProviderId'] as string | undefined;
         return providers.find(p => p.id === activeId) ?? providers[0] ?? null;
       },
       callCloudAPI as (
@@ -1276,7 +1276,7 @@ async function generateWithOpenAI(
 async function generateVideoPrompt(url: string, transcript?: string): Promise<string> {
   const providers = await getProviders();
   const result = await chrome.storage.local.get('activeProviderId');
-  const activeId = result['activeProviderId'];
+  const activeId = result['activeProviderId'] as string | undefined;
   const provider = providers.find(p => p.id === activeId) ?? providers[0];
 
   if (!provider) throw new Error('No AI provider configured');
