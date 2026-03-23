@@ -56,7 +56,6 @@ export function GeneralTab(): JSX.Element {
 
   return (
     <div class="space-y-5">
-      {/* Language Selector */}
       <div class="form-group">
         <label for="language">Language</label>
         <select
@@ -71,7 +70,6 @@ export function GeneralTab(): JSX.Element {
         </select>
       </div>
 
-      {/* Default AI Platform Selector */}
       <div class="form-group">
         <label for="defaultPlatform">Default AI Platform</label>
         <select
@@ -86,14 +84,12 @@ export function GeneralTab(): JSX.Element {
         </select>
       </div>
 
-      {/* GitHub Token Input */}
       <div class="form-group">
         <label for="githubToken">
           GitHub Token
           <span class="hint">for Gist sync</span>
         </label>
         <Input
-          id="githubToken"
           type="password"
           value={store.general.githubToken}
           onChange={handleGithubTokenChange}
@@ -101,7 +97,6 @@ export function GeneralTab(): JSX.Element {
         />
       </div>
 
-      {/* OpenClaw Enabled Toggle */}
       <div class="form-group">
         <label class="flex cursor-pointer items-center gap-3">
           <input
@@ -114,7 +109,6 @@ export function GeneralTab(): JSX.Element {
         </label>
       </div>
 
-      {/* Image Prompt Enabled Toggle */}
       <div class="form-group">
         <label class="flex cursor-pointer items-center gap-3">
           <input
