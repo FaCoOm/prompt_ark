@@ -59,9 +59,10 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="gist-token">Gist Token</label>
               <Input
+                // @ts-expect-error id is passed through rest props
                 id="gist-token"
                 type="password"
-                value={settings.gistToken || ''}
+                value={settings['gistToken'] || ''}
                 onChange={value => handleSettingChange('gistToken', value)}
                 placeholder="Enter your GitHub personal access token"
               />
@@ -69,8 +70,9 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="gist-id">Gist ID</label>
               <Input
+                // @ts-expect-error id is passed through rest props
                 id="gist-id"
-                value={settings.gistId || ''}
+                value={settings['gistId'] || ''}
                 onChange={value => handleSettingChange('gistId', value)}
                 placeholder="Enter your Gist ID (optional, will create new if empty)"
               />
@@ -84,8 +86,9 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-url">WebDAV URL</label>
               <Input
+                // @ts-expect-error id is passed through rest props
                 id="webdav-url"
-                value={settings.webdavUrl || ''}
+                value={settings['webdavUrl'] || ''}
                 onChange={value => handleSettingChange('webdavUrl', value)}
                 placeholder="https://example.com/webdav/"
               />
@@ -93,8 +96,9 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-username">Username</label>
               <Input
+                // @ts-expect-error id is passed through rest props
                 id="webdav-username"
-                value={settings.webdavUsername || ''}
+                value={settings['webdavUsername'] || ''}
                 onChange={value => handleSettingChange('webdavUsername', value)}
                 placeholder="Enter your WebDAV username"
               />
@@ -102,9 +106,10 @@ export function SyncTab(): JSX.Element {
             <div class="form-group">
               <label for="webdav-password">Password</label>
               <Input
+                // @ts-expect-error id is passed through rest props
                 id="webdav-password"
                 type="password"
-                value={settings.webdavPassword || ''}
+                value={settings['webdavPassword'] || ''}
                 onChange={value => handleSettingChange('webdavPassword', value)}
                 placeholder="Enter your WebDAV password"
               />
@@ -117,8 +122,9 @@ export function SyncTab(): JSX.Element {
           <div class="form-group">
             <label for="obsidian-vault">Vault Path</label>
             <Input
+              // @ts-expect-error id is passed through rest props
               id="obsidian-vault"
-              value={settings.obsidianVault || ''}
+              value={settings['obsidianVault'] || ''}
               onChange={value => handleSettingChange('obsidianVault', value)}
               placeholder="Enter your Obsidian vault path"
             />
@@ -130,7 +136,7 @@ export function SyncTab(): JSX.Element {
       default:
         return (
           <div class="form-group">
-            <p class="text-secondary text-sm">
+            <p style={{ color: 'var(--text-secondary)', 'font-size': '13px' }}>
               No additional configuration required for{' '}
               {ENGINE_OPTIONS.find(o => o.value === engine)?.label}.
             </p>
@@ -158,9 +164,19 @@ export function SyncTab(): JSX.Element {
       {renderEngineConfig()}
 
       <div class="form-group">
-        <label>Last Sync</label>
+        <span
+          style={{
+            display: 'block',
+            'margin-bottom': '6px',
+            'font-weight': '600',
+            color: 'var(--text-secondary)',
+            'font-size': '13px',
+          }}
+        >
+          Last Sync
+        </span>
         <div class="sync-info">
-          <span class="sync-time">{formatLastSyncTime(lastSyncTime())}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{formatLastSyncTime(lastSyncTime())}</span>
         </div>
       </div>
 
