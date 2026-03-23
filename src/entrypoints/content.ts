@@ -2,14 +2,14 @@ import { defineContentScript } from 'wxt/sandbox';
 import { detectPlatform, createPlatformAdapter } from '@platforms/base';
 import { extractVariables } from '@shared/utils/variables';
 
-defineContentScript({
+export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
     const platform = detectPlatform();
     const adapter = createPlatformAdapter(platform);
-    
+
     console.log('[Content] Platform detected:', platform);
-    
+
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleMessage(message, adapter, sendResponse).catch(err => {
         console.error('[Content] Error:', err);
@@ -17,7 +17,7 @@ defineContentScript({
       });
       return true;
     });
-    
+
     if (platform !== 'generic') {
       initializePlatformUI(adapter);
     }

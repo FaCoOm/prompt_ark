@@ -35,7 +35,7 @@ chrome.sidePanel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'PROMPT_ARK_AUTH_SYNC') {
     const { isLoggedIn, accessToken, refreshToken, expiresAt, user } = message.payload || {};
-    
+
     chrome.storage.local.set({
       isLoggedIn: isLoggedIn || false,
       accessToken: accessToken || null,
@@ -44,20 +44,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       hubUser: user || null
     }).then(async () => {
       console.log('[Hub Auth Sync] Auth state updated:', { isLoggedIn, user: user?.email });
-      
+
       if (isLoggedIn && accessToken && refreshToken) {
         initSupabase(accessToken, refreshToken, expiresAt, user);
         await handlePendingIntent();
       } else {
         signOut();
       }
-      
+
       sendResponse({ success: true });
     }).catch((error) => {
       console.error('[Hub Auth Sync] Failed to store auth:', error);
       sendResponse({ success: false, error: error.message });
     });
-    
+
     return true;
   }
   return false;
@@ -72,26 +72,26 @@ async function handlePendingIntent() {
     return;
   }
   _isPendingIntentRunning = true;
-  
+
   try {
     const result = await chrome.storage.local.get(['pendingIntent']);
     const intent = result.pendingIntent;
-    
+
     if (!intent) {
       _isPendingIntentRunning = false;
       return;
     }
-    
+
     if (Date.now() - intent.timestamp > PENDING_INTENT_TTL) {
       await chrome.storage.local.remove('pendingIntent');
       _isPendingIntentRunning = false;
       return;
     }
-    
+
     await chrome.storage.local.remove('pendingIntent');
-    
+
     console.log('[PendingIntent] Executing:', intent.action);
-    
+
     if (intent.action === 'PUBLISH_TO_HUB') {
       const resp = await HubClient.publishPrompt(intent.promptData, 'public');
       chrome.notifications.create({
@@ -111,12 +111,12 @@ async function handlePendingIntent() {
     } else if (intent.action === 'SHARE_TO_PLATFORM') {
       const { promptData, platform } = intent;
       const resp = await HubClient.publishPrompt(promptData, 'unlisted');
-      
+
       const shareUrl = resp.url;
       const shareTitle = promptData.title || 'AI Prompt';
-      
+
       const fallbackText = buildFallbackText(platform, shareTitle, shareUrl, promptData);
-      
+
       if (platform === 'zhihu' || platform === 'wechat' || platform === 'xiaohongshu') {
         await shareToSocialPlatform({
           content: promptData.content || '',
@@ -150,7 +150,7 @@ async function handlePendingIntent() {
           if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: json });
         });
       }
-      
+
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
@@ -357,7 +357,7 @@ async function handleMessage(message, sendResponse) {
         sendResponse({ success: true });
         break;
 
-        
+
       case 'GENERATE_SKILL': {
         const skillPayload = await generateSkillWithAI(message.promptData);
         const skills = await LocalStorage.get('skills') || [];
@@ -906,7 +906,7 @@ async function handleMessage(message, sendResponse) {
           sendResponse({ success: true, isLoggedIn: false });
           break;
         }
-        
+
         try {
           const { loggedIn, user } = await HubClient.checkLogin();
           sendResponse({ success: true, isLoggedIn: loggedIn, user });
