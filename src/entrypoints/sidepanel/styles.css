@@ -1,4 +1,78 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* --- Design Tokens (Migrated from popup.css) --- */
+:root {
+  --bg-base: #0f1117;
+  --bg-surface: #171921;
+  --bg-elevated: #1e2030;
+  --bg-input: #12141c;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --text-primary: #e8e8ed;
+  --text-secondary: #8b8fa3;
+  --text-muted: #565a6e;
+  --accent: #f0a050;
+  --accent-soft: rgba(240, 160, 80, 0.12);
+  --accent-glow: rgba(240, 160, 80, 0.2);
+  --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --success: #46a758;
+  --success-soft: rgba(70, 167, 88, 0.12);
+  --info: #52a8ff;
+  --info-soft: rgba(82, 168, 255, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 100px;
+  --transition: 180ms ease;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* --- Reset (Migrated from popup.css) --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 420px;
+  min-height: 520px;
+  max-height: 600px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Side Panel Adaptive Layout ---
+   Side panel has full viewport height (>600px) unlike popup (capped at 600px).
+   When detected, remove fixed sizing and fill the available space. */
+@media (min-height: 601px) {
+  body {
+    width: 100%;
+    min-height: 100vh;
+    max-height: none;
+  }
+}
+
+@media (min-width: 480px) {
+  body {
+    width: 100%;
+  }
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
 
 @layer components {
   .sidepanel-container {
@@ -61,14 +135,14 @@
     padding: 1rem;
     background-color: white;
     border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: box-shadow 0.2s;
     border: 1px solid #f3f4f6;
   }
 
   .prompt-card:hover {
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .prompt-card h3 {
