@@ -202,6 +202,23 @@ initSupabaseFromStorage().then(success => {
 async function getPrompts() { return await PromptStorage.get(); }
 async function setPrompts(prompts) { return await PromptStorage.set(prompts); }
 
+function broadcastPromptsUpdated(payload = {}) {
+  const message = { type: 'PROMPTS_UPDATED', ...payload };
+
+  // Notify extension pages (popup/options) if they are listening.
+  try { chrome.runtime.sendMessage(message).catch(() => { }); } catch (e) { /* no listeners */ }
+
+  // Notify content scripts in all tabs so slash shortcut cache refreshes immediately.
+  try {
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        if (!tab?.id) return;
+        chrome.tabs.sendMessage(tab.id, message).catch(() => { });
+      });
+    });
+  } catch (e) { /* ignore send errors */ }
+}
+
 
 // Wrapper: delegate to text-analysis module with DI
 async function extractTitleAndCategory(text) {
@@ -447,6 +464,7 @@ async function handleMessage(message, sendResponse) {
         if (message.prompt.videoData) newPrompt.videoData = message.prompt.videoData;
         await PromptStorage.save(newPrompt);
         sendResponse({ success: true });
+        broadcastPromptsUpdated({ action: 'save', promptId: newId });
 
         // Async AI enrichment — MUST be awaited (not fire-and-forget)
         // to keep MV3 Service Worker alive until completion
@@ -482,6 +500,7 @@ async function handleMessage(message, sendResponse) {
 
         await PromptStorage.update(updatedPrompt);
         sendResponse({ success: true, prompt: updatedPrompt });
+        broadcastPromptsUpdated({ action: 'update', promptId: updatedPrompt.id });
 
         // Async AI enrichment — awaited to keep MV3 worker alive
         const updateUserTitle = (message.prompt.title || '').trim();
@@ -496,6 +515,7 @@ async function handleMessage(message, sendResponse) {
       case 'DELETE_PROMPT': {
         await PromptStorage.delete(message.id);
         sendResponse({ success: true });
+        broadcastPromptsUpdated({ action: 'delete', promptId: message.id });
         break;
       }
 

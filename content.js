@@ -1004,6 +1004,10 @@ class AIPromptManager {
         this.capturePageContext();
         sendResponse({ success: true });
         break;
+      case 'PROMPTS_UPDATED':
+        // Invalidate slash cache so command edits are effective without page refresh.
+        this.slashShortcuts = [];
+        break;
       case 'UPDATE_I18N_DICT':
         if (request.dict) this.i18nDict = request.dict;
         break;
