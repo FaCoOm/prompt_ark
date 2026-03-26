@@ -7,6 +7,7 @@ export default defineConfig({
     description: '__MSG_appDesc__',
     version: '2.0.0',
     manifest_version: 3,
+    default_locale: 'en',
     permissions: [
       'storage',
       'contextMenus',

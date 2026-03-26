@@ -1,6 +1,6 @@
 import { render } from 'solid-js/web';
 import App from './App';
-import { I18nProvider } from '../src/i18n';
+import { I18nProvider } from '../../src/i18n';
 import './style.css';
 
 render(

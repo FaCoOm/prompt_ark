@@ -1,7 +1,7 @@
 import { createSignal, onMount } from 'solid-js';
 import { promptStore } from '../../src/stores/promptStore';
 import { settingsStore } from '../../src/stores/settingsStore';
-import { useI18n } from '../../src/i18n';
+import { useI18n } from '../../src/i18n/context';
 
 export default function App() {
   const { t } = useI18n();
