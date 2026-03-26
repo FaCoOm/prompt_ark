@@ -11,7 +11,7 @@
 
 ## Phase 0: 准备工作（1-2 天）
 
-**目标**: 建立测试基准，初始化新项目
+**目标**: 建立测试基准，初始化新项目，完成 i18n 审计
 
 - [ ] [001] [Phase0] 梳理功能清单：从 README.md 和代码提取所有功能点，创建 `docs/feature-checklist.md`
 - [ ] [002] [Phase0] 记录数据结构：分析 Chrome Storage 数据格式，创建 `docs/data-schema.md`
@@ -22,6 +22,12 @@
 - [ ] [007] [Phase0] 验证构建：确保空扩展可以构建并加载到浏览器
 - [ ] [008] [Phase0] 配置代码规范：配置 ESLint + Prettier 规则，启用 TypeScript 严格模式（FR-009）
 - [ ] [009] [Phase0] 运行现有测试：在旧项目中运行所有测试并记录基准结果（FR-007）
+
+### i18n 专项任务（Phase 0 关键）
+
+- [ ] [010] [P] [Phase0] **i18n 审计**：对比 v1 `_locales/` (42 键) 和 `locales.js` (311 键)，创建完整翻译键对照表 `docs/i18n-audit.md`
+- [ ] [011] [P] [Phase0] **i18n 方案选型**：调研 @solid-primitives/i18n vs @wxt-dev/i18n，确定技术方案
+- [ ] [012] [Phase0] **i18n 设计文档**：编写 i18n 架构设计文档 `docs/i18n-design.md`，包含类型安全方案
 
 ## Phase 1: 核心逻辑迁移（3-5 天）
 
@@ -39,6 +45,15 @@
 - [ ] [110] [P] [Phase1] 迁移同步客户端：`lib/github-client.js` → `src/shared/sync/github.ts`
 - [ ] [111] [Phase1] 编写单元测试：为所有迁移模块编写测试，确保行为一致
 - [ ] [112] [Phase1] 添加 JSDoc 注释：为核心模块（storage, variables, ai/provider）添加 JSDoc 文档（FR-010）
+
+### i18n 专项任务（Phase 1 关键）
+
+- [ ] [113] [P] [Phase1] **创建 i18n 类型定义**：`src/i18n/types.ts`，定义 LocaleDict 接口
+- [ ] [114] [P] [Phase1] **创建英文翻译文件**：`src/i18n/locales/en.ts`，合并 `_locales/en` + `locales.js` 英文内容
+- [ ] [115] [P] [Phase1] **创建中文翻译文件**：`src/i18n/locales/zh-CN.ts`，合并 `_locales/zh_CN` + `locales.js` 中文内容
+- [ ] [116] [Phase1] **创建 I18nProvider**：`src/i18n/context.tsx`，实现 Provider 和 useI18n Hook
+- [ ] [117] [Phase1] **导出 i18n 模块**：`src/i18n/index.ts`，导出 I18nProvider, useI18n, Locale 类型
+- [ ] [118] [Phase1] **验证 i18n 类型安全**：确保翻译键在 TypeScript 中有完整类型提示
 
 ## Phase 2: Background 重构（2-3 天）
 
@@ -84,6 +99,14 @@
 - [ ] [405] [P] [Phase4] 创建 Modal 组件：`src/components/ui/Modal.tsx`
 - [ ] [406] [P] [Phase4] 创建 Dropdown 组件：`src/components/ui/Dropdown.tsx`
 
+### i18n 集成（Phase 4 关键）
+- [ ] [416] [Phase4] **在 App 入口集成 I18nProvider**：`src/entrypoints/sidepanel/main.tsx`
+- [ ] [417] [P] [Phase4] **为 Button 组件添加 i18n**：所有按钮文本使用 `t()` 函数
+- [ ] [418] [P] [Phase4] **为 Input 组件添加 i18n**：placeholder 使用 `t()` 函数
+- [ ] [419] [P] [Phase4] **为 Modal 组件添加 i18n**：标题和按钮文本使用 `t()` 函数
+- [ ] [420] [Phase4] **创建语言切换器**：`src/entrypoints/sidepanel/components/LanguageSelector.tsx`
+- [ ] [421] [Phase4] **验证 UI i18n 完整性**：检查所有用户可见文本都有 i18n 支持
+
 ### Sidepanel 主界面
 - [ ] [407] [Phase4] 创建状态管理：`src/stores/promptStore.ts`、`src/stores/settingsStore.ts`
 - [ ] [408] [Phase4] 创建 PromptList：`src/entrypoints/sidepanel/components/PromptList.tsx`
@@ -125,21 +148,26 @@
 
 ## Task Summary
 
-**总任务数**: 70
+**总任务数**: 82 (含 12 个 i18n 专项任务)
 
-- Phase 0: 9 个任务（准备工作）
-- Phase 1: 12 个任务（核心逻辑迁移）
+- Phase 0: 12 个任务（准备工作 + i18n 审计）
+- Phase 1: 18 个任务（核心逻辑迁移 + i18n 基础设施）
 - Phase 2: 10 个任务（Background 重构）
 - Phase 3: 10 个任务（Content Script 重构）
-- Phase 4: 15 个任务（UI 重构）
+- Phase 4: 21 个任务（UI 重构 + i18n 集成）
 - Phase 5: 5 个任务（数据兼容）
 - Phase 6: 9 个任务（集成测试）
+
+**i18n 关键里程碑**:
+- ✅ Phase 0 完成: i18n 审计文档、技术方案确定
+- ✅ Phase 1 完成: i18n 类型安全基础设施可用
+- ✅ Phase 4 完成: 所有 UI 组件支持中英文切换
 
 **可并行任务**: 标记 [P] 的任务可以并行执行
 
 ## Notes
 
-- 每完成一个 Phase，进行阶段性测试
+- **i18n 优先**: 每完成一个 Phase，验证 i18n 功能正常
 - 保持 `prompt_ark` 原项目不变，随时可回退
 - 优先保证功能完整性，再优化代码质量
 - 遇到问题及时记录，调整计划

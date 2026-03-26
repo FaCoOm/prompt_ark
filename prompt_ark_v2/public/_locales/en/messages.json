@@ -1,0 +1,206 @@
+{
+  "appName": {
+    "message": "Prompt Ark"
+  },
+  "appDesc": {
+    "message": "Manage and auto-fill prompts into AI platforms"
+  },
+  "contextMenuAddPrompt": {
+    "message": "Add to Prompt Ark"
+  },
+  "contextMenuConvertPrompt": {
+    "message": "Smart Convert to Prompt"
+  },
+  "contextMenuPromptsList": {
+    "message": "Prompts List"
+  },
+  "contextMenuSaveSuccess": {
+    "message": "Added to Prompt Ark \u2713"
+  },
+  "insertSuccess": {
+    "message": "Prompt inserted"
+  },
+  "inputNotFound": {
+    "message": "Input box not found"
+  },
+  "extensionReload": {
+    "message": "Extension updated, please refresh the page"
+  },
+  "qaRewriteLabel": {
+    "message": "Rewrite"
+  },
+  "qaRewritePrompt": {
+    "message": "Please rewrite the text above to be clearer and more professional."
+  },
+  "qaSummarizeLabel": {
+    "message": "Summarize"
+  },
+  "qaSummarizePrompt": {
+    "message": "Please provide a concise summary of the text above."
+  },
+  "qaExpandLabel": {
+    "message": "Expand"
+  },
+  "qaExpandPrompt": {
+    "message": "Please expand on the text above and provide more details."
+  },
+  "qaTranslateLabel": {
+    "message": "Translate to EN"
+  },
+  "qaTranslatePrompt": {
+    "message": "Please translate the text above to English."
+  },
+  "qaExplainLabel": {
+    "message": "Explain"
+  },
+  "qaExplainPrompt": {
+    "message": "Please explain the text above simply."
+  },
+  "contextMenuConvertStart": {
+    "message": "Converting to prompt..."
+  },
+  "contextMenuConvertSuccess": {
+    "message": "Smart prompt saved!"
+  },
+  "contextMenuConvertError": {
+    "message": "Smart Convert failed, saved as raw text"
+  },
+  "noPageText": {
+    "message": "No readable text found on page"
+  },
+  "smartConvertNoProvider": {
+    "message": "Smart Convert requires an AI provider. Configure one in Prompt Ark settings."
+  },
+  "openPickerDesc": {
+    "message": "Open Prompt Picker"
+  },
+  "grabContextDesc": {
+    "message": "Smart grab page text as Prompt"
+  },
+  "shareArticleDesc": {
+    "message": "Share article to social platform"
+  },
+  "contextMenuShareArticle": {
+    "message": "Share Article to..."
+  },
+  "selectionToolbarAdd": {
+    "message": "Add to Prompt Ark"
+  },
+  "selectionToolbarConvert": {
+    "message": "Smart Convert"
+  },
+  "buildRules": {
+    "message": "🎯 Output Rules Builder"
+  },
+  "ruleFormat": {
+    "message": "Format"
+  },
+  "ruleFormatAuto": {
+    "message": "Auto"
+  },
+  "ruleFormatMarkdown": {
+    "message": "Markdown"
+  },
+  "ruleFormatJson": {
+    "message": "JSON"
+  },
+  "ruleFormatTable": {
+    "message": "Table"
+  },
+  "ruleFormatText": {
+    "message": "Plain Text"
+  },
+  "ruleFormatCode": {
+    "message": "Code"
+  },
+  "ruleLength": {
+    "message": "Max Length"
+  },
+  "ruleLengthSuffix": {
+    "message": "words"
+  },
+  "ruleTone": {
+    "message": "Tone"
+  },
+  "ruleToneDefault": {
+    "message": "Default"
+  },
+  "ruleToneProfessional": {
+    "message": "Professional"
+  },
+  "ruleToneConcise": {
+    "message": "Concise"
+  },
+  "ruleToneCreative": {
+    "message": "Creative"
+  },
+  "ruleExclusions": {
+    "message": "Do NOT (Exclusions)"
+  },
+  "insertRules": {
+    "message": "Insert Rules"
+  },
+  "ruleToastEmpty": {
+    "message": "Please configure at least one rule."
+  },
+  "ruleToastExists": {
+    "message": "Rules block already exists, please edit manually."
+  },
+  "ruleToastSuccess": {
+    "message": "📎 Rules Added"
+  },
+  "addOutputRulesDesc": {
+    "message": "Add Output Rules"
+  },
+  "ruleExclusionsPlaceholder": {
+    "message": "e.g. jargon, apologies, disclaimers"
+  },
+  "imagePromptFeature": {
+    "message": "🖼️ Image-to-Prompt (Beta)"
+  },
+  "imagePromptFeatureHint": {
+    "message": "Hover over web images to generate AI image prompts"
+  },
+  "imagePromptEnable": {
+    "message": "Enable Image-to-Prompt feature"
+  },
+  "imageRecognitionModel": {
+    "message": "🎯 Image Recognition Model"
+  },
+  "imageRecognitionModelHint": {
+    "message": "Used to analyze web images and generate prompts"
+  },
+  "imagePromptNoProvider": {
+    "message": "No available image recognition model configured"
+  },
+  "imagePromptGenerating": {
+    "message": "Analyzing image..."
+  },
+  "imagePromptRetry": {
+    "message": "Retry"
+  },
+  "imagePromptCancel": {
+    "message": "Cancel"
+  },
+  "imagePromptCopy": {
+    "message": "Copy"
+  },
+  "imagePromptSave": {
+    "message": "Save to Prompt Ark"
+  },
+  "imagePromptRegenerate": {
+    "message": "Regenerate"
+  },
+  "imagePromptNanobanana": {
+    "message": "Open nanobanana"
+  },
+  "imagePromptError": {
+    "message": "Failed to analyze image, please try again"
+  },
+  "forceSyncChrome": {
+    "message": "Sync Now"
+  },
+  "MSG_SYNC_SUCCESS": {
+    "message": "Chrome Sync Successful"
+  }
+}
