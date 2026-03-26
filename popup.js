@@ -17,6 +17,7 @@ class PopupManager {
     this.currentCategory = 'all';
     this.editingId = null;
     this.activeSmartFilter = null;
+    this.timeSortDirection = 'desc';
     this.currentPage = 1;
     this.pageSize = 10;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -91,6 +92,7 @@ class PopupManager {
 
   localize() {
     i18n.translatePage();
+    this.updateTimeSortButton();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -538,9 +540,9 @@ class PopupManager {
     if (this.activeSmartFilter === 'favorites') {
       filtered = filtered.filter(p => p.favorite);
     } else if (this.activeSmartFilter === 'mostUsed') {
-      filtered = filtered.filter(p => (p.usageCount || 0) > 0).sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+      filtered = filtered.filter(p => (p.usageCount || 0) > 0);
     } else if (this.activeSmartFilter === 'recent') {
-      filtered = filtered.filter(p => p.lastUsedAt).sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0));
+      filtered = filtered.filter(p => p.lastUsedAt);
     }
 
     if (this.currentCategory !== 'all') {
@@ -556,6 +558,8 @@ class PopupManager {
         (p.sourceContext?.text && p.sourceContext.text.toLowerCase().includes(searchQuery))
       );
     }
+
+    filtered = this.sortPromptsByTime(filtered);
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -674,6 +678,34 @@ ${p.sourceContext ? `
     if (page < 1 || isNaN(page)) return;
     this.currentPage = page;
     this.renderPrompts();
+  }
+
+  getPromptTimestamp(prompt) {
+    return Number(prompt.lastUsedAt || prompt.updatedAt || prompt.createdAt || 0);
+  }
+
+  sortPromptsByTime(prompts) {
+    const direction = this.timeSortDirection === 'asc' ? 1 : -1;
+    return [...prompts].sort((a, b) => {
+      const timeDiff = (this.getPromptTimestamp(a) - this.getPromptTimestamp(b)) * direction;
+      if (timeDiff !== 0) return timeDiff;
+
+      const createdDiff = ((a.createdAt || 0) - (b.createdAt || 0)) * direction;
+      if (createdDiff !== 0) return createdDiff;
+
+      return String(a.id || '').localeCompare(String(b.id || '')) * direction;
+    });
+  }
+
+  updateTimeSortButton() {
+    const btn = document.getElementById('timeSortBtn');
+    if (!btn) return;
+    const isAsc = this.timeSortDirection === 'asc';
+    btn.title = isAsc ? i18n.t('timeSortOldestFirst') : i18n.t('timeSortNewestFirst');
+    btn.innerHTML = `
+      <span class="sort-arrow sort-arrow-up ${isAsc ? 'active' : ''}">↑</span>
+      <span class="sort-arrow sort-arrow-down ${isAsc ? '' : 'active'}">↓</span>
+    `;
   }
 
   // --- Event Binding ---
@@ -1157,6 +1189,7 @@ ${p.sourceContext ? `
       const btn = e.target.closest('.smart-filter-btn');
       if (!btn) return;
       const filter = btn.dataset.filter;
+      if (!filter) return;
       if (this.activeSmartFilter === filter) {
         this.activeSmartFilter = null; // Toggle off
         btn.classList.remove('active');
@@ -1166,6 +1199,13 @@ ${p.sourceContext ? `
         btn.classList.add('active');
       }
       this.currentPage = 1;
+      this.renderPrompts();
+    });
+
+    document.getElementById('timeSortBtn')?.addEventListener('click', () => {
+      this.timeSortDirection = this.timeSortDirection === 'desc' ? 'asc' : 'desc';
+      this.currentPage = 1;
+      this.updateTimeSortButton();
       this.renderPrompts();
     });
 
