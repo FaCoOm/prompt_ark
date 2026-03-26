@@ -145,7 +145,6 @@ class AIPromptManager {
     this.slashDropdown = null;
     this.slashShortcuts = [];
     this.slashActiveIndex = -1;
-    this.slashBound = false;
 
     this.init();
     this._loadI18nDict();
@@ -534,9 +533,6 @@ class AIPromptManager {
 
     // Initialize Image Prompt Handler (runs on all pages)
     this.imagePromptHandler = new ImagePromptHandler();
-
-    // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
-    this.initSelectionToolbar();
 
     // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
     // Running this heavily active observer globally on <all_urls> would destroy browser performance.
@@ -1707,20 +1703,6 @@ class AIPromptManager {
     // Use capture phase to detect slash input across all platforms
     document.addEventListener('input', (e) => this.handleSlashInput(e), true);
     document.addEventListener('keydown', (e) => this.handleSlashKeydown(e), true);
-    // Also monitor Shadow DOM inputs via a periodic check
-    document.addEventListener('click', () => {
-      setTimeout(() => this.bindSlashToFocused(), 200);
-    }, true);
-  }
-
-  bindSlashToFocused() {
-    const el = document.activeElement;
-    if (!el || this.slashBound) return;
-    const tag = el.tagName?.toLowerCase();
-    const isTextInput = tag === 'input' && (el.type === 'text' || el.type === 'search');
-    if (tag !== 'textarea' && !isTextInput && !(tag === 'div' && el.isContentEditable)) return;
-    if (el.dataset.apmSlashBound) return;
-    el.dataset.apmSlashBound = 'true';
   }
 
   getInputText(el) {
@@ -1737,15 +1719,15 @@ class AIPromptManager {
     if (tag !== 'textarea' && !isTextInput && !(tag === 'div' && el.isContentEditable)) return;
 
     const text = this.getInputText(el);
-    // Only trigger on lines that start with / (check last line for multi-line inputs)
-    const match = text.match(/(?:^|\n)\/(\S*)$/);
+    // Trigger on single slash command token at the end (e.g. "/" or "hello /sum")
+    const match = text.match(/(^|\s)\/([^\s\/]*)$/);
 
     if (!match) {
       this.hideSlashDropdown();
       return;
     }
 
-    const query = match[1].toLowerCase();
+    const query = (match[2] || '').toLowerCase();
 
     // Fetch shortcuts if cache is empty
     if (this.slashShortcuts.length === 0) {
@@ -1755,9 +1737,10 @@ class AIPromptManager {
       } catch (e) { return; }
     }
 
-    const filtered = this.slashShortcuts.filter(s =>
-      s.shortcut.toLowerCase().includes(query)
-    );
+    const filtered = this.slashShortcuts.filter(s => {
+      const normalizedShortcut = String(s.shortcut || '').replace(/^\/+/, '').toLowerCase();
+      return normalizedShortcut.includes(query);
+    });
 
     if (filtered.length === 0) {
       this.hideSlashDropdown();
@@ -1814,6 +1797,13 @@ class AIPromptManager {
   }
 
   handleSlashKeydown(e) {
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const target = e.target;
+      setTimeout(() => {
+        this.handleSlashInput({ target }).catch(() => { });
+      }, 0);
+    }
+
     if (!this.slashDropdown || !this._slashItems) return;
 
     if (e.key === 'ArrowDown') {
@@ -1852,7 +1842,7 @@ class AIPromptManager {
 
     // Replace the /command text with the prompt content
     const text = this.getInputText(inputEl);
-    const replaced = text.replace(/(?:^|\n)\/(\S*)$/, '');
+    const replaced = text.replace(/(^|\s)\/([^\s\/]*)$/, '$1');
 
     // 1. Compose with Persona/Style (Global & Local)
     const composeResp = await chrome.runtime.sendMessage({ type: 'COMPOSE_PROMPT', prompt: item });

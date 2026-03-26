@@ -754,9 +754,37 @@ async function handleMessage(message, sendResponse) {
 
       case 'GET_SHORTCUTS': {
         const allPrompts = await getPrompts();
-        const shortcuts = allPrompts
-          .filter(p => p.shortcut)
-          .map(p => ({ id: p.id, shortcut: p.shortcut, title: p.title, content: p.content, variables: p.variables }));
+        const defaultShortcutByTitle = new Map(
+          DEFAULT_PROMPTS
+            .filter(p => p.shortcut)
+            .map(p => [p.title, String(p.shortcut).trim().replace(/^\/+/, '')])
+        );
+
+        const maybeRecoveredPrompts = allPrompts.map(p => {
+          let normalizedShortcut = String(p.shortcut || '').trim().replace(/^\/+/, '');
+          if (!normalizedShortcut && p.builtIn) {
+            normalizedShortcut = defaultShortcutByTitle.get(p.title) || '';
+          }
+          if (normalizedShortcut === String(p.shortcut || '').trim()) return p;
+          return { ...p, shortcut: normalizedShortcut };
+        });
+
+        if (maybeRecoveredPrompts.some((p, idx) => p !== allPrompts[idx])) {
+          await PromptStorage.set(maybeRecoveredPrompts);
+        }
+
+        const shortcuts = maybeRecoveredPrompts
+          .map(p => {
+            const normalizedShortcut = String(p.shortcut || '').trim().replace(/^\/+/, '');
+            return {
+              id: p.id,
+              shortcut: normalizedShortcut,
+              title: p.title,
+              content: p.content,
+              variables: p.variables
+            };
+          })
+          .filter(p => p.shortcut);
         sendResponse({ success: true, shortcuts });
         break;
       }
