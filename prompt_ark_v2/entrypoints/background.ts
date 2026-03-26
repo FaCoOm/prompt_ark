@@ -53,7 +53,14 @@ export default defineBackground(() => {
 
   setupContextMenus();
   setupCommands();
+  setupSidePanel();
 });
+
+function setupSidePanel(): void {
+  if (browser.sidePanel) {
+    browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  }
+}
 
 async function handleGetPrompts(payload?: { filter?: PromptFilter; sort?: PromptSort; page?: number; pageSize?: number }) {
   const prompts = await PromptStorage.getPrompts();

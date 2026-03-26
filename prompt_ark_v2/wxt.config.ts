@@ -36,7 +36,7 @@ export default defineConfig({
       'https://yuewen.cn/*',
     ],
     action: {
-      default_popup: 'popup.html',
+      default_title: '__MSG_appName__',
     },
     side_panel: {
       default_path: 'sidepanel.html',
