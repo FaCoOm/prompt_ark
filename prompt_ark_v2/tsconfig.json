@@ -25,9 +25,11 @@
       "@stores/*": ["src/stores/*"],
       "@components/*": ["src/components/*"],
       "@i18n/*": ["src/i18n/*"],
-      "@types": ["src/types"]
+      "@types": ["src/types"],
+      "~": ["."],
+      "~/*": ["./*"]
     }
   },
-  "include": ["src/**/*", "entrypoints/**/*"],
-  "exclude": ["node_modules", "dist", ".wxt"]
+  "include": ["src/**/*", "entrypoints/**/*", ".wxt/wxt.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }
