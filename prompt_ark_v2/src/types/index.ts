@@ -156,6 +156,41 @@ export interface ModelCapabilities {
   streaming: boolean;
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  images?: string[];
+}
+
+export interface ChatOptions {
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  stream?: boolean;
+}
+
+export interface ChatResponse {
+  content: string;
+  model: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface ChatStreamChunk {
+  content: string;
+  done: boolean;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
 // ==================== Category ====================
 
 export interface Category {
@@ -342,6 +377,16 @@ export interface SyncConflict {
   localVersion: unknown;
   remoteVersion: unknown;
   resolution?: 'local' | 'remote' | 'manual';
+}
+
+export interface SyncEngineAdapter {
+  readonly name: string;
+  readonly displayName: string;
+  isConfigured(): Promise<boolean>;
+  testConnection(): Promise<{ success: boolean; error?: string }>;
+  pull(): Promise<SyncResult>;
+  push(data: SyncPayload): Promise<SyncResult>;
+  sync(localData: SyncPayload): Promise<SyncResult>;
 }
 
 // ==================== Error Codes ====================

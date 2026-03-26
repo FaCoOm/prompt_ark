@@ -1,5 +1,4 @@
 import { aiManager } from './provider';
-import type { Prompt } from '@types';
 
 export interface OptimizeOptions {
   content: string;

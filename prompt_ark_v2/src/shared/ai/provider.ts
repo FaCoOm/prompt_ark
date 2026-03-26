@@ -236,12 +236,11 @@ export class GeminiWebProvider implements AIProviderAdapter {
     ];
   }
 
-  async chat(options: ChatOptions): Promise<ChatResponse> {
-    // Gemini Web uses browser cookies, implementation depends on content script
+  async chat(_options: ChatOptions): Promise<ChatResponse> {
     throw new Error('Gemini Web provider requires content script implementation');
   }
 
-  async *chatStream(options: ChatOptions): AsyncIterable<ChatStreamChunk> {
+  async *chatStream(_options: ChatOptions): AsyncIterable<ChatStreamChunk> {
     throw new Error('Gemini Web provider requires content script implementation');
   }
 

@@ -44,8 +44,8 @@ function resolveTemplate(
 }
 
 const dictionaries = {
-  en: flattenTranslations(en as Record<string, unknown>),
-  'zh-CN': flattenTranslations(zhCN as Record<string, unknown>),
+  en: flattenTranslations(en as unknown as Record<string, unknown>),
+  'zh-CN': flattenTranslations(zhCN as unknown as Record<string, unknown>),
 };
 
 interface I18nContextValue {
