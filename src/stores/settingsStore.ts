@@ -1,6 +1,6 @@
 import { LocalStorage } from '@shared/api/storage';
 import type { Provider } from '@shared/types/provider';
-import { createStore } from 'solid-js/store';
+import { createStore, produce } from 'solid-js/store';
 
 export interface GeneralSettings {
   language: 'en' | 'zh';
@@ -113,8 +113,13 @@ export const settingsStore = {
   },
 
   updateProvider: (id: string, updates: Partial<Provider>) => {
-    setState('models', 'providers', providers =>
-      providers.map(p => (p.id === id ? { ...p, ...updates } : p))
+    setState(
+      produce(s => {
+        const idx = s.models.providers.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          s.models.providers[idx] = { ...s.models.providers[idx], ...updates } as Provider;
+        }
+      })
     );
     settingsStore.saveSettings();
   },
