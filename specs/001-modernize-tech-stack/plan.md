@@ -31,32 +31,40 @@ specs/001-modernize-tech-stack/
 
 ### Source Code (repository root)
 
+Git 工作区根目录：`/Users/lilcarrot/Project/prompt-ark/prompt_ark/`
+
 ```text
-prompt-ark/
-├── prompt_ark/           # 原项目（保持运行）
-│   ├── background.js     # 1151 行
-│   ├── content.js        # 1883 行
-│   ├── popup.html/js/css # 主界面（实际是 sidepanel）
-│   ├── image-prompt.html # 图片 prompt 生成器
-│   └── lib/              # 核心逻辑模块
-│
-└── prompt_ark_v2/        # 新项目（WXT + TS + Solid.js）
-    ├── wxt.config.ts
-    ├── tsconfig.json
-    ├── tailwind.config.ts
-    ├── src/
-    │   ├── entrypoints/
-    │   │   ├── background/
-    │   │   ├── content/
-    │   │   ├── sidepanel/
-    │   │   └── popup/
-    │   ├── shared/
-    │   ├── stores/
-    │   └── components/
-    └── tests/
+prompt_ark/                    # Git 根目录（当前目录）
+├── background.js             # 原项目 v1 文件（保持不动）
+├── content.js                # 原项目 v1 文件
+├── popup.html/js/css         # 原项目 v1 文件
+├── lib/                      # 原项目 v1 核心逻辑
+├── prompt_ark_v2/            # 新项目 v2（WXT + TS + Solid.js）
+│   ├── wxt.config.ts
+│   ├── tsconfig.json
+│   ├── tailwind.config.ts
+│   ├── src/
+│   │   ├── entrypoints/
+│   │   │   ├── background/
+│   │   │   ├── content/
+│   │   │   ├── sidepanel/
+│   │   │   └── popup/
+│   │   ├── shared/
+│   │   ├── stores/
+│   │   └── components/
+│   └── tests/
+└── specs/001-modernize-tech-stack/
+    ├── spec.md               # 功能规范
+    ├── plan.md               # 本文件
+    └── tasks.md              # 任务清单
 ```
 
-**Structure Decision**: 采用并行开发模式，新旧项目独立，确保零风险迁移。
+**重要**：
+- 原项目 v1 文件保持在 Git 根目录，**不做任何移动**
+- v2 项目在 `prompt_ark_v2/` 子目录下新建
+- 两个项目都在 Git 工作区内
+
+**Structure Decision**: 采用并行开发模式，新旧项目独立，确保零风险迁移。原项目不动，v2 作为子项目开发。
 
 ## Implementation Phases
 
@@ -312,58 +320,3 @@ v2.0.0-rc.1     # Phase 6 完成
 - PR 包含：代码变更、测试结果、功能对比
 - 最终将 `001-modernize-tech-stack` 合并到 `main`
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
-
-```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
-```
-
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
-
-## Complexity Tracking
-
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
