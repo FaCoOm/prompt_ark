@@ -1,19 +1,27 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { getCurrentPageUrl } from '../lib/site'
 
 interface AuthButtonProps {
   user: { id: string; email?: string; user_metadata?: { avatar_url?: string; name?: string } } | null
   onAuthChange: (user: any) => void
+  loginLabel?: string
+  logoutLabel?: string
 }
 
-export function AuthButton({ user, onAuthChange }: AuthButtonProps) {
+export function AuthButton({
+  user,
+  onAuthChange,
+  loginLabel = 'Sign In',
+  logoutLabel = 'Logout',
+}: AuthButtonProps) {
   const [avatarError, setAvatarError] = useState(false)
 
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getCurrentPageUrl(),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -50,7 +58,7 @@ export function AuthButton({ user, onAuthChange }: AuthButtonProps) {
           <span className="hub-user-name">{user.user_metadata?.name || user.email}</span>
         </div>
         <button className="hub-logout-btn" onClick={handleLogout}>
-          Logout
+          {logoutLabel}
         </button>
       </div>
     )
@@ -58,7 +66,7 @@ export function AuthButton({ user, onAuthChange }: AuthButtonProps) {
 
   return (
     <button className="hub-auth-login-btn" onClick={handleLogin}>
-      Sign In
+      {loginLabel}
     </button>
   )
 }

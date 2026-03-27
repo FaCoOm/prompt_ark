@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { supabase, type Prompt, getCurrentUser } from './lib/supabase'
+import { supabase, type Prompt } from './lib/supabase'
 import { initAuthSync } from './lib/auth-sync'
 import {
   Header,
@@ -13,14 +13,38 @@ import {
   useToast,
   Loading,
   Pagination,
-  AuthButton,
+  LandingPage,
+  LegalPage,
+  SiteFooter,
 } from './components'
+import { APP_NAME, HUB_PATH, getHubUrl } from './lib/site'
+import { I18nProvider } from './lib/i18n'
+import type { LegalSection } from './lib/legal'
 
 type SortOption = 'trending' | 'newest' | 'topRated' | 'quality'
 
 const PAGE_SIZE = 12
 
-function AppContent() {
+function normalizePath(pathname: string) {
+  if (!pathname) return '/'
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1)
+  }
+  return pathname
+}
+
+function getLegalSection(pathname: string): LegalSection | null {
+  if (pathname === '/privacy') return 'privacy'
+  if (pathname === '/terms') return 'terms'
+  return null
+}
+
+interface HubContentProps {
+  user: any
+  onAuthChange: (user: any) => void
+}
+
+function HubContent({ user, onAuthChange }: HubContentProps) {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -28,7 +52,6 @@ function AppContent() {
   const [sort, setSort] = useState<SortOption>('trending')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
-  const [user, setUser] = useState<any>(null)
   const { showToast } = useToast()
 
   // Get unique categories from prompts
@@ -45,7 +68,7 @@ function AppContent() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getHubUrl(),
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     })
@@ -133,10 +156,7 @@ function AppContent() {
 
   async function loadPrompts() {
     setLoading(true)
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-    
+
     let query = supabase
       .from('prompts')
       .select('*')
@@ -366,12 +386,12 @@ function AppContent() {
     <div className="hub-container">
       <Header 
         user={user}
-        onAuthChange={setUser}
+        onAuthChange={onAuthChange}
       />
       
       
       <div className="hub-title-section">
-        <h1 className="hub-title">Prompt Ark Hub</h1>
+        <h1 className="hub-title">{APP_NAME} Hub</h1>
         <p className="hub-subtitle">Discover, install, and share AI prompts from the community</p>
       </div>
       <SearchBar value={search} onChange={setSearch} />
@@ -408,10 +428,7 @@ function AppContent() {
         </>
       )}
 
-      <footer className="hub-footer">
-        <p>Prompt Ark Hub — Open source community prompt library</p>
-        <p><a href="https://github.com/KeyonZeng/prompt_ark" target="_blank">GitHub</a> · Made with ❤️ by the Prompt Ark community</p>
-      </footer>
+      <SiteFooter />
 
       <DetailModal 
         prompt={selectedPrompt} 
@@ -436,8 +453,49 @@ function AppContent() {
 
 export default function App() {
   return (
+    <I18nProvider>
+      <AppShell />
+    </I18nProvider>
+  )
+}
+
+function AppShell() {
+  const [user, setUser] = useState<any>(null)
+  const pathname = normalizePath(window.location.pathname)
+  const isHubRoute = pathname === HUB_PATH
+  const legalSection = getLegalSection(pathname)
+
+  useEffect(() => {
+    if (isHubRoute) {
+      document.title = `${APP_NAME} Hub — Discover & Install AI Prompts`
+    }
+  }, [isHubRoute])
+
+  useEffect(() => {
+    initAuthSync()
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  return (
     <ToastProvider>
-      <AppContent />
+      {legalSection ? (
+        <LegalPage section={legalSection} user={user} onAuthChange={setUser} />
+      ) : isHubRoute ? (
+        <HubContent user={user} onAuthChange={setUser} />
+      ) : (
+        <LandingPage user={user} onAuthChange={setUser} />
+      )}
     </ToastProvider>
   )
 }
