@@ -1,276 +1,103 @@
 /**
- * Core type definitions for Prompt Ark v2
- * Based on data-model.md
+ * @fileoverview Core type definitions for Prompt Ark v2
+ * 
+ * Unified export of all type modules.
+ * Based on v1 data structures from lib/storage.js, lib/ai/provider.js, lib/variables.js
  */
 
-// ==================== Prompt ====================
+// ==================== Prompt Types ====================
+export type {
+  Prompt,
+  PromptVersion,
+  PromptSource,
+  PromptSourceType,
+  CreatePromptDTO,
+  UpdatePromptDTO,
+  Category,
+  Tag,
+  SlimPrompt,
+  PromptFilter,
+  PromptSort,
+  SortBy,
+  SortOrder,
+  ListView,
+  PaginatedResult,
+} from './prompt';
 
-export interface Prompt {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  tags: string[];
-  shortcut: string;
-  createdAt: number;
-  updatedAt: number;
-  useCount: number;
-  isFavorite: boolean;
-  lastUsedAt?: number;
-  language: string;
-  source?: {
-    type: 'manual' | 'smart-convert' | 'import' | 'shared';
-    url?: string;
-    title?: string;
-  };
-  contextVars?: string[];
-  versions?: PromptVersion[];
-}
+// ==================== Variable Types ====================
+export type {
+  VariableDefinition,
+  VariableValue,
+  VariableType,
+  ClassifiedVariables,
+  ContextVariableName,
+  ContextVariableMap,
+  ContextResolutionResult,
+  ParsedVariableSpec,
+} from './variables';
 
-export interface PromptVersion {
-  id: string;
-  content: string;
-  createdAt: number;
-  note?: string;
-}
+// ==================== AI Types ====================
+export type {
+  AIProvider,
+  AIProviderType,
+  AIModel,
+  ModelCapabilities,
+  ChatMessage,
+  ChatMessageRole,
+  ChatOptions,
+  ChatResponse,
+  ChatStreamChunk,
+  MetadataExtractionResult,
+  PromptOptimizationResult,
+} from './ai';
 
-export interface CreatePromptDTO {
-  title: string;
-  content: string;
-  category: string;
-  tags?: string[];
-  shortcut?: string;
-  language?: string;
-  source?: Prompt['source'];
-}
+// ==================== Storage Types ====================
+export type {
+  Settings,
+  OutputRules,
+  UserPreferences,
+  ChromeSyncConfig,
+  GistSyncConfig,
+  WebDAVSyncConfig,
+  ObsidianSyncConfig,
+  ObsidianLocalConfig,
+  ContextSnapshot,
+  PromptHistory,
+  VideoAnalysis,
+  StorageSchema,
+  StorageKey,
+} from './storage';
 
-export interface UpdatePromptDTO {
-  title?: string;
-  content?: string;
-  category?: string;
-  tags?: string[];
-  shortcut?: string;
-  isFavorite?: boolean;
-}
+// Re-export SyncPayload from sync.ts (canonical location)
+export type { SyncPayload } from './sync';
 
-// ==================== Settings ====================
+// ==================== Sync Types ====================
+export type {
+  SyncBackend,
+  SyncState,
+  SyncStatus,
+  SyncResult,
+  SyncConflict,
+  SyncErrorCode,
+  SyncEngineAdapter,
+  SyncConfig,
+} from './sync';
 
-export type Language = 'zh-CN' | 'en' | 'ja' | 'ko' | 'es' | 'fr' | 'de';
-export type Theme = 'auto' | 'light' | 'dark';
-export type SyncEngine = 'none' | 'chrome' | 'gist' | 'webdav' | 'obsidian' | 'obsidian-local';
-export type ListView = 'grid' | 'list';
-export type SortBy = 'created' | 'updated' | 'used' | 'title';
-export type SortOrder = 'asc' | 'desc';
+// ==================== Platform Types ====================
+export type {
+  SupportedPlatform,
+  PlatformConfig,
+  PlatformAdapter,
+  PlatformMessage,
+  GenerationStatus,
+  InsertionResult,
+  InsertionErrorCode,
+  PlatformDetectionResult,
+} from './platform';
 
-export interface Settings {
-  language: Language;
-  theme: Theme;
-  syncEngine: SyncEngine;
-  chromeSync?: {
-    enabled: boolean;
-    lastSyncAt?: number;
-  };
-  gistSync?: {
-    enabled: boolean;
-    token?: string;
-    gistId?: string;
-    lastSyncAt?: number;
-  };
-  webdavSync?: {
-    enabled: boolean;
-    url?: string;
-    username?: string;
-    password?: string;
-    folder?: string;
-    lastSyncAt?: number;
-  };
-  obsidianSync?: {
-    enabled: boolean;
-    webdavUrl?: string;
-    username?: string;
-    password?: string;
-    folder?: string;
-    lastSyncAt?: number;
-  };
-  obsidianLocal?: {
-    enabled: boolean;
-    port?: number;
-    apiKey?: string;
-    lastSyncAt?: number;
-  };
-  defaultProviderId?: string;
-  imagePromptEnabled: boolean;
-  defaultOutputRules?: OutputRules;
-  preferences: {
-    listView: ListView;
-    pageSize: number;
-    sortBy: SortBy;
-    sortOrder: SortOrder;
-  };
-}
+// ==================== Extension Message Types ====================
 
-export interface OutputRules {
-  format: 'auto' | 'markdown' | 'json' | 'table' | 'text' | 'code';
-  maxLength?: number;
-  tone: 'default' | 'professional' | 'concise' | 'creative';
-  exclusions: string[];
-}
-
-// ==================== AI Provider ====================
-
-export type AIProviderType = 'openai-compatible' | 'gemini-web' | 'gemini-api' | 'azure-openai';
-
-export interface AIProvider {
-  id: string;
-  name: string;
-  type: AIProviderType;
-  baseUrl?: string;
-  apiKey?: string;
-  model: string;
-  capabilities: {
-    chat: boolean;
-    vision: boolean;
-    json: boolean;
-  };
-  defaults?: {
-    temperature?: number;
-    maxTokens?: number;
-    topP?: number;
-  };
-  enabled: boolean;
-  createdAt: number;
-}
-
-export interface AIModel {
-  id: string;
-  name: string;
-  provider: string;
-  capabilities: ModelCapabilities;
-  contextWindow: number;
-}
-
-export interface ModelCapabilities {
-  chat: boolean;
-  vision: boolean;
-  json: boolean;
-  streaming: boolean;
-}
-
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-  images?: string[];
-}
-
-export interface ChatOptions {
-  model: string;
-  messages: ChatMessage[];
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  stream?: boolean;
-}
-
-export interface ChatResponse {
-  content: string;
-  model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
-
-export interface ChatStreamChunk {
-  content: string;
-  done: boolean;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
-
-// ==================== Category ====================
-
-export interface Category {
-  name: string;
-  displayName: string;
-  order: number;
-  icon?: string;
-  color?: string;
-  isSystem: boolean;
-  createdAt: number;
-}
-
-// ==================== History ====================
-
-export interface PromptHistory {
-  id: string;
-  promptId: string;
-  content: string;
-  variables?: Record<string, string>;
-  platform?: string;
-  usedAt: number;
-  success: boolean;
-  error?: string;
-}
-
-// ==================== Context ====================
-
-export interface ContextSnapshot {
-  id: string;
-  pageTitle: string;
-  pageUrl: string;
-  selection?: string;
-  pageText?: string;
-  capturedAt: number;
-  expiresAt: number;
-}
-
-// ==================== Video Analysis ====================
-
-export interface VideoAnalysis {
-  id: string;
-  videoUrl: string;
-  title: string;
-  type: 'style-transfer' | 'complete-analysis' | 'inspiration';
-  styleVocabulary?: {
-    terms: Array<{
-      term: string;
-      definition: string;
-      examples: string[];
-    }>;
-  };
-  analysis?: {
-    summary: string;
-    style: string;
-    storyboard: Array<{
-      timestamp: string;
-      description: string;
-      shot: string;
-    }>;
-  };
-  generatedPrompt?: string;
-  analyzedAt: number;
-}
-
-// ==================== Storage Schema ====================
-
-export interface StorageSchema {
-  prompts: Prompt[];
-  settings: Settings;
-  providers: AIProvider[];
-  categories: Category[];
-  history: PromptHistory[];
-  snapshots: ContextSnapshot[];
-  'video-analyses': VideoAnalysis[];
-  'cache:translations': Record<string, string>;
-  'cache:ai-responses': Record<string, unknown>;
-}
-
-// ==================== Message Types ====================
-
+/** Message types for extension communication */
 export type MessageType =
   | 'GET_PROMPTS'
   | 'SAVE_PROMPT'
@@ -287,110 +114,29 @@ export type MessageType =
   | 'GRAB_CONTEXT'
   | 'GET_CONTEXT';
 
+/** Extension message structure */
 export interface ExtensionMessage {
+  /** Message type identifier */
   type: MessageType;
+  /** Message payload */
   payload?: unknown;
 }
 
+/** Extension response structure */
 export interface ExtensionResponse<T = unknown> {
+  /** Whether the operation succeeded */
   success: boolean;
+  /** Response data */
   data?: T;
+  /** Error message if failed */
   error?: string;
-  code?: string;
-}
-
-// ==================== Filter & Sort ====================
-
-export interface PromptFilter {
-  category?: string;
-  tags?: string[];
-  isFavorite?: boolean;
-  search?: string;
-}
-
-export interface PromptSort {
-  by: SortBy;
-  order: SortOrder;
-}
-
-export interface PaginatedResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-// ==================== Platform ====================
-
-export type SupportedPlatform =
-  | 'chatgpt'
-  | 'claude'
-  | 'gemini'
-  | 'deepseek'
-  | 'kimi'
-  | 'doubao'
-  | 'qwen'
-  | 'chatglm'
-  | 'hailuoai'
-  | 'hunyuan'
-  | 'grok'
-  | 'notebooklm'
-  | 'aistudio'
-  | 'yiyan'
-  | 'perplexity';
-
-export interface PlatformMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp?: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface GenerationStatus {
-  isGenerating: boolean;
-  progress?: number;
-  model?: string;
-}
-
-// ==================== Sync ====================
-
-export interface SyncPayload {
-  prompts: Prompt[];
-  settings: Settings;
-  categories: Category[];
-  version: number;
-  exportedAt: number;
-}
-
-export interface SyncResult {
-  success: boolean;
-  action: 'pulled' | 'pushed' | 'merged' | 'none';
-  data?: SyncPayload;
-  conflict?: SyncConflict[];
-  error?: string;
-}
-
-export interface SyncConflict {
-  type: 'prompt' | 'setting' | 'category';
-  id: string;
-  localVersion: unknown;
-  remoteVersion: unknown;
-  resolution?: 'local' | 'remote' | 'manual';
-}
-
-export interface SyncEngineAdapter {
-  readonly name: string;
-  readonly displayName: string;
-  isConfigured(): Promise<boolean>;
-  testConnection(): Promise<{ success: boolean; error?: string }>;
-  pull(): Promise<SyncResult>;
-  push(data: SyncPayload): Promise<SyncResult>;
-  sync(localData: SyncPayload): Promise<SyncResult>;
+  /** Error code for programmatic handling */
+  code?: ErrorCode;
 }
 
 // ==================== Error Codes ====================
 
+/** Error codes for programmatic error handling */
 export enum ErrorCode {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
   INVALID_MESSAGE = 'INVALID_MESSAGE',
