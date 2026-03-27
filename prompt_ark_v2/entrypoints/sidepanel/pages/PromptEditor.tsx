@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, Show, onMount } from 'solid-js';
+import { createSignal, Show, onMount, For } from 'solid-js';
 import { useI18n } from '../../../src/i18n/context';
 import { promptStore } from '../../../src/stores/promptStore';
 import { Button, Input } from '../../../src/components/ui';
