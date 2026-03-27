@@ -2,7 +2,7 @@
  * Lifecycle Module
  * Handles extension installation, updates, and startup
  */
-import { PromptStorage } from '../../src/shared/storage';
+import { PromptStorage } from '../../../src/shared/storage';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

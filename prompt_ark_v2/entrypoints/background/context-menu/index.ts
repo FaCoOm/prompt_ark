@@ -2,8 +2,8 @@
  * Context Menu Module
  * Handles right-click context menus for "Add to Prompt Ark" and "Smart Convert"
  */
-import { PromptStorage } from '../../src/shared/storage';
-import { smartConvert } from '../../src/shared/ai/optimize';
+import { PromptStorage } from '../../../src/shared/storage';
+import { smartConvert } from '../../../src/shared/ai/optimize';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

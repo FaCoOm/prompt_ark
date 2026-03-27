@@ -9,9 +9,9 @@ import type {
   CreatePromptDTO,
   UpdatePromptDTO,
   Settings,
-} from '../../src/types';
-import { PromptStorage, SettingsStorage, ContextStorage } from '../../src/shared/storage';
-import { optimizePrompt, smartConvert } from '../../src/shared/ai/optimize';
+} from '../../../src/types';
+import { PromptStorage, SettingsStorage, ContextStorage } from '../../../src/shared/storage';
+import { optimizePrompt, smartConvert } from '../../../src/shared/ai/optimize';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
