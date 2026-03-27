@@ -3,7 +3,7 @@
  *
  * Unified export of all state management stores.
  * Each store manages a specific domain of application state
- * with auto-persistence to chrome.storage where applicable.
+ * with auto-persistence to browser.storage where applicable.
  */
 
 export { promptStore } from './promptStore';

@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import { LocalStorage } from '@/core/storage';
 import { encrypt, decrypt } from '@/utils/crypto';
 import {
@@ -52,7 +53,7 @@ async function fetchWithTimeout(
 
 function keepAlive(): KeepAliveController {
   const interval = setInterval(() => {
-    chrome.runtime.getPlatformInfo().catch(() => {});
+    browser.runtime.getPlatformInfo().catch(() => {});
   }, 25000);
   return { stop: () => clearInterval(interval) };
 }
@@ -130,7 +131,7 @@ export class ProviderManager {
       'openaiModel',
       'providers',
     ];
-    const old = (await chrome.storage.local.get(oldKeys)) as LegacyProviderSettings;
+    const old = (await browser.storage.local.get(oldKeys as string[])) as unknown as LegacyProviderSettings;
     if (old.providers) return;
     const providers: RuntimeProvider[] = [];
     let activeId = '';
@@ -175,7 +176,7 @@ export class ProviderManager {
     }
     await this.setProviders(providers);
     await LocalStorage.set(STORAGE_KEY_ACTIVE_PROVIDER, activeId);
-    await chrome.storage.local.remove(oldKeys);
+    await browser.storage.local.remove(oldKeys);
   }
 
   async callCloudAPI(

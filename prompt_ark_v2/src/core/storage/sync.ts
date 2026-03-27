@@ -1,7 +1,7 @@
 /**
  * @fileoverview SyncStorage operations for Prompt Ark v2
  *
- * Handles chrome.storage.sync with automatic chunking for large values.
+ * Handles browser.storage.sync with automatic chunking for large values.
  * Sync is best-effort - never throws on sync failure.
  */
 
@@ -27,12 +27,12 @@ export interface SyncSetResult {
 }
 
 /**
- * Check if running in a context where chrome.storage.sync is available
+ * Check if running in a context where browser.storage.sync is available
  */
 function isSyncAvailable(): boolean {
-  return typeof chrome !== 'undefined' && 
-         chrome.storage !== undefined && 
-         chrome.storage.sync !== undefined;
+  return typeof browser !== 'undefined' && 
+         browser.storage !== undefined && 
+         browser.storage.sync !== undefined;
 }
 
 /**
@@ -104,7 +104,7 @@ export const SyncStorage = {
     try {
       // Check for chunked format first
       const metaKey = getMetaKey(key);
-      const metaResult = await chrome.storage.sync.get(metaKey);
+      const metaResult = await browser.storage.sync.get(metaKey);
 
       if (metaResult[metaKey]) {
         const { totalChunks } = metaResult[metaKey] as { totalChunks: number };
@@ -112,7 +112,7 @@ export const SyncStorage = {
           { length: totalChunks },
           (_, i) => getChunkKey(key, i)
         );
-        const chunks = await chrome.storage.sync.get(chunkKeys);
+        const chunks = await browser.storage.sync.get(chunkKeys);
 
         let payload = '';
         for (let i = 0; i < totalChunks; i++) {
@@ -128,7 +128,7 @@ export const SyncStorage = {
       }
 
       // Try single-key format (legacy)
-      const result = await chrome.storage.sync.get(key);
+      const result = await browser.storage.sync.get(key);
       if (result[key] !== undefined) {
         return result[key] as T;
       }
@@ -156,7 +156,7 @@ export const SyncStorage = {
       const byteSize = encoder.encode(json).length;
 
       // Check total quota
-      const bytesInUse = await chrome.storage.sync.getBytesInUse(null);
+      const bytesInUse = await browser.storage.sync.getBytesInUse(null);
       const oldBytes = await this._getKeyBytes(key);
       const projected = bytesInUse - oldBytes + byteSize + 200; // Buffer for overhead
 
@@ -181,7 +181,7 @@ export const SyncStorage = {
 
       if (chunks.length === 1) {
         // Fits in single key
-        await chrome.storage.sync.set({ [key]: json });
+        await browser.storage.sync.set({ [key]: json });
         return { synced: true, bytesUsed: byteSize };
       }
 
@@ -194,7 +194,7 @@ export const SyncStorage = {
         writeData[getChunkKey(key, i)] = chunk;
       });
 
-      await chrome.storage.sync.set(writeData);
+      await browser.storage.sync.set(writeData);
       console.log(
         `[SyncStorage] Wrote ${key} in ${chunks.length} chunks (${byteSize} bytes)`
       );
@@ -252,7 +252,7 @@ export const SyncStorage = {
     }
 
     try {
-      const bytesInUse = await chrome.storage.sync.getBytesInUse(null);
+      const bytesInUse = await browser.storage.sync.getBytesInUse(null);
       return {
         bytesInUse,
         quotaBytes: SYNC_QUOTA_BYTES,
@@ -278,7 +278,7 @@ export const SyncStorage = {
 
     try {
       const metaKey = getMetaKey(key);
-      const metaResult = await chrome.storage.sync.get(metaKey);
+      const metaResult = await browser.storage.sync.get(metaKey);
 
       if (metaResult[metaKey]) {
         const { totalChunks } = JSON.parse(metaResult[metaKey] as string) as {
@@ -288,10 +288,10 @@ export const SyncStorage = {
           metaKey,
           ...Array.from({ length: totalChunks }, (_, i) => getChunkKey(key, i)),
         ];
-        return await chrome.storage.sync.getBytesInUse(chunkKeys);
+        return await browser.storage.sync.getBytesInUse(chunkKeys);
       }
 
-      return await chrome.storage.sync.getBytesInUse(key);
+      return await browser.storage.sync.getBytesInUse(key);
     } catch {
       return 0;
     }
@@ -306,7 +306,7 @@ export const SyncStorage = {
     }
 
     const metaKey = getMetaKey(key);
-    const metaResult = await chrome.storage.sync.get(metaKey);
+    const metaResult = await browser.storage.sync.get(metaKey);
 
     const keysToRemove = [key, metaKey];
 
@@ -320,6 +320,6 @@ export const SyncStorage = {
       }
     }
 
-    await chrome.storage.sync.remove(keysToRemove);
+    await browser.storage.sync.remove(keysToRemove);
   },
 };

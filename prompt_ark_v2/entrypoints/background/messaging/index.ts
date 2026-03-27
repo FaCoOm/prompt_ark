@@ -1,7 +1,9 @@
 /**
  * Messaging Module
- * Handles all chrome.runtime.onMessage events from content scripts and popup
+ * Handles all browser.runtime.onMessage events from content scripts and popup
  */
+import { browser } from 'wxt/browser';
+import type { Browser } from 'wxt/browser';
 import type {
   Prompt,
   PromptFilter,
@@ -26,8 +28,8 @@ export function initMessaging(): void {
  */
 async function handleMessage(
   message: { type: string; payload?: unknown },
-  sender: browser.runtime.MessageSender,
-  sendResponse: (response?: unknown) => void
+  _sender: Browser.runtime.MessageSender,
+  _sendResponse: (response?: unknown) => void
 ): Promise<unknown> {
   try {
     switch (message.type) {

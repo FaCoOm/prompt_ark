@@ -36,7 +36,7 @@ export const SYNC_FIELDS = [
 ] as const;
 
 /**
- * Storage keys used in chrome.storage
+ * Storage keys used in browser.storage
  */
 export const STORAGE_KEYS = {
   /** Index of all prompt IDs */

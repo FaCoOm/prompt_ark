@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import { compress, decompress } from '../../utils/compression';
 import type {
   Prompt,
@@ -358,8 +359,8 @@ export class GistSyncAdapter implements SyncServiceAdapter {
   }
 
   private async saveGistId(gistId: string): Promise<void> {
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      await chrome.storage.local.set({ gist_id: gistId });
+    if (typeof browser !== 'undefined' && browser.storage?.local) {
+      await browser.storage.local.set({ gist_id: gistId });
     }
   }
 

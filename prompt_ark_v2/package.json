@@ -25,12 +25,14 @@
     "@solid-primitives/storage": "^4.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "marked": "^17.0.5",
     "solid-js": "^1.9.11",
     "tailwind-merge": "^2.6.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0",
+    "@types/marked": "^6.0.0",
     "@types/node": "^22.13.10",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.26.1",

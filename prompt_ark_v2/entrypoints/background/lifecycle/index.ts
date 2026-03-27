@@ -2,6 +2,8 @@
  * Lifecycle Module
  * Handles extension installation, updates, and startup
  */
+import { browser } from 'wxt/browser';
+import type { Browser } from 'wxt/browser';
 import { PromptStorage } from '../../../src/shared/storage';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -43,7 +45,7 @@ export function initLifecycle(): void {
 /**
  * Handle extension installation or update
  */
-async function handleInstalled(details: browser.runtime.InstalledDetails): Promise<void> {
+async function handleInstalled(details: Browser.runtime.InstalledDetails): Promise<void> {
   console.log('[Lifecycle] Extension installed/updated:', details.reason);
 
   if (details.reason === 'install') {

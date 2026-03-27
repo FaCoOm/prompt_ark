@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import { compress, decompress } from '../../utils/compression';
 import type { Prompt, SlimPrompt, SyncResult, SyncStatus, SyncPayload } from '../../types';
 import type { SyncServiceAdapter } from './types';
@@ -67,9 +68,9 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
   readonly displayName = 'Chrome Sync';
 
   isConfigured(): boolean {
-    return typeof chrome !== 'undefined' && 
-           chrome.storage !== undefined && 
-           chrome.storage.sync !== undefined;
+    return typeof browser !== 'undefined' && 
+           browser.storage !== undefined && 
+           browser.storage.sync !== undefined;
   }
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
@@ -77,7 +78,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       return { success: false, error: 'Chrome storage sync not available' };
     }
     try {
-      await chrome!.storage.sync.getBytesInUse(null);
+      await browser.storage.sync.getBytesInUse(null);
       return { success: true };
     } catch (e) {
       return { success: false, error: (e as Error).message };
@@ -95,7 +96,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
     }
 
     try {
-      const indexResult = await chrome!.storage.sync.get(P_INDEX);
+      const indexResult = await browser.storage.sync.get(P_INDEX);
       const ids = indexResult[P_INDEX] as string[] | undefined;
 
       if (!ids || !Array.isArray(ids)) {
@@ -109,7 +110,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       const allKeys: string[] = [];
       for (const id of ids) allKeys.push(syncKey(id));
 
-      const baseData = allKeys.length > 0 ? await chrome!.storage.sync.get(allKeys) : {};
+      const baseData = allKeys.length > 0 ? await browser.storage.sync.get(allKeys) : {};
       const chunkKeys: string[] = [];
 
       for (const id of ids) {
@@ -132,7 +133,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
         }
       }
 
-      const chunkData = chunkKeys.length > 0 ? await chrome!.storage.sync.get(chunkKeys) : {};
+      const chunkData = chunkKeys.length > 0 ? await browser.storage.sync.get(chunkKeys) : {};
       const allData = { ...baseData, ...chunkData };
 
       const prompts: SlimPrompt[] = [];
@@ -177,7 +178,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
     try {
       const slimPrompts = payload.prompts.map(toSlimPrompt);
       const ids = slimPrompts.map((p) => p.id);
-      await chrome!.storage.sync.set({ [P_INDEX]: ids });
+      await browser.storage.sync.set({ [P_INDEX]: ids });
 
       for (const prompt of slimPrompts) {
         await this.writeSyncPrompt(prompt);
@@ -207,7 +208,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
     }
 
     try {
-      const bytesInUse = await chrome!.storage.sync.getBytesInUse(null);
+      const bytesInUse = await browser.storage.sync.getBytesInUse(null);
       const percentUsed = Math.round((bytesInUse / SYNC_QUOTA_BYTES) * 100);
 
       return {
@@ -256,7 +257,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       let chunkRaw = prefetchedData[key] as string | undefined;
 
       if (chunkRaw === undefined) {
-        const fetched = await chrome!.storage.sync.get(key);
+        const fetched = await browser.storage.sync.get(key);
         chunkRaw = fetched[key] as string | undefined;
       }
 
@@ -284,7 +285,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       if (bytes <= SAFE_ITEM_BYTES) {
         slim._chunks = 0;
         const basePayload = compressForSync(JSON.stringify(slim));
-        await chrome!.storage.sync.set({ [syncKey(prompt.id)]: basePayload });
+        await browser.storage.sync.set({ [syncKey(prompt.id)]: basePayload });
         return;
       }
 
@@ -327,7 +328,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
         writeData[ck] = compressForSync(JSON.stringify(chunks[i]));
       }
 
-      await chrome!.storage.sync.set(writeData);
+      await browser.storage.sync.set(writeData);
     } catch (e) {
       if (
         (e as Error).message?.includes('quota') ||
@@ -345,7 +346,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
 
         try {
           const fallbackPayload = compressForSync(JSON.stringify(metaOnly));
-          await chrome!.storage.sync.set({ [syncKey(prompt.id)]: fallbackPayload });
+          await browser.storage.sync.set({ [syncKey(prompt.id)]: fallbackPayload });
         } catch (e2) {
           console.error(`[ChromeSync] Metadata-only sync failed for ${prompt.id}:`, e2);
         }
@@ -356,7 +357,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
   }
 
   private async removeSyncPrompt(id: string): Promise<void> {
-    const data = await chrome!.storage.sync.get(syncKey(id));
+    const data = await browser.storage.sync.get(syncKey(id));
     const baseRaw = data[syncKey(id)] as string | undefined;
     const keysToRemove = [syncKey(id)];
 
@@ -378,7 +379,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       }
     }
 
-    await chrome!.storage.sync.remove(keysToRemove);
+    await browser.storage.sync.remove(keysToRemove);
   }
 
   async getQuota(): Promise<{
@@ -396,7 +397,7 @@ export class ChromeSyncAdapter implements SyncServiceAdapter {
       };
     }
 
-    const bytesInUse = await chrome!.storage.sync.getBytesInUse(null);
+    const bytesInUse = await browser.storage.sync.getBytesInUse(null);
     return {
       bytesInUse,
       quotaBytes: SYNC_QUOTA_BYTES,

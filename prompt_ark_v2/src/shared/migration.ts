@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import type { Prompt, Settings } from '../types';
 import { PromptStorage, SettingsStorage } from './storage';
 
@@ -33,7 +34,7 @@ export class DataMigrator {
   static readonly MIGRATION_VERSION_KEY = 'migration:version';
 
   static async detectV1Data(): Promise<{ hasPrompts: boolean; hasSettings: boolean }> {
-    const allKeys = await chrome.storage.sync.get(null);
+    const allKeys = await browser.storage.sync.get(null);
     const hasPrompts = Array.isArray(allKeys['prompts']);
     const hasSettings = typeof allKeys['settings'] === 'object' && allKeys['settings'] !== null;
     return { hasPrompts, hasSettings };
@@ -48,7 +49,7 @@ export class DataMigrator {
     };
 
     try {
-      const v1Data = await chrome.storage.sync.get(['prompts', 'settings']);
+      const v1Data = await browser.storage.sync.get(['prompts', 'settings']);
 
       if (v1Data['prompts']) {
         await this.createBackup(v1Data);
@@ -73,7 +74,7 @@ export class DataMigrator {
         await SettingsStorage.saveSettings(migratedSettings);
       }
 
-      await chrome.storage.local.set({ [this.MIGRATION_VERSION_KEY]: 2 });
+      await browser.storage.local.set({ [this.MIGRATION_VERSION_KEY]: 2 });
       result.success = true;
     } catch (error) {
       result.errors.push(`Migration failed: ${error}`);
@@ -124,16 +125,16 @@ export class DataMigrator {
   }
 
   static async createBackup(data: Record<string, unknown>): Promise<void> {
-    await chrome.storage.local.set({
+    await browser.storage.local.set({
       [this.V1_STORAGE_KEY]: data,
       [`${this.V1_STORAGE_KEY}:timestamp`]: Date.now(),
     });
   }
 
   static async restoreFromBackup(): Promise<boolean> {
-    const backup = await chrome.storage.local.get(this.V1_STORAGE_KEY);
+    const backup = await browser.storage.local.get(this.V1_STORAGE_KEY);
     if (backup[this.V1_STORAGE_KEY]) {
-      await chrome.storage.sync.set(backup[this.V1_STORAGE_KEY]);
+      await browser.storage.sync.set({ v1_backup: backup[this.V1_STORAGE_KEY] });
       return true;
     }
     return false;

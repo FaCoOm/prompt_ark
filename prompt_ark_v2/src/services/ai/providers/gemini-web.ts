@@ -25,15 +25,18 @@ function extractWizValue(key: string, html: string): string | null {
   return match?.[1] ?? null;
 }
 
+import { browser } from 'wxt/browser';
+import type { Browser } from 'wxt/browser';
+
 async function getGeminiCookieHeader(): Promise<string> {
   try {
-    if (!chrome?.cookies?.getAll) return '';
-    const cookies = await chrome.cookies.getAll({
+    if (!browser?.cookies?.getAll) return '';
+    const cookies = await browser.cookies.getAll({
       domain: '.google.com',
       url: 'https://gemini.google.com',
     });
     if (!cookies.length) return '';
-    return cookies.map((c: chrome.cookies.Cookie) => `${c.name}=${c.value}`).join('; ');
+    return cookies.map((c: Browser.cookies.Cookie) => `${c.name}=${c.value}`).join('; ');
   } catch {
     return '';
   }

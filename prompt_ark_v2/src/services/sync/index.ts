@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import { ChromeSyncAdapter } from './chrome';
 import { GistSyncAdapter, createGistAdapter } from './gist';
 import { createWebDAVAdapter } from './webdav';
@@ -50,12 +51,12 @@ class SyncManagerClass {
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   async loadConfig(): Promise<void> {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+    if (typeof browser === 'undefined' || !browser.storage?.local) {
       return;
     }
 
     try {
-      const local = await chrome.storage.local.get([
+      const local = await browser.storage.local.get([
         'sync_backend',
         'gist_id',
         'githubToken',
@@ -132,9 +133,9 @@ class SyncManagerClass {
   }
 
   private async saveConfig(): Promise<void> {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+    if (typeof browser === 'undefined' || !browser.storage?.local) return;
 
-    await chrome.storage.local.set({
+    await browser.storage.local.set({
       sync_backend: this.backend,
       gist_id: this.gistId,
       githubToken: this.token,
@@ -152,12 +153,12 @@ class SyncManagerClass {
     };
 
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        await chrome.storage.local.set({ syncStatus: status });
+      if (typeof browser !== 'undefined' && browser.storage?.local) {
+        await browser.storage.local.set({ syncStatus: status });
       }
 
-      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        chrome.runtime
+      if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
+        browser.runtime
           .sendMessage({ type: 'SYNC_STATUS_CHANGED', status })
           .catch(() => {});
       }

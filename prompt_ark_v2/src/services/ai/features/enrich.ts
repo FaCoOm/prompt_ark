@@ -79,7 +79,7 @@ export async function enrichPrompt(
       await buildContextMenus();
 
       try {
-        chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED', prompt: updates });
+        browser.runtime.sendMessage({ type: 'PROMPTS_UPDATED', prompt: updates });
       } catch {
         // Popup may be closed, ignore
       }

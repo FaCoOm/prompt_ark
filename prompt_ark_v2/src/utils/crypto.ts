@@ -1,15 +1,17 @@
+import { browser } from 'wxt/browser';
+
 /**
  * @fileoverview Web Crypto API encryption utilities for API key protection.
- * 
+ *
  * Uses AES-256-GCM with random IV for each encryption operation.
- * Keys are generated once per installation and stored in chrome.storage.local.
- * 
+ * Keys are generated once per installation and stored in browser.storage.local.
+ *
  * Security features:
  * - AES-256-GCM authenticated encryption
  * - Random 96-bit IV for each encryption
  * - Key cached in memory for session lifetime
  * - Graceful degradation on failures (returns plaintext)
- * 
+ *
  * @module utils/crypto
  */
 
@@ -22,8 +24,8 @@ let _cachedKey: CryptoKey | null = null;
 
 /**
  * Generate or load the encryption key.
- * 
- * On first install: generates a 256-bit AES-GCM key and stores in chrome.storage.local.
+ *
+ * On first install: generates a 256-bit AES-GCM key and stores in browser.storage.local.
  * Subsequent calls: loads existing key from storage.
  * Key is cached in memory for the session lifetime.
  * 
@@ -39,10 +41,10 @@ let _cachedKey: CryptoKey | null = null;
 export async function generateOrLoadKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
 
-  const stored = await chrome.storage.local.get('_encKey');
+  const stored = await browser.storage.local.get('_encKey');
   if (stored._encKey) {
     // Import existing key
-    const keyBytes = Uint8Array.from(atob(stored._encKey), c => c.charCodeAt(0));
+    const keyBytes = Uint8Array.from(atob(stored._encKey as string), c => c.charCodeAt(0));
     _cachedKey = await crypto.subtle.importKey(
       'raw',
       keyBytes,
@@ -63,7 +65,7 @@ export async function generateOrLoadKey(): Promise<CryptoKey> {
   // Export and store
   const exported = await crypto.subtle.exportKey('raw', _cachedKey);
   const base64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
-  await chrome.storage.local.set({ _encKey: base64 });
+  await browser.storage.local.set({ _encKey: base64 });
 
   console.log('[crypto] Generated new encryption key');
   return _cachedKey;

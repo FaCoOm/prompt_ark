@@ -122,7 +122,7 @@ Return ONLY a valid JSON array, no markdown fences.`;
       console.log(`[Prompt Ark] Analyzing ${prompts.length} prompts in single call, attempt ${attempt}/${this.maxRetries}`);
 
       try {
-        const response = await chrome.runtime.sendMessage<{
+        const response = await browser.runtime.sendMessage<{
           type: 'GENERATE_TEXT';
           prompt: string;
         }, GenerateTextResponse>({
