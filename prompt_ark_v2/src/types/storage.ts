@@ -134,6 +134,8 @@ export interface Settings {
   obsidianLocal?: ObsidianLocalConfig;
   /** ID of default AI provider */
   defaultProviderId?: string;
+  /** Default AI platform for quick open */
+  defaultPlatform?: string;
   /** Whether image prompt generation is enabled */
   imagePromptEnabled: boolean;
   /** Default output rules for AI features */
