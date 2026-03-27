@@ -2,7 +2,6 @@
 console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loaded`);
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
-import { GitHubClient } from './lib/github-client.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
@@ -21,8 +20,6 @@ import { generateShareText, shareToSocialPlatform, generateArticleShareText, ART
 import { buildContextMenus, handleContextMenuClick } from './lib/context-menu.js';
 import { initSupabase, initSupabaseFromStorage, isAuthenticated as isSupabaseAuthenticated, from as supabaseFrom, signOut } from './lib/supabase/client.js';
 
-
-const githubClient = new GitHubClient();
 
 // Eagerly preload all prompt files into memory cache at service worker startup
 preloadAllPrompts();
@@ -1024,26 +1021,22 @@ async function handleMessage(message, sendResponse) {
 
       case 'GET_SYNC_SETTINGS': {
         const syncKeys = [
-          'sync_backend', 'gist_id', 'webdavUrl', 'webdavUser', 'webdavPassword',
+          'sync_backend', 'webdavUrl', 'webdavUser', 'webdavPassword',
           'obsidianWebdavUrl', 'obsidianWebdavUser', 'obsidianWebdavPassword',
-          'obsidianFolder', 'obsidianLocalPort', 'obsidianLocalApiKey'
+          'obsidianFolder'
         ];
-        const defaults = { sync_backend: 'none', obsidianFolder: 'prompts', obsidianLocalPort: 27123 };
+        const defaults = { sync_backend: 'none', obsidianFolder: 'prompts' };
         const values = await Promise.all(syncKeys.map(k => LocalStorage.get(k)));
         const settings = Object.fromEntries(syncKeys.map((k, i) => {
           const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
           return [camel, values[i] || defaults[k] || ''];
         }));
-        if (settings.obsidianLocalApiKey) {
-          settings.obsidianLocalApiKey = await decrypt(settings.obsidianLocalApiKey);
-        }
         sendResponse({ success: true, ...settings });
         break;
       }
 
       case 'SAVE_SYNC_SETTINGS': {
         await LocalStorage.set('sync_backend', message.backend);
-        await LocalStorage.set('gist_id', message.gistId);
 
         if (message.webdavUrl !== undefined) await LocalStorage.set('webdavUrl', message.webdavUrl);
         if (message.webdavUser !== undefined) await LocalStorage.set('webdavUser', message.webdavUser);
@@ -1054,43 +1047,29 @@ async function handleMessage(message, sendResponse) {
         if (message.obsidianWebdavPassword !== undefined) await LocalStorage.set('obsidianWebdavPassword', message.obsidianWebdavPassword);
         if (message.obsidianFolder !== undefined) await LocalStorage.set('obsidianFolder', message.obsidianFolder);
 
-        if (message.obsidianLocalPort !== undefined) await LocalStorage.set('obsidianLocalPort', message.obsidianLocalPort);
-        if (message.obsidianLocalApiKey !== undefined) {
-          const encObsKey = message.obsidianLocalApiKey ? await encrypt(message.obsidianLocalApiKey) : '';
-          await LocalStorage.set('obsidianLocalApiKey', encObsKey);
-        }
-
         await SyncManager.loadConfig();
         sendResponse({ success: true });
         break;
       }
 
       case 'FORCE_CHROME_SYNC': {
-        const { updateSyncStatus } = await import('./lib/storage.js');
-        await updateSyncStatus('syncing');
         try {
           // Read from chrome.storage.sync and merge to local
           const { PromptStorage } = await import('./lib/storage.js');
           const prompts = await PromptStorage.get();
           await chrome.storage.local.set({ prompts });
-          await updateSyncStatus('synced');
           sendResponse({ success: true, message: 'MSG_SYNC_SUCCESS' });
         } catch (e) {
-          await updateSyncStatus('failed', e.message);
           sendResponse({ success: false, error: e.message });
         }
         break;
       }
 
-      case 'FORCE_GIST_SYNC':
       case 'FORCE_WEBDAV_SYNC':
-      case 'FORCE_OBSIDIAN_SYNC':
-      case 'FORCE_OBSIDIAN_LOCAL_SYNC': {
+      case 'FORCE_OBSIDIAN_SYNC': {
         const syncMethods = {
-          FORCE_GIST_SYNC: 'pullFromGistAndMerge',
           FORCE_WEBDAV_SYNC: 'pullFromWebdavAndMerge',
           FORCE_OBSIDIAN_SYNC: 'pullFromObsidianAndMerge',
-          FORCE_OBSIDIAN_LOCAL_SYNC: 'pullFromObsidianLocalAndMerge',
         };
         try {
           const result = await SyncManager[syncMethods[message.type]]();
