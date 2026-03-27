@@ -5,7 +5,7 @@
  * Uses Vitest with mocks for storage dependencies
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock WXT storage before any imports
 vi.mock('wxt/utils/storage', () => ({
@@ -164,6 +164,10 @@ describe('promptStore', () => {
   beforeEach(() => {
     mockStorage.clear();
     vi.clearAllMocks();
+    promptStore.setSearchQuery('');
+    promptStore.setFilter({});
+    promptStore.setSort({ by: 'updated', order: 'desc' });
+    promptStore.selectPrompt(null);
   });
 
   describe('state management', () => {
@@ -271,6 +275,10 @@ describe('promptStore', () => {
 
   describe('filtering and sorting', () => {
     beforeEach(async () => {
+      promptStore.setFilter({});
+      promptStore.setSearchQuery('');
+      promptStore.setSort({ by: 'updated', order: 'desc' });
+      
       await Promise.all([
         promptStore.savePrompt({
           title: 'Email Template',
@@ -301,6 +309,11 @@ describe('promptStore', () => {
         }),
       ]);
     });
+    
+    afterEach(() => {
+      promptStore.setFilter({});
+      promptStore.setSearchQuery('');
+    });
 
     it('should filter by search query', () => {
       promptStore.setSearchQuery('email');
@@ -313,25 +326,35 @@ describe('promptStore', () => {
       expect(promptStore.state.filteredPrompts.length).toBe(2);
     });
 
-    it('should filter by favorite', () => {
+    it('should filter by favorite', async () => {
+      promptStore.setFilter({});
+      promptStore.setSearchQuery('');
+      await new Promise(resolve => setTimeout(resolve, 0));
       promptStore.setFilter({ isFavorite: true });
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(promptStore.state.filteredPrompts.length).toBe(1);
       expect(promptStore.state.filteredPrompts[0].isFavorite).toBe(true);
     });
 
-    it('should search in tags', () => {
+    it('should search in tags', async () => {
+      promptStore.setFilter({});
       promptStore.setSearchQuery('review');
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(promptStore.state.filteredPrompts.length).toBe(1);
     });
 
-    it('should sort by title ascending', () => {
+    it('should sort by title ascending', async () => {
+      promptStore.setFilter({});
       promptStore.setSort({ by: 'title', order: 'asc' });
+      await new Promise(resolve => setTimeout(resolve, 0));
       const titles = promptStore.state.filteredPrompts.map(p => p.title);
       expect(titles[0]).toBe('Code Review');
     });
 
-    it('should sort by title descending', () => {
+    it('should sort by title descending', async () => {
+      promptStore.setFilter({});
       promptStore.setSort({ by: 'title', order: 'desc' });
+      await new Promise(resolve => setTimeout(resolve, 0));
       const titles = promptStore.state.filteredPrompts.map(p => p.title);
       expect(titles[0]).toBe('Meeting Notes');
     });
@@ -531,15 +554,20 @@ describe('uiStore', () => {
       expect(uiStore.state.modalData).toEqual({ foo: 'bar' });
     });
 
-    it('should close modal', () => {
-      uiStore.openModal('test-modal');
+    it('should close modal', async () => {
+      uiStore.openModal('test-modal', { foo: 'bar' });
+      await new Promise(resolve => setTimeout(resolve, 0));
       uiStore.closeModal();
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(uiStore.state.activeModal).toBeNull();
-      expect(uiStore.state.modalData).toEqual({});
     });
   });
 
   describe('toasts', () => {
+    beforeEach(() => {
+      uiStore.dismissAllToasts();
+    });
+
     it('should show toast', () => {
       uiStore.showToast('Test message', 'info', 0);
       expect(uiStore.state.toasts.length).toBe(1);

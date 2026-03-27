@@ -58,7 +58,7 @@ export const historyStore = {
     };
 
     await HistoryStorage.addHistory(newEntry);
-    await this.loadHistory(true);
+    setState('history', (prev) => [newEntry, ...prev]);
   },
 
   clearHistory(): void {

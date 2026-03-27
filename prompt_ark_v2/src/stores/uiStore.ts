@@ -81,8 +81,10 @@ export const uiStore = {
   },
 
   closeModal(): void {
-    setState('activeModal', null);
-    setState('modalData', {});
+    batch(() => {
+      setState('activeModal', null);
+      setState('modalData', {});
+    });
   },
 
   setModalData(data: Record<string, unknown>): void {

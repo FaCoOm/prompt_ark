@@ -45,18 +45,24 @@ export const promptStore = {
   },
 
   setSearchQuery(query: string): void {
-    setState('searchQuery', query);
-    this.applyFilterAndSort();
+    batch(() => {
+      setState('searchQuery', query);
+      this.applyFilterAndSort();
+    });
   },
 
   setFilter(filter: Partial<PromptFilter>): void {
-    setState('filter', (prev) => ({ ...prev, ...filter }));
-    this.applyFilterAndSort();
+    batch(() => {
+      setState('filter', filter);
+      this.applyFilterAndSort();
+    });
   },
 
   setSort(sort: PromptSort): void {
-    setState('sort', sort);
-    this.applyFilterAndSort();
+    batch(() => {
+      setState('sort', sort);
+      this.applyFilterAndSort();
+    });
   },
 
   selectPrompt(prompt: Prompt | null): void {
@@ -73,7 +79,8 @@ export const promptStore = {
     };
 
     await PromptStorage.savePrompt(newPrompt);
-    await this.loadPrompts();
+    setState('prompts', (prev) => [...prev, newPrompt]);
+    this.applyFilterAndSort();
     return newPrompt;
   },
 
@@ -83,12 +90,14 @@ export const promptStore = {
 
     const updated = { ...existing, ...updates, updatedAt: Date.now() };
     await PromptStorage.savePrompt(updated);
-    await this.loadPrompts();
+    setState('prompts', (prev) => prev.map((p) => (p.id === id ? updated : p)));
+    this.applyFilterAndSort();
   },
 
   async deletePrompt(id: string): Promise<void> {
     await PromptStorage.deletePrompt(id);
-    await this.loadPrompts();
+    setState('prompts', (prev) => prev.filter((p) => p.id !== id));
+    this.applyFilterAndSort();
   },
 
   applyFilterAndSort(): void {

@@ -15,6 +15,7 @@ vi.mock('../../src/utils/compression', () => ({
 
 // Mock chrome storage
 const mockSyncStorage = new Map<string, unknown>();
+const mockLocalStorage = new Map<string, unknown>();
 let mockBytesInUse = 0;
 
 Object.defineProperty(global, 'chrome', {
@@ -51,9 +52,33 @@ Object.defineProperty(global, 'chrome', {
         getBytesInUse: vi.fn(async () => mockBytesInUse),
       },
       local: {
-        get: vi.fn(async () => ({})),
-        set: vi.fn(async () => {}),
-        remove: vi.fn(async () => {}),
+        get: vi.fn(async (keys?: string | string[] | null) => {
+          const result: Record<string, unknown> = {};
+          if (!keys) {
+            for (const [key, value] of mockLocalStorage.entries()) {
+              result[key] = value;
+            }
+          } else {
+            const keyArray = Array.isArray(keys) ? keys : [keys];
+            for (const key of keyArray) {
+              if (mockLocalStorage.has(key)) {
+                result[key] = mockLocalStorage.get(key);
+              }
+            }
+          }
+          return result;
+        }),
+        set: vi.fn(async (items: Record<string, unknown>) => {
+          for (const [key, value] of Object.entries(items)) {
+            mockLocalStorage.set(key, value);
+          }
+        }),
+        remove: vi.fn(async (keys: string | string[]) => {
+          const keyArray = Array.isArray(keys) ? keys : [keys];
+          for (const key of keyArray) {
+            mockLocalStorage.delete(key);
+          }
+        }),
       },
     },
     runtime: {
@@ -272,7 +297,7 @@ describe('SyncManager', () => {
     it('should update sync status', async () => {
       await SyncManager['updateSyncStatus']('synced');
 
-      expect(mockSyncStorage.get('syncStatus')).toBeDefined();
+      expect(mockLocalStorage.get('syncStatus')).toBeDefined();
     });
 
     it('should get status', async () => {
