@@ -1,5 +1,5 @@
-import { batch } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { batch, createSignal } from 'solid-js';
+import { createStore, produce } from 'solid-js/store';
 import type { Prompt, PromptFilter, PromptSort } from '../types';
 import { PromptStorage } from '../shared/storage';
 
@@ -28,6 +28,18 @@ export const promptStore = {
     return state;
   },
 
+  reset(): void {
+    setState({
+      prompts: [],
+      filteredPrompts: [],
+      selectedPrompt: null,
+      isLoading: false,
+      filter: {},
+      sort: { by: 'updated', order: 'desc' },
+      searchQuery: '',
+    });
+  },
+
   async loadPrompts(): Promise<void> {
     setState('isLoading', true);
     try {
@@ -45,24 +57,18 @@ export const promptStore = {
   },
 
   setSearchQuery(query: string): void {
-    batch(() => {
-      setState('searchQuery', query);
-      this.applyFilterAndSort();
-    });
+    setState('searchQuery', query);
+    this.applyFilterAndSort();
   },
 
   setFilter(filter: Partial<PromptFilter>): void {
-    batch(() => {
-      setState('filter', filter);
-      this.applyFilterAndSort();
-    });
+    setState('filter', filter);
+    this.applyFilterAndSort();
   },
 
   setSort(sort: PromptSort): void {
-    batch(() => {
-      setState('sort', sort);
-      this.applyFilterAndSort();
-    });
+    setState('sort', sort);
+    this.applyFilterAndSort();
   },
 
   selectPrompt(prompt: Prompt | null): void {
@@ -79,8 +85,12 @@ export const promptStore = {
     };
 
     await PromptStorage.savePrompt(newPrompt);
-    setState('prompts', (prev) => [...prev, newPrompt]);
-    this.applyFilterAndSort();
+    setState(
+      produce((draft) => {
+        draft.prompts.push(newPrompt);
+        this.recalculateFilteredPrompts(draft);
+      })
+    );
     return newPrompt;
   },
 
@@ -100,10 +110,11 @@ export const promptStore = {
     this.applyFilterAndSort();
   },
 
-  applyFilterAndSort(): void {
-    let result = [...state.prompts];
+  recalculateFilteredPrompts(draft: PromptStoreState): void {
+    const { prompts, searchQuery, filter, sort } = draft;
+    
+    let result = [...prompts];
 
-    const { searchQuery, filter } = state;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -122,7 +133,6 @@ export const promptStore = {
       result = result.filter((p) => p.isFavorite === filter.isFavorite);
     }
 
-    const { sort } = state;
     result.sort((a, b) => {
       let comparison = 0;
       switch (sort.by) {
@@ -142,6 +152,14 @@ export const promptStore = {
       return sort.order === 'asc' ? comparison : -comparison;
     });
 
-    setState('filteredPrompts', result);
+    draft.filteredPrompts = result;
+  },
+
+  applyFilterAndSort(): void {
+    setState(
+      produce((draft) => {
+        this.recalculateFilteredPrompts(draft);
+      })
+    );
   },
 };

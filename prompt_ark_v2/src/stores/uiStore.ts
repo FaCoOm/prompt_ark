@@ -1,3 +1,4 @@
+import { batch } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { ToastType } from '../types';
 

@@ -275,39 +275,38 @@ describe('promptStore', () => {
 
   describe('filtering and sorting', () => {
     beforeEach(async () => {
-      promptStore.setFilter({});
-      promptStore.setSearchQuery('');
-      promptStore.setSort({ by: 'updated', order: 'desc' });
+      await promptStore.loadPrompts();
+      await new Promise(resolve => setTimeout(resolve, 10));
       
-      await Promise.all([
-        promptStore.savePrompt({
-          title: 'Email Template',
-          content: 'Write an email',
-          category: 'Work',
-          tags: ['email', 'professional'],
-          shortcut: 'email',
-          isFavorite: true,
-          useCount: 5,
-        }),
-        promptStore.savePrompt({
-          title: 'Code Review',
-          content: 'Review code',
-          category: 'Development',
-          tags: ['code', 'review'],
-          shortcut: 'review',
-          isFavorite: false,
-          useCount: 10,
-        }),
-        promptStore.savePrompt({
-          title: 'Meeting Notes',
-          content: 'Take notes',
-          category: 'Work',
-          tags: ['meeting'],
-          shortcut: 'notes',
-          isFavorite: false,
-          useCount: 3,
-        }),
-      ]);
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 10));
     });
     
     afterEach(() => {
@@ -315,52 +314,212 @@ describe('promptStore', () => {
       promptStore.setSearchQuery('');
     });
 
-    it('should filter by search query', () => {
+    it('should filter by search query', async () => {
       promptStore.setSearchQuery('email');
+      await new Promise(resolve => setTimeout(resolve, 10));
       expect(promptStore.state.filteredPrompts.length).toBe(1);
       expect(promptStore.state.filteredPrompts[0].title).toBe('Email Template');
     });
 
-    it('should filter by category', () => {
+    it('should filter by category', async () => {
+      promptStore.reset();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setFilter({ category: 'Work' });
+      await new Promise(resolve => setTimeout(resolve, 10));
       expect(promptStore.state.filteredPrompts.length).toBe(2);
     });
 
     it('should filter by favorite', async () => {
       promptStore.setFilter({});
       promptStore.setSearchQuery('');
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setFilter({ isFavorite: true });
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
       expect(promptStore.state.filteredPrompts.length).toBe(1);
       expect(promptStore.state.filteredPrompts[0].isFavorite).toBe(true);
     });
 
     it('should search in tags', async () => {
-      promptStore.setFilter({});
+      promptStore.reset();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setSearchQuery('review');
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
       expect(promptStore.state.filteredPrompts.length).toBe(1);
     });
 
     it('should sort by title ascending', async () => {
-      promptStore.setFilter({});
+      promptStore.reset();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setSort({ by: 'title', order: 'asc' });
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
       const titles = promptStore.state.filteredPrompts.map(p => p.title);
       expect(titles[0]).toBe('Code Review');
     });
 
     it('should sort by title descending', async () => {
-      promptStore.setFilter({});
+      promptStore.reset();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setSort({ by: 'title', order: 'desc' });
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
       const titles = promptStore.state.filteredPrompts.map(p => p.title);
       expect(titles[0]).toBe('Meeting Notes');
     });
 
-    it('should sort by usage count', () => {
+    it('should sort by usage count', async () => {
+      promptStore.reset();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await promptStore.savePrompt({
+        title: 'Email Template',
+        content: 'Write an email',
+        category: 'Work',
+        tags: ['email', 'professional'],
+        shortcut: 'email',
+        isFavorite: true,
+        useCount: 5,
+      });
+      await promptStore.savePrompt({
+        title: 'Code Review',
+        content: 'Review code',
+        category: 'Development',
+        tags: ['code', 'review'],
+        shortcut: 'review',
+        isFavorite: false,
+        useCount: 10,
+      });
+      await promptStore.savePrompt({
+        title: 'Meeting Notes',
+        content: 'Take notes',
+        category: 'Work',
+        tags: ['meeting'],
+        shortcut: 'notes',
+        isFavorite: false,
+        useCount: 3,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
       promptStore.setSort({ by: 'used', order: 'desc' });
+      await new Promise(resolve => setTimeout(resolve, 10));
       const counts = promptStore.state.filteredPrompts.map(p => p.useCount || 0);
       expect(counts[0]).toBeGreaterThanOrEqual(counts[1]);
     });
@@ -556,10 +715,10 @@ describe('uiStore', () => {
 
     it('should close modal', async () => {
       uiStore.openModal('test-modal', { foo: 'bar' });
-      await new Promise(resolve => setTimeout(resolve, 0));
       uiStore.closeModal();
-      await new Promise(resolve => setTimeout(resolve, 0));
-      expect(uiStore.state.activeModal).toBeNull();
+      await vi.waitFor(() => {
+        expect(uiStore.state.activeModal).toBeNull();
+      });
     });
   });
 
