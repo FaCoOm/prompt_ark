@@ -64,6 +64,20 @@ class PopupManager {
       }
     });
 
+    // Real-time usage updates from background (for most-used / recent-used filters)
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type !== 'PROMPT_USAGE_UPDATED' || !msg.prompt?.id) return;
+      const idx = this.prompts.findIndex(p => String(p.id) === String(msg.prompt.id));
+      if (idx < 0) return;
+      this.prompts[idx] = {
+        ...this.prompts[idx],
+        usageCount: msg.prompt.usageCount || 0,
+        lastUsedAt: msg.prompt.lastUsedAt || null,
+        lastUsed: msg.prompt.lastUsed || null,
+      };
+      this.renderPrompts();
+    });
+
     // Listen for async AI enrichment updates from background
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === 'PROMPTS_UPDATED') {
@@ -535,14 +549,19 @@ class PopupManager {
     const searchQuery = document.getElementById('searchInput').value.toLowerCase();
 
     let filtered = this.prompts;
+    let sortMode = 'default';
 
     // Smart filter
     if (this.activeSmartFilter === 'favorites') {
       filtered = filtered.filter(p => p.favorite);
     } else if (this.activeSmartFilter === 'mostUsed') {
       filtered = filtered.filter(p => (p.usageCount || 0) > 0);
-    } else if (this.activeSmartFilter === 'recent') {
-      filtered = filtered.filter(p => p.lastUsedAt);
+    } else if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') {
+      filtered = filtered.filter(p => p.lastUsedAt || (p.lastUsed && (p.usageCount || 0) > 0));
+      sortMode = 'lastUsedAt';
+    } else if (this.activeSmartFilter === 'recentAdded') {
+      filtered = filtered.filter(p => !p.builtIn && p.createdAt);
+      sortMode = 'createdAt';
     }
 
     if (this.currentCategory !== 'all') {
@@ -559,7 +578,7 @@ class PopupManager {
       );
     }
 
-    filtered = this.sortPromptsByTime(filtered);
+    filtered = this.sortPromptsByTime(filtered, sortMode);
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -680,14 +699,19 @@ ${p.sourceContext ? `
     this.renderPrompts();
   }
 
-  getPromptTimestamp(prompt) {
-    return Number(prompt.lastUsedAt || prompt.updatedAt || prompt.createdAt || 0);
+  getPromptTimestamp(prompt, sortMode = 'default') {
+    if (sortMode === 'createdAt') return Number(prompt.createdAt || 0);
+    if (sortMode === 'lastUsedAt') {
+      const legacy = (prompt.usageCount || 0) > 0 ? prompt.lastUsed : 0;
+      return Number(prompt.lastUsedAt || legacy || 0);
+    }
+    return Number(prompt.lastUsedAt || prompt.lastUsed || prompt.updatedAt || prompt.createdAt || 0);
   }
 
-  sortPromptsByTime(prompts) {
+  sortPromptsByTime(prompts, sortMode = 'default') {
     const direction = this.timeSortDirection === 'asc' ? 1 : -1;
     return [...prompts].sort((a, b) => {
-      const timeDiff = (this.getPromptTimestamp(a) - this.getPromptTimestamp(b)) * direction;
+      const timeDiff = (this.getPromptTimestamp(a, sortMode) - this.getPromptTimestamp(b, sortMode)) * direction;
       if (timeDiff !== 0) return timeDiff;
 
       const createdDiff = ((a.createdAt || 0) - (b.createdAt || 0)) * direction;
@@ -2457,14 +2481,19 @@ ${p.sourceContext ? `
     return snippets;
   }
 
+  async markPromptUsed(id, prompt) {
+    await chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id });
+    if (prompt) {
+      prompt.usageCount = (prompt.usageCount || 0) + 1;
+      const now = Date.now();
+      prompt.lastUsedAt = now;
+      prompt.lastUsed = now;
+    }
+  }
+
   async insertPrompt(id) {
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
-
-    // Track usage (optimistic local update)
-    chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id }).catch(() => { });
-    prompt.usageCount = (prompt.usageCount || 0) + 1;
-    prompt.lastUsedAt = Date.now();
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) {
@@ -2510,6 +2539,7 @@ ${p.sourceContext ? `
             type: 'INSERT_PROMPT',
             content: filledContent
           });
+          await this.markPromptUsed(id, prompt);
           window.close();
         } catch (error) {
           this.showToast(i18n.t('insertError'));
@@ -2521,6 +2551,7 @@ ${p.sourceContext ? `
           type: 'INSERT_PROMPT',
           content: composedContent
         });
+        await this.markPromptUsed(id, prompt);
         window.close();
       } catch (error) {
         this.showToast(i18n.t('insertError'));

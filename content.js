@@ -1856,6 +1856,9 @@ class AIPromptManager {
     // Reset the shortcut cache so it's fresh next time
     this.slashShortcuts = [];
 
+    // Track usage as soon as a slash command is selected.
+    chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id: item.id }).catch(() => { });
+
     // 3. Check for remaining user-defined variables
     const vars = this.extractVariables(finalContent);
     if (vars.length > 0) {
@@ -1869,8 +1872,6 @@ class AIPromptManager {
       // Pass finalContent as the composed text to be variable-substituted
       this.showVariableForm({ title: item.title, content: finalContent }, vars);
     } else {
-      // Track usage for slash command injection
-      chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id: item.id }).catch(() => { });
       await this.injectIntoElement(inputEl, finalContent, { replaceAll: true });
     }
   }

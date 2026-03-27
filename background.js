@@ -248,6 +248,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       createdAt: Date.now() + i, // Preserve order
       usageCount: 0,
       lastUsed: null,
+      lastUsedAt: null,
       builtIn: true
     };
   });
@@ -886,14 +887,27 @@ async function handleMessage(message, sendResponse) {
 
       case 'TRACK_USAGE': {
         const prompts = await getPrompts();
+        const now = Date.now();
+        const messageId = String(message.id);
         const updated = prompts.map(p => {
-          if (p.id === message.id) {
-            return { ...p, usageCount: (p.usageCount || 0) + 1, lastUsedAt: Date.now() };
+          if (String(p.id) === messageId) {
+            return { ...p, usageCount: (p.usageCount || 0) + 1, lastUsedAt: now, lastUsed: now };
           }
           return p;
         });
-        const target = updated.find(p => p.id === message.id);
-        if (target) await PromptStorage.update(target);
+        const target = updated.find(p => String(p.id) === messageId);
+        if (target) {
+          await PromptStorage.update(target);
+          chrome.runtime.sendMessage({
+            type: 'PROMPT_USAGE_UPDATED',
+            prompt: {
+              id: target.id,
+              usageCount: target.usageCount || 0,
+              lastUsedAt: target.lastUsedAt || null,
+              lastUsed: target.lastUsed || null,
+            }
+          }).catch(() => { });
+        }
         sendResponse({ success: true });
         break;
       }
