@@ -11,9 +11,11 @@ export const en: LocaleDict = {
     edit: 'Edit Prompt',
     searchPlaceholder: 'Search prompts...',
     title: 'Title',
+    titlePlaceholder: 'Leave empty for AI auto-generation',
     category: 'Category',
     content: 'Content',
     contentHint: 'Use {{variable}} for dynamic variables',
+    contentEmpty: 'Content is empty',
     save: 'Save',
     cancel: 'Cancel',
     deleteConfirm: 'Are you sure you want to delete this prompt?',
@@ -30,6 +32,7 @@ export const en: LocaleDict = {
     insertSuccess: 'Prompt inserted',
     insertError:
       'Failed to insert. Make sure you are on a supported AI platform.',
+    inputNotFound: 'Input box not found',
     copySuccess: 'Copied to clipboard',
     import: 'Import',
     export: 'Export',
@@ -38,6 +41,7 @@ export const en: LocaleDict = {
     preview: 'Preview',
     edit: 'Edit',
     delete: 'Delete',
+    copy: 'Copy',
     testConnection: 'Test Connection',
   },
   variables: {
@@ -92,6 +96,7 @@ export const en: LocaleDict = {
     chromeSync: 'Chrome Sync',
     chromeSyncHint:
       'Auto-sync across devices via Google Account, LZ compressed',
+    forceSyncChrome: 'Sync Now',
     gistSync: 'GitHub Gist',
     gistSyncHint: 'Unlimited capacity, requires GitHub Token',
     gistId: 'Gist ID (Leave blank to auto-create)',
@@ -115,6 +120,8 @@ export const en: LocaleDict = {
     obsidianLocalTitle: 'Obsidian Local (Plugin)',
     obsidianLocalHint:
       'Install prompt-ark-sync plugin in Obsidian for zero-config sync via localhost',
+    obsidianSyncCategory: 'Obsidian Integration',
+    obsidianSyncCategoryHint: 'Use your Obsidian Vault as a Prompt repository',
     obsidianLocalPort: 'Port',
     obsidianLocalApiKey: 'API Key (optional)',
     forceSyncObsidianLocal: 'Sync Now',
@@ -125,10 +132,13 @@ export const en: LocaleDict = {
   },
   share: {
     title: 'Share',
+    share: 'Share',
+    favorite: 'Favorite',
     packMode: 'Select prompts for your Pack',
     packShare: 'Share Pack',
     packSharing: 'Sharing...',
     packSelectOne: 'Please select at least 1 prompt',
+    packShareFailed: 'Pack share failed',
     packTitlePlaceholder: 'Pack title (e.g. 10 Coding Prompts)',
     shareToX: 'Share to X',
     shareToReddit: 'Share to Reddit',
@@ -143,9 +153,12 @@ export const en: LocaleDict = {
     shareFailed: 'Share failed',
     selected: 'selected',
     configureGithubToken: 'Please configure GitHub Token in Settings',
+    promptSharing: 'Prompt Sharing',
+    sharePromptPack: 'Share Prompt Pack',
   },
   import: {
     title: 'Import',
+    defaultPlatform: 'Default AI Platform',
     tabPaste: 'Paste Text',
     tabUrl: 'Import from URL',
     pasteHint: 'Supports JSON, CSV, Markdown and more',
@@ -153,9 +166,20 @@ export const en: LocaleDict = {
     urlHint: 'Enter a GitHub Repo URL or raw file link',
     scan: 'Scan',
     confirm: 'Import',
+    confirmImport: 'Import {count} prompts?',
     deepScan: 'Deep Scan',
     minScore: 'Min Score',
     scanning: 'Scanning...',
+    scanFailed: 'Scan failed',
+    scanParsing: 'Parsing {count} files...',
+    scanParsed:
+      'Parsed {total} prompts, {passed} passed filter (min score: {min})',
+    scanDone:
+      'Done! AI analyzed {analyzed} prompts, {enriched} enriched',
+    scanNonePassed:
+      'Parsed {total} prompts, but none passed the filter (min score: {min}). Try lowering the minimum score.',
+    scanNoPrompts:
+      'No prompts found in {files} files. Content may not match supported formats (JSON/CSV/Markdown)',
     aiAnalyzing: 'AI Analyzing',
     promptsFiltered: 'Prompts (Filtered)',
     avgScore: 'Avg Score',
@@ -163,6 +187,10 @@ export const en: LocaleDict = {
     qualityMid: 'Mid',
     qualityLow: 'Low',
     emptyData: 'Please paste JSON data to import',
+    parseFailed: 'Parse failed',
+    noValidPrompts:
+      'No valid prompts found (or all filtered out by score)',
+    importError: 'Import failed',
   },
   filter: {
     categoryAll: 'All',
@@ -189,6 +217,8 @@ export const en: LocaleDict = {
     smartConvertNoProvider:
       'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
     shareArticle: 'Share Article to...',
+    selectionToolbarAdd: 'Add to Prompt Ark',
+    selectionToolbarConvert: 'Smart Convert',
   },
   quickAction: {
     rewriteLabel: 'Rewrite',
@@ -240,6 +270,84 @@ export const en: LocaleDict = {
     toastExists: 'Rules block already exists, please edit manually.',
     toastSuccess: 'Rules Added',
   },
+  skillMode: {
+    title: 'Skill Mode',
+    hint: 'Split System Prompt + attach knowledge',
+    systemPrompt: 'System Prompt',
+    systemPromptHint: 'Define AI role and behavior rules',
+    knowledgeSnippets: 'Knowledge Snippets',
+    knowledgeSnippetsHint: 'Reference materials, auto-appended to prompt',
+    addSnippet: 'Add snippet',
+  },
+  videoPrompt: {
+    title: 'Video Prompt',
+    videoToPrompt:
+      'Generate Prompt from video (YouTube / TikTok / Douyin / Kuaishou)',
+    styleTransfer: 'Style Transfer',
+    completeAnalysis: 'Complete Analysis',
+    inspirationCreation: 'Inspiration',
+    copyAllVocab: 'Copy all terms as style description',
+    styleTransferDesc:
+      'Extract visual style (tone, shots, atmosphere) from video and apply to your creative content',
+    completeAnalysisDesc:
+      'Extract both style and content, generate complete storyboard',
+    inspirationCreationDesc:
+      'Get inspired by video content, generate more engaging and informative short videos',
+    copyStyleBlock: 'Copy style block',
+    youtubeVideoPrompt: 'YouTube Video Prompt',
+    videoAnalysisSaved:
+      'Complete video analysis saved (with dictionary + storyboard)',
+  },
+  history: {
+    title: 'History',
+    noHistoryYet: 'No history yet.',
+  },
+  timeAgo: {
+    days: '{count}d ago',
+    hours: '{count}h ago',
+    minutes: '{count}m ago',
+    justNow: 'just now',
+  },
+  context: {
+    varsResolved: 'Context auto-filled',
+  },
+  quality: {
+    title: 'Prompt Quality',
+  },
+  openclaw: {
+    hint: 'Push generated skills to local OpenClaw',
+    settings: 'OpenClaw Agent (P2S)',
+    promptToSkill: 'Prompt to Skill (Push to OpenClaw)',
+    publishToHub: 'Publish to Hub',
+    selectProvider: 'Select Model',
+  },
+  translation: {
+    translate: 'Translate',
+    copySourceText: 'Copy source text',
+    openSourcePage: 'Open source page',
+    translatePrompt: 'Translate Prompt',
+  },
+  skillManager: {
+    title: 'Skill Manager',
+  },
+  tabs: {
+    general: 'General',
+    models: 'Models',
+    sync: 'Sync',
+  },
+  metadata: {
+    source: 'Source',
+    from: 'From',
+    captured: 'Captured',
+    method: 'Method',
+    methodSmartConvert: 'Smart Convert',
+    methodQuickAdd: 'Quick Add',
+    copyBtn: 'Copy',
+    openBtn: 'Open',
+    promptCopied: 'Complete prompt copied',
+    sourceTextCopied: 'Source text copied',
+    saveFailed: 'Save failed',
+  },
   error: {
     permissionDenied: 'Permission required to connect this API',
     inputNotFound: 'Input box not found',
@@ -250,30 +358,34 @@ export const en: LocaleDict = {
     ERR_GIST_NO_TOKEN:
       'Missing GitHub Token, please configure it in Settings',
     ERR_GIST_EMPTY_ID_AUTO_CREATE:
-      'Blank Gist ID detected. Auto-creating and uploading initial data in the background.',
+      'Blank Gist ID detected. Auto-creating and uploading initial data in the background. Refresh Settings later to see the new ID!',
     ERR_GIST_NO_CONTENT: 'No content in Gist',
     ERR_GIST_PARSE_FAILED: 'Failed to parse Gist payload',
     MSG_GIST_SYNC_SUCCESS: 'Gist data pulled and merged successfully!',
     ERR_WEBDAV_NOT_ENABLED: 'WebDAV sync not enabled',
     ERR_WEBDAV_MISSING_CONFIG: 'Missing WebDAV URL, Account, or Password',
     ERR_WEBDAV_EMPTY_AUTO_CREATE:
-      'No remote data found, auto-creating and uploading initial data!',
+      'No remote data found, auto-creating and uploading initial data in the background!',
     ERR_WEBDAV_PARSE_FAILED: 'Failed to parse WebDAV payload',
     MSG_WEBDAV_SYNC_SUCCESS: 'WebDAV data pulled and merged successfully!',
     ERR_WEBDAV_TIMEOUT: 'WebDAV Request timed out (10s)',
     ERR_WEBDAV_AUTH_FAILED:
       'WebDAV Authentication Failed: Invalid Username or App Password',
     ERR_WEBDAV_MKCOL_FAILED:
-      'WebDAV Conflict: Parent directory missing and auto-creation failed.',
+      'WebDAV Conflict: Parent directory missing and auto-creation failed. Please manually create it first.',
     ERR_WEBDAV_409:
-      'WebDAV Conflict (409): Try appending a subfolder to URL',
+      'WebDAV Conflict (409): Restricted root or missing folder. Try appending a subfolder to URL (e.g. .../dav/PromptArk/)',
     ERR_OBSIDIAN_NOT_ENABLED: 'Obsidian Vault sync not enabled',
     ERR_OBSIDIAN_MISSING_CONFIG:
       'Missing Obsidian WebDAV URL, Account, or Password',
     ERR_OBSIDIAN_DIR_NOT_FOUND_AUTO_CREATE:
-      'Vault folder not found. Auto-creating and uploading...',
+      'Vault folder not found. Auto-creating and uploading local prompts...',
     MSG_OBSIDIAN_SYNC_SUCCESS: 'Obsidian Vault synced successfully!',
-    MSG_OBSIDIAN_EMPTY_PUSHED: 'Vault folder was empty. Local prompts pushed.',
+    MSG_OBSIDIAN_EMPTY_PUSHED:
+      'Vault folder was empty. Local prompts pushed to Vault.',
     ERR_OBSIDIAN_LOCAL_NOT_ENABLED: 'Obsidian Local sync not enabled',
+    ERR_OBSIDIAN_LOCAL_OFFLINE:
+      'Cannot reach Obsidian plugin. Make sure Obsidian is open and plugin is enabled.',
+    ERR_OBSIDIAN_LOCAL_FETCH_FAILED: 'Failed to fetch prompts from Obsidian',
   },
 };

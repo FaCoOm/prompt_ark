@@ -13,9 +13,11 @@ export interface LocaleDict {
     edit: string;
     searchPlaceholder: string;
     title: string;
+    titlePlaceholder: string;
     category: string;
     content: string;
     contentHint: string;
+    contentEmpty: string;
     save: string;
     cancel: string;
     deleteConfirm: string;
@@ -31,6 +33,7 @@ export interface LocaleDict {
     insert: string;
     insertSuccess: string;
     insertError: string;
+    inputNotFound: string;
     copySuccess: string;
     import: string;
     export: string;
@@ -39,6 +42,7 @@ export interface LocaleDict {
     preview: string;
     edit: string;
     delete: string;
+    copy: string;
     testConnection: string;
   };
   variables: {
@@ -90,6 +94,7 @@ export interface LocaleDict {
     noSyncHint: string;
     chromeSync: string;
     chromeSyncHint: string;
+    forceSyncChrome: string;
     gistSync: string;
     gistSyncHint: string;
     gistId: string;
@@ -111,6 +116,8 @@ export interface LocaleDict {
     obsidianLocalSync: string;
     obsidianLocalTitle: string;
     obsidianLocalHint: string;
+    obsidianSyncCategory: string;
+    obsidianSyncCategoryHint: string;
     obsidianLocalPort: string;
     obsidianLocalApiKey: string;
     forceSyncObsidianLocal: string;
@@ -120,10 +127,13 @@ export interface LocaleDict {
   };
   share: {
     title: string;
+    share: string;
+    favorite: string;
     packMode: string;
     packShare: string;
     packSharing: string;
     packSelectOne: string;
+    packShareFailed: string;
     packTitlePlaceholder: string;
     shareToX: string;
     shareToReddit: string;
@@ -138,9 +148,12 @@ export interface LocaleDict {
     shareFailed: string;
     selected: string;
     configureGithubToken: string;
+    promptSharing: string;
+    sharePromptPack: string;
   };
   import: {
     title: string;
+    defaultPlatform: string;
     tabPaste: string;
     tabUrl: string;
     pasteHint: string;
@@ -148,9 +161,16 @@ export interface LocaleDict {
     urlHint: string;
     scan: string;
     confirm: string;
+    confirmImport: string;
     deepScan: string;
     minScore: string;
     scanning: string;
+    scanFailed: string;
+    scanParsing: string;
+    scanParsed: string;
+    scanDone: string;
+    scanNonePassed: string;
+    scanNoPrompts: string;
     aiAnalyzing: string;
     promptsFiltered: string;
     avgScore: string;
@@ -158,6 +178,9 @@ export interface LocaleDict {
     qualityMid: string;
     qualityLow: string;
     emptyData: string;
+    parseFailed: string;
+    noValidPrompts: string;
+    importError: string;
   };
   filter: {
     categoryAll: string;
@@ -183,6 +206,8 @@ export interface LocaleDict {
     noPageText: string;
     smartConvertNoProvider: string;
     shareArticle: string;
+    selectionToolbarAdd: string;
+    selectionToolbarConvert: string;
   };
   quickAction: {
     rewriteLabel: string;
@@ -234,6 +259,79 @@ export interface LocaleDict {
     toastExists: string;
     toastSuccess: string;
   };
+  skillMode: {
+    title: string;
+    hint: string;
+    systemPrompt: string;
+    systemPromptHint: string;
+    knowledgeSnippets: string;
+    knowledgeSnippetsHint: string;
+    addSnippet: string;
+  };
+  videoPrompt: {
+    title: string;
+    videoToPrompt: string;
+    styleTransfer: string;
+    completeAnalysis: string;
+    inspirationCreation: string;
+    copyAllVocab: string;
+    styleTransferDesc: string;
+    completeAnalysisDesc: string;
+    inspirationCreationDesc: string;
+    copyStyleBlock: string;
+    youtubeVideoPrompt: string;
+    videoAnalysisSaved: string;
+  };
+  history: {
+    title: string;
+    noHistoryYet: string;
+  };
+  timeAgo: {
+    days: string;
+    hours: string;
+    minutes: string;
+    justNow: string;
+  };
+  context: {
+    varsResolved: string;
+  };
+  quality: {
+    title: string;
+  };
+  openclaw: {
+    hint: string;
+    settings: string;
+    promptToSkill: string;
+    publishToHub: string;
+    selectProvider: string;
+  };
+  translation: {
+    translate: string;
+    copySourceText: string;
+    openSourcePage: string;
+    translatePrompt: string;
+  };
+  skillManager: {
+    title: string;
+  };
+  tabs: {
+    general: string;
+    models: string;
+    sync: string;
+  };
+  metadata: {
+    source: string;
+    from: string;
+    captured: string;
+    method: string;
+    methodSmartConvert: string;
+    methodQuickAdd: string;
+    copyBtn: string;
+    openBtn: string;
+    promptCopied: string;
+    sourceTextCopied: string;
+    saveFailed: string;
+  };
   error: {
     permissionDenied: string;
     inputNotFound: string;
@@ -261,6 +359,8 @@ export interface LocaleDict {
     MSG_OBSIDIAN_SYNC_SUCCESS: string;
     MSG_OBSIDIAN_EMPTY_PUSHED: string;
     ERR_OBSIDIAN_LOCAL_NOT_ENABLED: string;
+    ERR_OBSIDIAN_LOCAL_OFFLINE: string;
+    ERR_OBSIDIAN_LOCAL_FETCH_FAILED: string;
   };
 }
 
