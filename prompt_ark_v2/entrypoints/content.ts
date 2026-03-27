@@ -1,18 +1,11 @@
-import { ChatGPTAdapter } from './content/platforms/chatgpt';
-import { ClaudeAdapter } from './content/platforms/claude';
-import type { PlatformAdapter } from './content/platforms/base';
-
-const adapters: PlatformAdapter[] = [
-  new ChatGPTAdapter(),
-  new ClaudeAdapter(),
-];
+import { detectPlatform, type PlatformAdapter } from './content/platforms';
 
 export default defineContentScript({
   matches: ['*://*/*'],
   main() {
     console.log('Prompt Ark content script loaded');
 
-    const adapter = adapters.find((a) => a.detect());
+    const adapter = detectPlatform();
     if (!adapter) {
       console.log('No matching platform adapter found');
       return;
