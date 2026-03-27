@@ -602,6 +602,7 @@ async function handleMessage(message, sendResponse) {
         const hTitle = extractTitleHeuristic(selectedText);
         const hLang = detectLanguageHeuristic(selectedText);
         const newId = crypto.randomUUID();
+        const now = Date.now();
         await PromptStorage.save({
           id: newId,
           title: hTitle,
@@ -613,15 +614,16 @@ async function handleMessage(message, sendResponse) {
           versions: [],
           usageCount: 0,
           lastUsedAt: null,
+          lastUsed: null,
           favorite: false,
           sourceContext: {
             text: selectedText.substring(0, 5000),
             pageTitle: message.pageTitle || '',
             pageUrl: message.pageUrl || '',
-            capturedAt: Date.now(),
+            capturedAt: now,
             convertMethod: 'quick_add',
           },
-          createdAt: Date.now()
+          createdAt: now
         });
         await buildContextMenus(getPrompts);
         try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED' }); } catch { /* OK */ }
@@ -640,6 +642,7 @@ async function handleMessage(message, sendResponse) {
           if (!result?.prompt) throw new Error('Empty result');
 
           const newId = crypto.randomUUID();
+          const now = Date.now();
           const newPrompt = {
             id: newId,
             title: result.title || extractTitleHeuristic(result.prompt),
@@ -651,15 +654,16 @@ async function handleMessage(message, sendResponse) {
             versions: [],
             usageCount: 0,
             lastUsedAt: null,
+            lastUsed: null,
             favorite: false,
             sourceContext: {
               text: selectedText.substring(0, 5000),
               pageTitle: message.pageTitle || '',
               pageUrl: message.pageUrl || '',
-              capturedAt: Date.now(),
+              capturedAt: now,
               convertMethod: 'smart_convert',
             },
-            createdAt: Date.now()
+            createdAt: now
           };
           await PromptStorage.save(newPrompt);
           await buildContextMenus(getPrompts);
