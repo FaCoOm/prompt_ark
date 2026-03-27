@@ -18,7 +18,7 @@ const platformOptions = [
 ];
 
 const Settings: Component = () => {
-  const { t } = useI18n();
+  const { t, setLocale } = useI18n();
   const [isLoading, setIsLoading] = createSignal(true);
   const [isSaving, setIsSaving] = createSignal(false);
   const [settings, setSettings] = createSignal<Settings | null>(null);
@@ -40,7 +40,9 @@ const Settings: Component = () => {
       settingsStore.loadSettings(),
       providerStore.loadProviders(),
     ]);
-    setSettings({ ...settingsStore.state.settings });
+    const loadedSettings = settingsStore.state.settings;
+    setSettings({ ...loadedSettings });
+    setLocale(loadedSettings.language as 'en' | 'zh-CN');
     setIsLoading(false);
   });
 
@@ -58,6 +60,11 @@ const Settings: Component = () => {
     const newSettings = { ...settings()!, ...updates };
     setSettings(newSettings);
     await settingsStore.updateSettings(updates);
+    
+    // Sync i18n locale when language changes
+    if (updates.language) {
+      setLocale(updates.language as 'en' | 'zh-CN');
+    }
   };
 
   const updateGistSync = (updates: Partial<GistSyncConfig>) => {
