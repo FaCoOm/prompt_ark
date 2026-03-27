@@ -1,5 +1,5 @@
-import type { Component, JSX } from 'solid-js';
-import { splitProps, createSignal, createMemo } from 'solid-js';
+import type { Component } from 'solid-js';
+import { splitProps, createSignal, createResource } from 'solid-js';
 import { twMerge } from 'tailwind-merge';
 import { clsx, type ClassValue } from 'clsx';
 import { marked } from 'marked';
@@ -26,7 +26,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const MarkdownEditor: Component<MarkdownEditorProps> = (props) => {
-  const [local, rest] = splitProps(props, [
+  const [local] = splitProps(props, [
     'value',
     'onChange',
     'placeholder',
@@ -43,17 +43,19 @@ const MarkdownEditor: Component<MarkdownEditorProps> = (props) => {
 
   const [mode, setMode] = createSignal<EditorMode>('edit');
 
-  const editorId = () => local.id || `markdown-editor-${Math.random().toString(36).slice(2, 11)}`;
+  const [editorId] = createSignal(local.id || `markdown-editor-${Math.random().toString(36).slice(2, 11)}`);
 
-  const previewHtml = createMemo(async () => {
-    const content = local.value || '';
-    try {
-      const html = await marked(content, { gfm: true, breaks: true });
-      return html as string;
-    } catch {
-      return '<p class="text-red-500">Failed to render preview</p>';
+  const [previewHtml] = createResource(
+    () => local.value,
+    async (content) => {
+      try {
+        const html = await marked(content || '', { gfm: true, breaks: true });
+        return html as string;
+      } catch {
+        return '<p class="text-red-500">Failed to render preview</p>';
+      }
     }
-  });
+  );
 
   const insertText = (before: string, after: string = '') => {
     const textarea = document.getElementById(editorId()) as HTMLTextAreaElement;
@@ -183,7 +185,7 @@ const MarkdownEditor: Component<MarkdownEditorProps> = (props) => {
                 'prose prose-sm dark:prose-invert max-w-none',
                 local.previewClass
               )}
-              innerHTML={previewHtml()}
+              innerHTML={previewHtml() || '<p class="text-surface-400">Loading preview...</p>'}
             />
           </div>
         )}
