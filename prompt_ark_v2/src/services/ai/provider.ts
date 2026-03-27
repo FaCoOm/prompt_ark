@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
-import { LocalStorage } from '@/core/storage';
-import { encrypt, decrypt } from '@/utils/crypto';
+import { LocalStorage } from '../../core/storage/local';
+import { encrypt, decrypt } from '../../utils/crypto';
 import {
   GeminiWebProvider,
   GeminiAPIProvider,

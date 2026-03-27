@@ -52,6 +52,8 @@ async function handleMessage(
         return handleUpdateSettings(message.payload as { settings: Partial<Settings> });
 
       // AI operations
+      case 'GENERATE_TEXT':
+        return handleGenerateText(message.payload as { prompt: string; providerId?: string });
       case 'OPTIMIZE_PROMPT':
         return handleOptimizePrompt(message.payload as { content: string; providerId: string; variant: 'concise' | 'enhanced' | 'professional' });
       case 'SMART_CONVERT':
@@ -208,6 +210,31 @@ async function handleUpdateSettings(payload: { settings: Partial<Settings> }) {
 }
 
 // ============ AI Handlers ============
+
+async function handleGenerateText(payload: { prompt: string; providerId?: string }) {
+  try {
+    const settings = await SettingsStorage.getSettings();
+    const providerId = payload.providerId ?? settings.defaultProviderId;
+
+    if (!providerId) {
+      return { success: false, error: 'No AI provider configured' };
+    }
+
+    // Import AI provider dynamically
+    const { generateText } = await import('../../../src/services/ai/generate');
+    const result = await generateText({
+      prompt: payload.prompt,
+      providerId,
+    });
+
+    return { success: true, text: result.text };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate text',
+    };
+  }
+}
 
 async function handleOptimizePrompt(payload: { content: string; providerId: string; variant: 'concise' | 'enhanced' | 'professional' }) {
   const result = await optimizePrompt({

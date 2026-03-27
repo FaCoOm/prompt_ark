@@ -27,8 +27,10 @@ const Settings: Component = () => {
     }
   };
 
-  const updateSettings = (updates: Partial<Settings>) => {
-    setSettings((prev) => prev ? { ...prev, ...updates } : null);
+  const updateSettings = async (updates: Partial<Settings>) => {
+    const newSettings = { ...settings()!, ...updates };
+    setSettings(newSettings);
+    await settingsStore.updateSettings(updates);
   };
 
   const updateGistSync = (updates: Partial<GistSyncConfig>) => {

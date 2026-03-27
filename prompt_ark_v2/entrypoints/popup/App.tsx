@@ -1,5 +1,6 @@
-import { createSignal } from 'solid-js';
+import { createSignal, onMount } from 'solid-js';
 import { useI18n } from '../../src/i18n/context';
+import { settingsStore } from '../../src/stores/settingsStore';
 import './style.css';
 
 export default function App() {
@@ -8,6 +9,10 @@ export default function App() {
   const [isGenerating, setIsGenerating] = createSignal(false);
   const [generatedPrompt, setGeneratedPrompt] = createSignal('');
   const [error, setError] = createSignal('');
+
+  onMount(async () => {
+    await settingsStore.loadSettings();
+  });
 
   const handleGenerate = async () => {
     const url = imageUrl().trim();
