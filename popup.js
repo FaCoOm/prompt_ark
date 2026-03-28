@@ -19,6 +19,8 @@ class PopupManager {
     this.activeViewMode = 'smart';
     this.currentPage = 1;
     this.pageSize = 10;
+    this.pendingRevealPromptId = null;
+    this.revealPromptTimer = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
     this.githubClient = new GitHubClient();
@@ -45,6 +47,7 @@ class PopupManager {
     this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
+    await this.consumePendingPromptReveal();
 
     // Render Hub user info if logged in
     this.renderHubUserInfo();
@@ -85,11 +88,16 @@ class PopupManager {
           }
           this.renderCategories();
           this.renderPrompts();
+          if (msg.action === 'create' && msg.prompt?.id) {
+            this.pendingRevealPromptId = String(msg.prompt.id);
+            this.consumePendingPromptReveal();
+          }
         } else {
           // Full reload fallback (e.g. force-sync from remote)
           this.loadPrompts().then(() => {
             this.renderCategories();
             this.renderPrompts();
+            this.consumePendingPromptReveal();
           });
         }
       }
@@ -99,7 +107,6 @@ class PopupManager {
   localize() {
     i18n.translatePage();
     this.updateControlStates();
-    this.updateViewSummary();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -450,6 +457,63 @@ class PopupManager {
     return Array.from(categories).sort();
   }
 
+  async getStoredPendingPromptReveal() {
+    try {
+      const { pendingPromptReveal } = await chrome.storage.local.get('pendingPromptReveal');
+      if (!pendingPromptReveal?.id) return null;
+
+      const timestamp = Number(pendingPromptReveal.timestamp || 0);
+      if (timestamp && (Date.now() - timestamp) > 10 * 60 * 1000) {
+        await chrome.storage.local.remove('pendingPromptReveal');
+        return null;
+      }
+
+      return String(pendingPromptReveal.id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async clearPendingPromptReveal() {
+    this.pendingRevealPromptId = null;
+    try {
+      await chrome.storage.local.remove('pendingPromptReveal');
+    } catch (e) {
+      // Ignore storage cleanup failures for this ephemeral state.
+    }
+  }
+
+  async consumePendingPromptReveal() {
+    const revealId = this.pendingRevealPromptId || await this.getStoredPendingPromptReveal();
+    if (!revealId) return false;
+
+    const prompt = this.prompts.find(p => String(p.id) === String(revealId));
+    if (!prompt) return false;
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    this.activeViewMode = 'recentAdded';
+    this.currentCategory = 'all';
+    this.currentPage = 1;
+    this.renderCategories();
+    this.renderPrompts();
+
+    const selector = `.prompt-item[data-id="${String(revealId).replace(/"/g, '\\"')}"]`;
+    const target = document.querySelector(selector);
+    if (target) {
+      target.classList.add('prompt-item-reveal');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      clearTimeout(this.revealPromptTimer);
+      this.revealPromptTimer = setTimeout(() => {
+        target.classList.remove('prompt-item-reveal');
+      }, 2600);
+    }
+
+    await this.clearPendingPromptReveal();
+    return true;
+  }
+
   getPromptUsageCount(prompt) {
     return Number(prompt?.usageCount || 0);
   }
@@ -516,28 +580,23 @@ class PopupManager {
     const configs = {
       smart: {
         sortMode: 'smart',
-        predicate: null,
-        summaryKey: 'viewSummarySmart'
+        predicate: null
       },
       favorites: {
         sortMode: 'smart',
-        predicate: (prompt) => Boolean(prompt.favorite),
-        summaryKey: 'viewSummaryFavorites'
+        predicate: (prompt) => Boolean(prompt.favorite)
       },
       mostUsed: {
         sortMode: 'usageCount',
-        predicate: (prompt) => this.getPromptUsageCount(prompt) > 0,
-        summaryKey: 'viewSummaryMostUsed'
+        predicate: (prompt) => this.getPromptUsageCount(prompt) > 0
       },
       recentUsed: {
         sortMode: 'lastUsedAt',
-        predicate: (prompt) => this.getPromptLastUsedAt(prompt) > 0,
-        summaryKey: 'viewSummaryRecentUsed'
+        predicate: (prompt) => this.getPromptLastUsedAt(prompt) > 0
       },
       recentAdded: {
         sortMode: 'createdAt',
-        predicate: (prompt) => !prompt.builtIn && this.getPromptCreatedAt(prompt) > 0,
-        summaryKey: 'viewSummaryRecentAdded'
+        predicate: (prompt) => !prompt.builtIn && this.getPromptCreatedAt(prompt) > 0
       }
     };
 
@@ -548,12 +607,6 @@ class PopupManager {
     document.querySelectorAll('.smart-view-btn[data-view]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.view === this.activeViewMode);
     });
-  }
-
-  updateViewSummary() {
-    const summary = document.getElementById('viewSummary');
-    if (!summary) return;
-    summary.textContent = i18n.t(this.getViewConfig().summaryKey);
   }
 
   renderPromptTimeMeta(prompt) {
@@ -605,7 +658,6 @@ class PopupManager {
 
     filtered = this.sortPrompts(filtered, viewConfig.sortMode);
     this.updateControlStates();
-    this.updateViewSummary();
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -1944,6 +1996,7 @@ ${p.sourceContext ? `
   }
 
   async savePrompt() {
+    const isEditing = Boolean(this.editingId);
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
       category: document.getElementById('categoryInput').value.trim(),
@@ -1988,6 +2041,10 @@ ${p.sourceContext ? `
       this.renderCategories();
       this.renderPrompts();
       this.hideEditModal();
+      if (!isEditing && response.promptId) {
+        this.pendingRevealPromptId = String(response.promptId);
+      }
+      await this.consumePendingPromptReveal();
     } else {
       console.error('Save failed:', response);
       this.showToast('❌ ' + i18n.t('saveError'));
