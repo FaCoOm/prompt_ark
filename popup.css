@@ -2496,7 +2496,7 @@ body::before {
 .optimize-provider-menu {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   z-index: 100;
   width: 260px;
   background: var(--bg-elevated);

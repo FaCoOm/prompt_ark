@@ -37,7 +37,7 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
 | **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
 | **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
-| **Use across devices** | ☁️ Chrome Sync or WebDAV |
+| **Use across devices** | ☁️ WebDAV or Obsidian Vault sync |
 
 ## 🔌 Works Everywhere You Chat with AI
 
@@ -91,8 +91,9 @@ Go to **Settings → Sync** and choose your sync engine:
 
 | Method | Best for |
 |---|---|
-| **Chrome Sync** (default) | Zero config, automatic, ~100KB limit |
+| **Local only** (default) | Zero config, everything stays on this device |
 | **WebDAV** | Self-hosted, privacy-first (e.g., Jianguoyun) |
+| **Obsidian Vault (WebDAV)** | Markdown-first workflows and Obsidian users |
 
 > 📚 **[Full Documentation →](docs/en/)** for more details on every feature.
 
@@ -166,8 +167,9 @@ Don't start from zero. Prompt Ark ships with **100 curated prompts** (50 English
 
 | Method | Best for |
 |---|---|
-| **Chrome Sync** (default) | Automatic, zero config, works across Chrome instances |
+| **Local only** (default) | Zero config, data stays on the current device |
 | **WebDAV** | Self-hosted, privacy-first users (e.g., Jianguoyun) |
+| **Obsidian Vault (WebDAV)** | Keep prompts organized as Markdown files in your vault |
 
 Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 
