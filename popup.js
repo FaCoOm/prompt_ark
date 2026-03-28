@@ -609,20 +609,9 @@ class PopupManager {
     });
   }
 
-  renderPromptTimeMeta(prompt) {
-    const lastUsedAt = this.getPromptLastUsedAt(prompt);
-    const createdAt = this.getPromptCreatedAt(prompt);
-    const meta = [];
-
-    if (lastUsedAt > 0) {
-      meta.push(`<span class="prompt-time-meta prompt-time-used">${i18n.t('metaLastUsed', { time: this.formatRelativeTime(lastUsedAt) })}</span>`);
-    }
-
-    if (createdAt > 0) {
-      meta.push(`<span class="prompt-time-meta prompt-time-created">${i18n.t('metaCreated', { time: this.formatRelativeTime(createdAt) })}</span>`);
-    }
-
-    return meta.join('');
+  renderPromptScoreBadge(prompt) {
+    const score = PromptScorer.score(prompt?.content);
+    return `<span class="prompt-score-badge" style="color:${PromptScorer.getScoreColor(score)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${score}/100">${(score / 10).toFixed(1)}</span>`;
   }
 
   // --- Prompt List Rendering ---
@@ -679,7 +668,10 @@ class PopupManager {
       <div class="prompt-item ${this.shareManager.isPackMode ? 'selectable' : ''}" data-id="${p.id}">
         <div class="prompt-main">
           <div class="prompt-header">
-            <div class="prompt-title" title="${this.escapeHtml(p.title)}">${this.escapeHtml(p.title)}</div>
+            <div class="prompt-title-row">
+              <div class="prompt-title" title="${this.escapeHtml(p.title)}">${this.escapeHtml(p.title)}</div>
+              ${this.renderPromptScoreBadge(p)}
+            </div>
             <div class="prompt-actions">
               <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}">
                 ${p.favorite ? '⭐' : '☆'}
@@ -726,11 +718,8 @@ class PopupManager {
             ${p.category ? `<span class="prompt-category">${this.escapeHtml(p.category)}</span>` : ''}
             ${p.tags && p.tags.length > 0 ? p.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
             ${p.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(p.shortcut)}</span>` : ''}
-            ${(p.usageCount || 0) > 0 ? `<span class="prompt-usage">${p.usageCount}×</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
-            ${this.renderPromptTimeMeta(p)}
-            ${(() => { const s = PromptScorer.score(p.content); return `<span class="prompt-score" style="color:${PromptScorer.getScoreColor(s)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${s}/100">${s >= 75 ? '●' : s >= 50 ? '◐' : '○'} ${(s / 10).toFixed(1)}</span>`; })()}
           </div>
 ${p.sourceContext ? `
           <div class="source-panel">

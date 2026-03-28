@@ -703,6 +703,15 @@ body::before {
   align-items: center;
   margin-bottom: 6px;
   width: 100%;
+  gap: 10px;
+}
+
+.prompt-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .prompt-title {
@@ -714,7 +723,6 @@ body::before {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 12px;
 }
 
 .prompt-preview {
@@ -1956,34 +1964,6 @@ body::before {
   white-space: nowrap;
 }
 
-/* Usage badge */
-.prompt-usage {
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.prompt-time-meta {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: 500;
-  border: 1px solid transparent;
-}
-
-.prompt-time-used {
-  color: var(--accent);
-  background: rgba(240, 160, 80, 0.12);
-  border-color: rgba(240, 160, 80, 0.18);
-}
-
-.prompt-time-created {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--border);
-}
-
 /* Favorite button */
 .fav-btn {
   font-size: 14px !important;
@@ -2627,13 +2607,21 @@ body::before {
 }
 
 /* --- Prompt Quality Score Badge --- */
-.prompt-score {
-  font-size: 0.75em;
+.prompt-score-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  font-size: 10px;
   font-weight: 600;
   font-family: 'SF Mono', 'Cascadia Code', monospace;
-  opacity: 0.85;
+  line-height: 1;
+  opacity: 0.92;
   cursor: help;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
 }
 
 /* --- Enum Variable Pill & Select --- */
