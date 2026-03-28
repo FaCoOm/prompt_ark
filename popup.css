@@ -1895,65 +1895,81 @@ body::before {
 }
 
 /* --- Smart Filters --- */
-.smart-filters {
+.smart-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.toolbar-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 6px 0;
+  flex-wrap: wrap;
 }
 
-.smart-filter-btn {
-  padding: 4px 10px;
+.toolbar-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+
+.smart-filters,
+.sort-controls {
+  margin: 0;
+}
+
+.smart-filter-btn,
+.sort-mode-btn {
+  padding: 5px 10px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   border-radius: 14px;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
 }
 
-.smart-filter-btn:hover {
+.smart-filter-btn:hover,
+.sort-mode-btn:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
+  color: var(--accent);
 }
 
-.smart-filter-btn.active {
+.smart-filter-btn.active,
+.sort-mode-btn.active {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
+  box-shadow: 0 8px 18px rgba(240, 160, 80, 0.18);
 }
 
-.sort-time-btn {
-  margin-left: auto;
-  margin-right: 4px;
-  min-width: 42px;
-  padding: 4px 12px;
-  color: var(--accent);
-  background: rgba(240, 160, 80, 0.14);
-  border-color: rgba(240, 160, 80, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(240, 160, 80, 0.2);
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+.chip-icon {
+  font-size: 12px;
 }
 
-.sort-time-btn:hover {
-  background: rgba(240, 160, 80, 0.22);
-  border-color: rgba(240, 160, 80, 0.8);
+.chip-text {
+  white-space: nowrap;
 }
 
-.sort-arrow {
-  color: var(--text-secondary);
-  opacity: 0.65;
-}
-
-.sort-arrow.active {
-  color: var(--accent);
-  opacity: 1;
-  text-shadow: 0 0 8px rgba(240, 160, 80, 0.32);
+.toolbar-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  line-height: 1.45;
 }
 
 /* Usage badge */
@@ -1961,6 +1977,27 @@ body::before {
   color: var(--accent);
   font-weight: 600;
   font-size: 10px;
+}
+
+.prompt-time-meta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.prompt-time-used {
+  color: var(--accent);
+  background: rgba(240, 160, 80, 0.12);
+  border-color: rgba(240, 160, 80, 0.18);
+}
+
+.prompt-time-created {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
 }
 
 /* Favorite button */

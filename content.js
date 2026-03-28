@@ -1184,6 +1184,39 @@ class AIPromptManager {
 
   // --- UI: Prompt Picker ---
 
+  getPromptUsageCount(prompt) {
+    return Number(prompt?.usageCount || 0);
+  }
+
+  getPromptLastUsedAt(prompt) {
+    const usageCount = this.getPromptUsageCount(prompt);
+    const legacyLastUsed = usageCount > 0 ? Number(prompt?.lastUsed || 0) : 0;
+    return Number(prompt?.lastUsedAt || legacyLastUsed || 0);
+  }
+
+  getPromptCreatedAt(prompt) {
+    const explicitCreatedAt = Number(prompt?.createdAt || 0);
+    if (explicitCreatedAt > 0) return explicitCreatedAt;
+    if (!prompt?.lastUsedAt && this.getPromptUsageCount(prompt) === 0 && prompt?.lastUsed) {
+      return Number(prompt.lastUsed || 0);
+    }
+    return Number(prompt?.updatedAt || 0);
+  }
+
+  comparePromptsSmart(a, b) {
+    const favoriteDiff = Number(Boolean(b?.favorite)) - Number(Boolean(a?.favorite));
+    const lastUsedDiff = this.getPromptLastUsedAt(b) - this.getPromptLastUsedAt(a);
+    const usageDiff = this.getPromptUsageCount(b) - this.getPromptUsageCount(a);
+    const createdDiff = this.getPromptCreatedAt(b) - this.getPromptCreatedAt(a);
+
+    if (favoriteDiff !== 0) return favoriteDiff;
+    if (lastUsedDiff !== 0) return lastUsedDiff;
+    if (usageDiff !== 0) return usageDiff;
+    if (createdDiff !== 0) return createdDiff;
+
+    return String(a?.title || '').localeCompare(String(b?.title || ''), undefined, { sensitivity: 'base' });
+  }
+
   async showPromptPicker(onSelect = null) {
     if (this.pickerVisible) {
       this.hidePromptPicker();
@@ -1206,12 +1239,7 @@ class AIPromptManager {
         return;
       }
       this.prompts = response.prompts;
-      // Smart sort: favorites first, then by most recently used
-      this.prompts.sort((a, b) => {
-        if (a.favorite && !b.favorite) return -1;
-        if (!a.favorite && b.favorite) return 1;
-        return (b.lastUsedAt || 0) - (a.lastUsedAt || 0);
-      });
+      this.prompts.sort((a, b) => this.comparePromptsSmart(a, b));
       this.renderPromptPicker();
       this.pickerVisible = true;
     } catch (e) {

@@ -415,13 +415,45 @@
       <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索 Prompt...">
     </div>
 
-    <!-- Smart Filters -->
-    <div class="smart-filters" id="smartFilters">
-      <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites">⭐</button>
-      <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed">🔥</button>
-      <button class="smart-filter-btn recent-added-btn" data-filter="recentAdded" data-i18n-title="recentlyAdded">➕</button>
-      <button class="smart-filter-btn" data-filter="recentUsed" data-i18n-title="recentlyUsed">🕐</button>
-      <button id="timeSortBtn" class="smart-filter-btn sort-time-btn" title="按时间排序">↑↓</button>
+    <!-- Smart Filters & Sort -->
+    <div class="smart-toolbar">
+      <div class="toolbar-row smart-filters" id="smartFilters">
+        <span class="toolbar-label" data-i18n="filterLabel">筛选</span>
+        <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites">
+          <span class="chip-icon">⭐</span>
+          <span class="chip-text" data-i18n="favorites">收藏</span>
+        </button>
+        <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed">
+          <span class="chip-icon">🔥</span>
+          <span class="chip-text" data-i18n="mostUsed">常用</span>
+        </button>
+        <button class="smart-filter-btn recent-added-btn" data-filter="recentAdded" data-i18n-title="recentlyAdded">
+          <span class="chip-icon">➕</span>
+          <span class="chip-text" data-i18n="recentlyAdded">最近添加</span>
+        </button>
+        <button class="smart-filter-btn" data-filter="recentUsed" data-i18n-title="recentlyUsed">
+          <span class="chip-icon">🕐</span>
+          <span class="chip-text" data-i18n="recentlyUsed">最近使用</span>
+        </button>
+      </div>
+
+      <div class="toolbar-row sort-controls" id="sortControls">
+        <span class="toolbar-label" data-i18n="sortLabel">排序</span>
+        <button class="sort-mode-btn active" data-sort="smart" data-i18n-title="sortSmart">
+          <span data-i18n="sortSmart">智能</span>
+        </button>
+        <button class="sort-mode-btn" data-sort="lastUsedAt" data-i18n-title="recentlyUsed">
+          <span data-i18n="recentlyUsed">最近使用</span>
+        </button>
+        <button class="sort-mode-btn" data-sort="usageCount" data-i18n-title="sortByUsage">
+          <span data-i18n="sortByUsage">使用频率</span>
+        </button>
+        <button class="sort-mode-btn" data-sort="createdAt" data-i18n-title="recentlyAdded">
+          <span data-i18n="recentlyAdded">最近添加</span>
+        </button>
+      </div>
+
+      <div class="toolbar-summary" id="sortSummary"></div>
     </div>
 
     <!-- 分类标签 -->

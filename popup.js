@@ -17,7 +17,7 @@ class PopupManager {
     this.currentCategory = 'all';
     this.editingId = null;
     this.activeSmartFilter = null;
-    this.timeSortDirection = 'desc';
+    this.activeSortMode = 'smart';
     this.currentPage = 1;
     this.pageSize = 10;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -99,7 +99,8 @@ class PopupManager {
 
   localize() {
     i18n.translatePage();
-    this.updateTimeSortButton();
+    this.updateControlStates();
+    this.updateSortSummary();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -450,26 +451,132 @@ class PopupManager {
     return Array.from(categories).sort();
   }
 
+  getPromptUsageCount(prompt) {
+    return Number(prompt?.usageCount || 0);
+  }
+
+  getPromptLastUsedAt(prompt) {
+    const usageCount = this.getPromptUsageCount(prompt);
+    const legacyLastUsed = usageCount > 0 ? Number(prompt?.lastUsed || 0) : 0;
+    return Number(prompt?.lastUsedAt || legacyLastUsed || 0);
+  }
+
+  getPromptCreatedAt(prompt) {
+    const explicitCreatedAt = Number(prompt?.createdAt || 0);
+    if (explicitCreatedAt > 0) return explicitCreatedAt;
+
+    // Backward compatibility for old imported prompts that only wrote `lastUsed`.
+    if (!prompt?.lastUsedAt && this.getPromptUsageCount(prompt) === 0 && prompt?.lastUsed) {
+      return Number(prompt.lastUsed || 0);
+    }
+
+    return Number(prompt?.updatedAt || 0);
+  }
+
+  comparePrompts(a, b, sortMode = this.activeSortMode) {
+    const favoriteDiff = Number(Boolean(b?.favorite)) - Number(Boolean(a?.favorite));
+    const lastUsedDiff = this.getPromptLastUsedAt(b) - this.getPromptLastUsedAt(a);
+    const usageDiff = this.getPromptUsageCount(b) - this.getPromptUsageCount(a);
+    const createdDiff = this.getPromptCreatedAt(b) - this.getPromptCreatedAt(a);
+
+    if (sortMode === 'lastUsedAt') {
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (usageDiff !== 0) return usageDiff;
+      if (createdDiff !== 0) return createdDiff;
+    } else if (sortMode === 'usageCount') {
+      if (usageDiff !== 0) return usageDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (createdDiff !== 0) return createdDiff;
+    } else if (sortMode === 'createdAt') {
+      if (createdDiff !== 0) return createdDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (usageDiff !== 0) return usageDiff;
+    } else {
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (usageDiff !== 0) return usageDiff;
+      if (createdDiff !== 0) return createdDiff;
+    }
+
+    const titleA = String(a?.title || '');
+    const titleB = String(b?.title || '');
+    const titleDiff = titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+    if (titleDiff !== 0) return titleDiff;
+
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  }
+
+  sortPrompts(prompts, sortMode = this.activeSortMode) {
+    return [...prompts].sort((a, b) => this.comparePrompts(a, b, sortMode));
+  }
+
+  getFilterSummaryKey() {
+    if (this.activeSmartFilter === 'favorites') return 'summaryFilterFavorites';
+    if (this.activeSmartFilter === 'mostUsed') return 'summaryFilterMostUsed';
+    if (this.activeSmartFilter === 'recentAdded') return 'summaryFilterRecentlyAdded';
+    if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') return 'summaryFilterRecentlyUsed';
+    return 'summaryAllPrompts';
+  }
+
+  getSortSummaryKey() {
+    if (this.activeSortMode === 'lastUsedAt') return 'summarySortLastUsed';
+    if (this.activeSortMode === 'usageCount') return 'summarySortUsage';
+    if (this.activeSortMode === 'createdAt') return 'summarySortCreated';
+    return 'summarySortSmart';
+  }
+
+  updateControlStates() {
+    document.querySelectorAll('.smart-filter-btn[data-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === this.activeSmartFilter);
+    });
+
+    document.querySelectorAll('.sort-mode-btn[data-sort]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.sort === this.activeSortMode);
+    });
+  }
+
+  updateSortSummary() {
+    const summary = document.getElementById('sortSummary');
+    if (!summary) return;
+    summary.textContent = `${i18n.t(this.getFilterSummaryKey())} · ${i18n.t(this.getSortSummaryKey())}`;
+  }
+
+  renderPromptTimeMeta(prompt) {
+    const lastUsedAt = this.getPromptLastUsedAt(prompt);
+    const createdAt = this.getPromptCreatedAt(prompt);
+    const meta = [];
+
+    if (lastUsedAt > 0) {
+      meta.push(`<span class="prompt-time-meta prompt-time-used">${i18n.t('metaLastUsed', { time: this.formatRelativeTime(lastUsedAt) })}</span>`);
+    }
+
+    if (createdAt > 0) {
+      meta.push(`<span class="prompt-time-meta prompt-time-created">${i18n.t('metaCreated', { time: this.formatRelativeTime(createdAt) })}</span>`);
+    }
+
+    return meta.join('');
+  }
+
   // --- Prompt List Rendering ---
 
   renderPrompts() {
     const container = document.getElementById('promptList');
-    const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+    const searchQuery = (document.getElementById('searchInput').value || '').toLowerCase();
 
     let filtered = this.prompts;
-    let sortMode = 'default';
 
-    // Smart filter
+    // Quick filters
     if (this.activeSmartFilter === 'favorites') {
       filtered = filtered.filter(p => p.favorite);
     } else if (this.activeSmartFilter === 'mostUsed') {
-      filtered = filtered.filter(p => (p.usageCount || 0) > 0);
+      filtered = filtered.filter(p => this.getPromptUsageCount(p) > 0);
     } else if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') {
-      filtered = filtered.filter(p => p.lastUsedAt || (p.lastUsed && (p.usageCount || 0) > 0));
-      sortMode = 'lastUsedAt';
+      filtered = filtered.filter(p => this.getPromptLastUsedAt(p) > 0);
     } else if (this.activeSmartFilter === 'recentAdded') {
-      filtered = filtered.filter(p => !p.builtIn && p.createdAt);
-      sortMode = 'createdAt';
+      filtered = filtered.filter(p => !p.builtIn && this.getPromptCreatedAt(p) > 0);
     }
 
     if (this.currentCategory !== 'all') {
@@ -477,16 +584,22 @@ class PopupManager {
     }
 
     if (searchQuery) {
-      filtered = filtered.filter(p =>
-        p.title.toLowerCase().includes(searchQuery) ||
-        p.content.toLowerCase().includes(searchQuery) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery)) ||
-        (p.tags && p.tags.some(t => t.toLowerCase().includes(searchQuery))) ||
-        (p.sourceContext?.text && p.sourceContext.text.toLowerCase().includes(searchQuery))
-      );
+      filtered = filtered.filter(p => {
+        const title = String(p.title || '').toLowerCase();
+        const content = String(p.content || '').toLowerCase();
+        const category = String(p.category || '').toLowerCase();
+        const sourceText = String(p.sourceContext?.text || '').toLowerCase();
+        return title.includes(searchQuery) ||
+          content.includes(searchQuery) ||
+          category.includes(searchQuery) ||
+          (p.tags && p.tags.some(t => String(t || '').toLowerCase().includes(searchQuery))) ||
+          sourceText.includes(searchQuery);
+      });
     }
 
-    filtered = this.sortPromptsByTime(filtered, sortMode);
+    filtered = this.sortPrompts(filtered);
+    this.updateControlStates();
+    this.updateSortSummary();
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -558,6 +671,7 @@ class PopupManager {
             ${(p.usageCount || 0) > 0 ? `<span class="prompt-usage">${p.usageCount}×</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
+            ${this.renderPromptTimeMeta(p)}
             ${(() => { const s = PromptScorer.score(p.content); return `<span class="prompt-score" style="color:${PromptScorer.getScoreColor(s)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${s}/100">${s >= 75 ? '●' : s >= 50 ? '◐' : '○'} ${(s / 10).toFixed(1)}</span>`; })()}
           </div>
 ${p.sourceContext ? `
@@ -603,39 +717,6 @@ ${p.sourceContext ? `
     if (page < 1 || isNaN(page)) return;
     this.currentPage = page;
     this.renderPrompts();
-  }
-
-  getPromptTimestamp(prompt, sortMode = 'default') {
-    if (sortMode === 'createdAt') return Number(prompt.createdAt || 0);
-    if (sortMode === 'lastUsedAt') {
-      const legacy = (prompt.usageCount || 0) > 0 ? prompt.lastUsed : 0;
-      return Number(prompt.lastUsedAt || legacy || 0);
-    }
-    return Number(prompt.lastUsedAt || prompt.lastUsed || prompt.updatedAt || prompt.createdAt || 0);
-  }
-
-  sortPromptsByTime(prompts, sortMode = 'default') {
-    const direction = this.timeSortDirection === 'asc' ? 1 : -1;
-    return [...prompts].sort((a, b) => {
-      const timeDiff = (this.getPromptTimestamp(a, sortMode) - this.getPromptTimestamp(b, sortMode)) * direction;
-      if (timeDiff !== 0) return timeDiff;
-
-      const createdDiff = ((a.createdAt || 0) - (b.createdAt || 0)) * direction;
-      if (createdDiff !== 0) return createdDiff;
-
-      return String(a.id || '').localeCompare(String(b.id || '')) * direction;
-    });
-  }
-
-  updateTimeSortButton() {
-    const btn = document.getElementById('timeSortBtn');
-    if (!btn) return;
-    const isAsc = this.timeSortDirection === 'asc';
-    btn.title = isAsc ? i18n.t('timeSortOldestFirst') : i18n.t('timeSortNewestFirst');
-    btn.innerHTML = `
-      <span class="sort-arrow sort-arrow-up ${isAsc ? 'active' : ''}">↑</span>
-      <span class="sort-arrow sort-arrow-down ${isAsc ? '' : 'active'}">↓</span>
-    `;
   }
 
   // --- Event Binding ---
@@ -1017,22 +1098,33 @@ ${p.sourceContext ? `
       if (!btn) return;
       const filter = btn.dataset.filter;
       if (!filter) return;
+
+      const linkedSortModes = {
+        favorites: 'smart',
+        mostUsed: 'usageCount',
+        recentAdded: 'createdAt',
+        recentUsed: 'lastUsedAt',
+        recent: 'lastUsedAt'
+      };
+
       if (this.activeSmartFilter === filter) {
         this.activeSmartFilter = null; // Toggle off
-        btn.classList.remove('active');
       } else {
         this.activeSmartFilter = filter;
-        document.querySelectorAll('.smart-filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        this.activeSortMode = linkedSortModes[filter] || this.activeSortMode;
       }
+
       this.currentPage = 1;
+      this.updateControlStates();
       this.renderPrompts();
     });
 
-    document.getElementById('timeSortBtn')?.addEventListener('click', () => {
-      this.timeSortDirection = this.timeSortDirection === 'desc' ? 'asc' : 'desc';
+    document.getElementById('sortControls')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.sort-mode-btn');
+      if (!btn?.dataset.sort) return;
+      this.activeSortMode = btn.dataset.sort;
       this.currentPage = 1;
-      this.updateTimeSortButton();
+      this.updateControlStates();
       this.renderPrompts();
     });
 
@@ -2745,9 +2837,11 @@ ${p.sourceContext ? `
       favorite: p.favorite || false,
       variables: p.variables || [],
       usageCount: 0,
-      lastUsed: Date.now(),
+      lastUsedAt: null,
+      lastUsed: null,
       pinned: false,
-      keywords: [p.act.toLowerCase()]
+      keywords: [String(p.act || '').toLowerCase()],
+      createdAt: Date.now()
     }));
 
     try {
