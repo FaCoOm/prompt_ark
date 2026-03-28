@@ -2624,7 +2624,15 @@ ${p.sourceContext ? `
   async exportPrompts() {
     const response = await chrome.runtime.sendMessage({ type: 'EXPORT_PROMPTS' });
     if (response.success) {
-      const data = JSON.stringify(response.data, null, 2);
+      const sorted = [...response.data].sort((a, b) => {
+        const catA = (a.category || '').toLowerCase();
+        const catB = (b.category || '').toLowerCase();
+        if (!catA && catB) return 1;
+        if (catA && !catB) return -1;
+        if (catA !== catB) return catA.localeCompare(catB);
+        return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+      });
+      const data = JSON.stringify(sorted, null, 2);
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2882,8 +2890,8 @@ ${p.sourceContext ? `
 
       if (response.success) {
         await this.loadPrompts();
-        if (newPrompts.length > 0) {
-          this.pendingRevealPromptId = String(newPrompts[0].id);
+        if (response.firstPromptId) {
+          this.pendingRevealPromptId = String(response.firstPromptId);
         }
         this.renderCategories();
         this.renderPrompts();

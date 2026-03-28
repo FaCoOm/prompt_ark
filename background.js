@@ -513,7 +513,11 @@ async function handleMessage(message, sendResponse) {
         const existing = await getPrompts();
         await PromptStorage.bulkSet([...existing, ...imported]);
         await buildContextMenus(getPrompts);
-        sendResponse({ success: true });
+        sendResponse({
+          success: true,
+          promptIds: imported.map(p => p.id),
+          firstPromptId: imported[0]?.id || null
+        });
 
         // Async AI enrichment for imported prompts missing metadata
         for (const p of imported) {
