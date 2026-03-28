@@ -2940,7 +2940,7 @@ ${p.sourceContext ? `
       id: Date.now() + Math.random().toString(36).substr(2, 9),
       title: p.act,
       content: p.prompt,
-      category: p.category || 'Imported',
+      category: p.category || '',
       tags: p.tags || [],
       shortcut: p.shortcut || '',
       favorite: p.favorite || false,
