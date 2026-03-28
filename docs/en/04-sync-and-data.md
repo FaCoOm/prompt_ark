@@ -4,20 +4,14 @@
 
 | Method | Setup | Capacity | Best for |
 |---|---|---|---|
-| **Chrome Sync** | Zero (default) | ~100KB | Personal use, small library |
-| **GitHub Gist** | Paste a token | Unlimited | Power users, teams, large libraries |
+| **Local Only** | Zero (default) | Device storage | Private single-device use |
 | **WebDAV** | Enter server URL + credentials | Depends on server | Privacy-first, self-hosted, China (Jianguoyun) |
+| **Obsidian Vault (WebDAV)** | Enter vault WebDAV credentials | Depends on server | Markdown-first workflows and Obsidian users |
 
-## Chrome Sync (Default)
-Works automatically. Your prompts sync across all Chrome instances signed into the same Google account.
+## Local Only (Default)
+Works out of the box and keeps everything on the current device.
 
-> ⚠️ Chrome Sync has a ~100KB quota. If you hit it, switch to Gist or WebDAV.
-
-## GitHub Gist Sync
-1. **Settings → Sync** → Select **GitHub Gist**
-2. Paste your **GitHub Token** (needs `gist` scope)
-3. Leave Gist ID blank — auto-created on first sync
-4. Click **Force Sync Gist**
+> ⚠️ If you need cross-device sync, switch to WebDAV or Obsidian Vault sync.
 
 ## WebDAV Sync
 1. **Settings → Sync** → Select **WebDAV**
@@ -26,19 +20,23 @@ Works automatically. Your prompts sync across all Chrome instances signed into t
 
 > Popular WebDAV services: Jianguoyun (坚果云), Nextcloud, Synology
 
+## Obsidian Vault Sync
+1. **Settings → Sync** → Select **Obsidian Vault (WebDAV)**
+2. Enter your vault WebDAV **URL**, **Username**, **App Password**, and target folder
+3. Click **Force Sync Obsidian**
+
 ## JSON Export / Import
 - **Export**: Settings gear → Export → Downloads a `.json` file
 - **Import**: Paste tab (raw text/JSON) or URL tab (fetch from URL)
 
 ## GitHub Token — Why You Want One
 
-Your GitHub Token (Settings → Sync) unlocks three things:
+Your GitHub Token in Settings helps with GitHub-based import workflows:
 
 | Capability | Without token | With token |
 |---|---|---|
-| Gist Sync | ❌ | ✅ |
-| Prompt Sharing | ❌ | ✅ |
 | GitHub URL Import | 60 req/hr (often hits limit) | **5000 req/hr** |
+| GitHub repo scanning | More likely to hit rate limits | Much smoother on large repos |
 
 ## Auto-Save
 Every setting (all tabs) auto-saves with a 600ms debounce. No "Save" button needed, except when adding/editing model providers (explicit Save button for safety).

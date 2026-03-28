@@ -98,7 +98,7 @@ Every edit auto-archives the previous version. Click **History** to browse, diff
 ## 📦 Sharing & Community
 
 ### Share a Prompt
-Click share → Creates a GitHub Gist → Get a **Prompt Hub** landing page link. Then share with AI-generated platform-optimized text:
+Click share → Publish to **Prompt Hub** → Get a landing page link. Then share with AI-generated platform-optimized text:
 
 | Platform | Content style |
 |---|---|
@@ -108,12 +108,12 @@ Click share → Creates a GitHub Gist → Get a **Prompt Hub** landing page link
 | **WeChat (微信)** | Mobile-friendly WeChat article |
 | **Xiaohongshu (小红书)** | Short-form with emoji and tags |
 
-> Requires a GitHub Token in Settings → Sync.
+> Hub publishing requires logging into your Prompt Ark account.
 
 ### Prompt Packs
 Select multiple prompts → Pack Mode → Publish as a bundled collection.
 
-> Both require a GitHub Token in Settings → Sync.
+> Prompt Packs also publish through Prompt Hub and require account login.
 
 ---
 
