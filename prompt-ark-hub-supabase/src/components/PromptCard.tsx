@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Prompt } from '../lib/supabase'
+import { getAuthorPresentation } from '../lib/authors'
 
 interface PromptCardProps {
   prompt: Prompt
@@ -15,6 +16,7 @@ function scoreClass(score: number | null): string {
 
 export function PromptCard({ prompt, onClick }: PromptCardProps) {
   const [avatarError, setAvatarError] = useState(false)
+  const authorInfo = getAuthorPresentation(prompt.author, prompt.author_id, prompt.author_avatar)
 
   return (
     <div 
@@ -42,21 +44,21 @@ export function PromptCard({ prompt, onClick }: PromptCardProps) {
       
       <div className="hub-card-meta">
         <div className="hub-card-author">
-          {(prompt.author_avatar && !avatarError) ? (
+          {(authorInfo.avatarUrl && !avatarError) ? (
             <img 
               className="hub-card-avatar" 
-              src={prompt.author_avatar} 
-              alt={prompt.author} 
+              src={authorInfo.avatarUrl} 
+              alt={authorInfo.displayName} 
               loading="lazy"
               referrerPolicy="no-referrer"
               onError={() => setAvatarError(true)}
             />
           ) : (
             <div className="hub-card-avatar">
-              {(prompt.author || 'a').charAt(0).toUpperCase()}
+              {authorInfo.fallbackInitial}
             </div>
           )}
-          <span className="hub-card-author-name">{prompt.author || 'anonymous'}</span>
+          <span className="hub-card-author-name">{authorInfo.displayName}</span>
         </div>
         <div className="hub-card-stats">
           <span className="hub-stat">

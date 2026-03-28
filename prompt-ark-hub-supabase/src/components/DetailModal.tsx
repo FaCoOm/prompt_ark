@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Prompt } from '../lib/supabase'
+import { getAuthorPresentation } from '../lib/authors'
 
 interface DetailModalProps {
   prompt: Prompt | null
@@ -21,6 +22,11 @@ interface PackItem {
 
 export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, children }: DetailModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const [avatarError, setAvatarError] = useState(false)
+
+  useEffect(() => {
+    setAvatarError(false)
+  }, [prompt?.id, prompt?.author_avatar])
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -43,6 +49,8 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
   }, [onClose])
 
   if (!prompt) return null
+
+  const authorInfo = getAuthorPresentation(prompt.author, prompt.author_id, prompt.author_avatar)
 
   // Check if this is a pack
   const isPack = prompt.type === 'pack'
@@ -185,10 +193,21 @@ export function DetailModal({ prompt, onClose, onCopyLink, onFork, onInstall, ch
           <div>
             <h2 className="hub-modal-title" id="modalTitle">{prompt.title}</h2>
             <div className="hub-modal-author" id="modalAuthor">
-              {prompt.author_avatar && (
-                <img className="hub-author-avatar" src={prompt.author_avatar} alt={prompt.author} />
+              {(authorInfo.avatarUrl && !avatarError) ? (
+                <img
+                  className="hub-author-avatar"
+                  src={authorInfo.avatarUrl}
+                  alt={authorInfo.displayName}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <div className="hub-author-avatar-placeholder">
+                  {authorInfo.fallbackInitial}
+                </div>
               )}
-              <span>{prompt.author}</span>
+              <span className="hub-modal-author-name">{authorInfo.displayName}</span>
             </div>
           </div>
           <button className="hub-modal-close" onClick={onClose}>✕</button>
