@@ -573,6 +573,27 @@ class AIPromptManager {
       };
       window.addEventListener('scroll', updatePositions, { passive: true });
       window.addEventListener('resize', updatePositions, { passive: true });
+      document.addEventListener('input', updatePositions, { passive: true });
+      document.addEventListener('paste', updatePositions, { passive: true });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          setTimeout(() => this.updateHelperButtonPositions(), 300);
+        }
+      });
+      document.addEventListener('click', () => {
+        setTimeout(() => this.updateHelperButtonPositions(), 200);
+      });
+
+      const reinjectOnNavigation = () => setTimeout(() => this.reinjectHelperButtons(), 500);
+      window.addEventListener('popstate', reinjectOnNavigation);
+      window.addEventListener('hashchange', reinjectOnNavigation);
+      this.hijackHistoryAPI(reinjectOnNavigation);
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          setTimeout(() => this.updateHelperButtonPositions(), 100);
+        }
+      });
     }
 
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
@@ -699,6 +720,131 @@ class AIPromptManager {
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  reinjectHelperButtons() {
+    document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => wrapper.remove());
+    document.querySelectorAll('[data-apm-injected]').forEach(el => el.removeAttribute('data-apm-injected'));
+    this.slashShortcuts = [];
+    setTimeout(() => this.initHelperButtons(), 300);
+  }
+
+  hijackHistoryAPI(callback) {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = (...args) => {
+      originalPushState.apply(history, args);
+      callback();
+    };
+
+    history.replaceState = (...args) => {
+      originalReplaceState.apply(history, args);
+      callback();
+    };
+  }
+
+  findPositioningContainer(input) {
+    let container = input.parentElement;
+    let bestContainer = null;
+    let distance = 0;
+    const maxDistance = 10;
+
+    while (container && distance < maxDistance) {
+      const style = window.getComputedStyle(container);
+      const position = style.position;
+
+      if (position !== 'static') {
+        const overflow = style.overflow + style.overflowX + style.overflowY;
+        const hasOverflowClip = overflow.includes('hidden') || overflow.includes('clip') || overflow.includes('scroll');
+
+        if (!hasOverflowClip) {
+          return container;
+        }
+
+        if (!bestContainer) {
+          bestContainer = container;
+        }
+      }
+
+      if (container === document.body) break;
+      container = container.parentElement;
+      distance++;
+    }
+
+    if (bestContainer) {
+      return bestContainer;
+    }
+
+    const parent = input.parentElement;
+    if (parent && parent !== document.body) {
+      const parentStyle = window.getComputedStyle(parent);
+      if (parentStyle.position === 'static') {
+        parent.style.position = 'relative';
+      }
+      return parent;
+    }
+
+    if (input.parentElement) {
+      return input.parentElement;
+    }
+
+    return document.body;
+  }
+
+  getButtonPosition(rect, platform) {
+    const btnHeight = 32;
+    const offset = 10;
+    let bottom, right;
+
+    if (platform === 'chatgpt') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset + 55;
+      right = window.innerWidth - rect.right + 50;
+    } else if (platform === 'claude') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 154;
+    } else if (platform === 'gemini') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - (2 * offset);
+      right = window.innerWidth - rect.right + 110;
+    } else if (platform === 'notebooklm') {
+      bottom = window.innerHeight - rect.bottom - btnHeight;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'aistudio') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 2;
+      right = window.innerWidth - rect.right + 185;
+    } else if (platform === 'grok') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'deepseek') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 85;
+    } else if (platform === 'kimi') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 130;
+    } else if (platform === 'zhipu') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'doubao') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 25;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'wenxin') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'qwen') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'minimax') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'hunyuan') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    }
+
+    return { bottom, right };
+  }
+
   initHelperButtons() {
     // Clean up orphaned wrappers whose target input is no longer in the DOM
     document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => {
@@ -722,25 +868,16 @@ class AIPromptManager {
     const candidates = this.queryAllDeep(isValidInput);
 
     candidates.forEach(input => {
-      // Walk up to find a container without overflow clipping (max 5 levels)
-      let container = input.parentElement;
-      for (let i = 0; i < 5 && container && container !== document.body; i++) {
-        const s = window.getComputedStyle(container);
-        if (s.overflow !== 'hidden' && s.overflowX !== 'hidden' && s.overflowY !== 'hidden') break;
-        container = container.parentElement;
-      }
-      if (!container) return;
+      const positioningContainer = this.findPositioningContainer(input);
+      if (!positioningContainer) return;
 
-      // Get input rect for positioning
-      const rect = input.getBoundingClientRect();
-
-      // Container for multiple buttons
       const btnWrapper = document.createElement('div');
       btnWrapper.className = 'notebook-helper-wrapper';
       btnWrapper._apmTargetInput = input;
       btnWrapper.style.display = 'flex';
       btnWrapper.style.gap = '4px';
       btnWrapper.style.zIndex = '9999';
+      btnWrapper.style.position = 'fixed';
 
       const btn = document.createElement('button');
       btn.className = 'notebook-helper-btn';
@@ -775,9 +912,7 @@ class AIPromptManager {
 
       btnWrapper.appendChild(btn);
 
-      // Only add Quick Actions on Chat inputs, not Search inputs
       if (!isSearch) {
-        // Button 1: Quick Actions
         const qaBtn = document.createElement('button');
         qaBtn.className = 'notebook-helper-btn apm-type-qa';
         qaBtn.innerHTML = '<span>⚡</span>';
@@ -797,36 +932,19 @@ class AIPromptManager {
         btnWrapper.appendChild(qaBtn);
       }
 
-      // Position: fixed positioning outside input (upper-right)
-      btnWrapper.style.position = 'fixed';
+      const rect = input.getBoundingClientRect();
+      const position = this.getButtonPosition(rect, this.platform);
 
-      // Calculate position - place above the input, right-aligned
-      const btnHeight = 32; // 28px button + 4px margin
-      const offset = 10;
-
-      // Platform specific positioning
-      if (this.platform === 'notebooklm') {
-        // NotebookLM: position at top-right outside input
-        btnWrapper.style.top = (rect.top) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      } else if (this.platform === 'gemini') {
-        // Gemini: position at top-right outside input
-        btnWrapper.style.top = (rect.top - btnHeight - (2 * offset)) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right) + 'px';
-      } else {
-        // Default: position at upper-right outside input
-        btnWrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      }
+      btnWrapper.style.bottom = position.bottom + 'px';
+      btnWrapper.style.right = position.right + 'px';
+      btnWrapper.style.top = 'auto';
 
       document.body.appendChild(btnWrapper);
       input.setAttribute(this.injectedMarker, 'true');
     });
   }
-  updateHelperButtonPositions() {
-    const btnHeight = 32;
-    const offset = 4;
 
+  updateHelperButtonPositions() {
     document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => {
       const input = wrapper._apmTargetInput;
       if (!input || !input.isConnected) {
@@ -835,26 +953,19 @@ class AIPromptManager {
       }
 
       const rect = input.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0;
 
-      // Hide if input is outside viewport
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      if (!isVisible) {
         wrapper.style.display = 'none';
         return;
       }
 
       wrapper.style.display = 'flex';
 
-      // Platform specific positioning
-      if (this.platform === 'notebooklm') {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      } else if (this.platform === 'gemini') {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 48) + 'px';
-      } else {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      }
+      const position = this.getButtonPosition(rect, this.platform);
+      wrapper.style.bottom = position.bottom + 'px';
+      wrapper.style.right = position.right + 'px';
+      wrapper.style.top = 'auto';
     });
   }
 
@@ -1809,6 +1920,61 @@ class AIPromptManager {
     this.showSlashDropdown(el, filtered, query);
   }
 
+  getSlashDropdownPosition(rect, platform) {
+    let bottom, left, width;
+    width = Math.min(rect.width, 360);
+
+    if (platform === 'chatgpt') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left + 170;
+    } else if (platform === 'claude') {
+      bottom = window.innerHeight - rect.top + 4;
+      // bottom = 0;
+      left = rect.left + 180;
+    } else if (platform === 'gemini') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'notebooklm') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'aistudio') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'grok') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'deepseek') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'kimi') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'zhipu') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'doubao') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left + 150;
+    } else if (platform === 'wenxin') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'qwen') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'minimax') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'hunyuan') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    }
+
+    return { bottom, left, width };
+  }
+
   showSlashDropdown(inputEl, items, query) {
     this.hideSlashDropdown();
 
@@ -1821,12 +1987,12 @@ class AIPromptManager {
       </div>
     `).join('');
 
-    // Position near the input
     const rect = inputEl.getBoundingClientRect();
+    const position = this.getSlashDropdownPosition(rect, this.platform);
     dropdown.style.position = 'fixed';
-    dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.width = Math.min(rect.width, 360) + 'px';
+    dropdown.style.bottom = position.bottom + 'px';
+    dropdown.style.left = position.left + 'px';
+    dropdown.style.width = position.width + 'px';
 
     document.body.appendChild(dropdown);
     this.slashDropdown = dropdown;
