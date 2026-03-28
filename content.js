@@ -383,7 +383,8 @@ class AIPromptManager {
 
   // Context Grabber: auto-fill magic variables with live webpage data
   // These are resolved BEFORE showing the variable form, so users never see them.
-  static CONTEXT_VARS = new Set(['@page_text', '@selection', '@page_url', '@page_title']);
+  static CONTEXT_VARS = new Set(['@page_text', '@selection', '@page_url', '@page_title', '@date']);
+  static GENERIC_PAGE_ALLOWED_CONTEXT_VARS = new Set(['@page_text', '@selection', '@page_url', '@page_title', '@date']);
 
   // Clean extracted text: remove technical noise, short status labels, duplicate lines
   static cleanExtractedText(rawText) {
@@ -498,8 +499,35 @@ class AIPromptManager {
       const article = document.querySelector('article') || document.querySelector('main') || document.body;
       contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
     }
+    if (vars.some(v => v.name === '@date')) {
+      contextValues['@date'] = new Date().toISOString().split('T')[0];
+    }
 
     return this.resolveVariables(content, contextValues);
+  }
+
+  isSupportedAIPage() {
+    return this.platform !== 'generic';
+  }
+
+  isGenericPageContextPrompt(prompt) {
+    if (!prompt || !prompt.content) return false;
+
+    const variableNames = this.extractVariables(prompt.content).map(v => v.name);
+    const hasAllowedContextVar = variableNames.some(name => AIPromptManager.GENERIC_PAGE_ALLOWED_CONTEXT_VARS.has(name));
+    if (!hasAllowedContextVar) return false;
+
+    const isBuiltInContextPrompt =
+      prompt.builtIn === true ||
+      prompt.category === 'Context Grabber ★' ||
+      /^📸\s/.test(String(prompt.title || ''));
+
+    return isBuiltInContextPrompt;
+  }
+
+  filterPromptsForCurrentPage(prompts) {
+    if (this.isSupportedAIPage()) return prompts;
+    return prompts.filter(prompt => this.isGenericPageContextPrompt(prompt));
   }
 
   async runShortcutAction(actionName, fn) {
@@ -1241,7 +1269,7 @@ class AIPromptManager {
         this.showNotification(this.msg('loadError', '无法加载Prompts'), 'error');
         return;
       }
-      this.prompts = response.prompts;
+      this.prompts = this.filterPromptsForCurrentPage(response.prompts);
       this.prompts.sort((a, b) => this.comparePromptsSmart(a, b));
       this.renderPromptPicker();
       this.pickerVisible = true;
