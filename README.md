@@ -118,7 +118,7 @@ Write variables in your prompt content and they become fill-in forms at use time
 ### Context variables (`{{@...}}`)
 Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@date}}` to auto-fill live context from the current browser tab — no typing needed.
 
-> **Grab Context** (`Ctrl+Shift+G`) pre-captures a page snapshot so context variables work even after switching tabs.
+> **Grab Context** (`Ctrl+Shift+G`) creates a Smart Convert prompt card with source context from the current page. `{{@variable}}` context variables still resolve from the current tab when the prompt runs.
 
 ### Slash commands  
 Type `/email` in any chat box → Your "Professional Email Writer" prompt expands instantly. Like text shortcuts, but for AI.
@@ -178,7 +178,7 @@ Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 - **Zero-config AI** — Gemini Web session reverse-engineered as default backend; auto-redirects to login on session expiry; explicit cookie handling for Edge
 - **Multi-provider AI** — Gemini API · OpenAI protocol · Gemini Web (free) — unified dispatch, hot-swap at runtime
 - **Prompt files** — All LLM prompts live in `prompts/*.md`, editable without touching JS
-- **Context Grabber** — `Ctrl+Shift+G` captures page snapshot (10 min TTL) for cross-tab `{{@variable}}` resolution
+- **Context Grabber** — `Ctrl+Shift+G` turns the current page into a Smart Convert prompt card with traceable source context
 - **Smart Convert** — Meta-prompt that reverse-engineers selected text into a structured, variable-ized reusable prompt
 - **Runtime i18n** — Live Chinese/English switching
 - **Auto-save** — 600ms debounce across all settings

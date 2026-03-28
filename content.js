@@ -440,47 +440,32 @@ class AIPromptManager {
     }
 
     const pageText = AIPromptManager.cleanExtractedText(rawText);
-    const selectedText = window.getSelection()?.toString()?.trim() || '';
 
-    try {
-      // Always capture page context for {{@...}} variables
-      await chrome.runtime.sendMessage({
-        type: 'CAPTURE_PAGE_CONTEXT',
-        context: {
-          page_title: document.title || '',
-          page_url: location.href || '',
-          page_text: pageText || '',
-          selected_text: selectedText
-        }
-      });
-      this.showNotification('✅ ' + this.msg('contextCaptured', 'Context captured'), 'success');
-    } catch (e) {
-      console.error('[Prompt Ark] Context capture failed:', e);
-      this.showNotification('❌ ' + this.msg('contextCaptureFailed', 'Failed to capture context'), 'error');
+    if (!pageText || pageText.length < 10) {
+      this.showNotification('❌ ' + this.msg('noPageText', 'No readable text found on page'), 'error');
+      return;
     }
 
-    if (pageText && pageText.length >= 10) {
-      this._handleSmartConvertStatus('start');
-      try {
-        const resp = await chrome.runtime.sendMessage({
-          type: 'SMART_CONVERT_SELECTION',
-          text: pageText,
-          pageTitle: document.title,
-          pageUrl: location.href
-        });
-        if (resp?.success) {
-          this._handleSmartConvertStatus('success', resp.title);
-        } else {
-          this._handleSmartConvertStatus('error');
-        }
-      } catch (err) {
-        console.error('[Prompt Ark] Smart Convert failed:', err);
+    this._handleSmartConvertStatus('start');
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'SMART_CONVERT_SELECTION',
+        text: pageText,
+        pageTitle: document.title,
+        pageUrl: location.href
+      });
+      if (resp?.success) {
+        this._handleSmartConvertStatus('success', resp.title);
+      } else {
         this._handleSmartConvertStatus('error');
       }
+    } catch (err) {
+      console.error('[Prompt Ark] Smart Convert failed:', err);
+      this._handleSmartConvertStatus('error');
     }
   }
 
-  // Async resolver: tries cached context first (cross-tab), falls back to live DOM
+  // Resolve context variables against the current page only.
   async resolveContextVariables(content) {
     const vars = this.extractVariables(content);
     const hasContextVars = vars.some(v => AIPromptManager.CONTEXT_VARS.has(v.name));
@@ -488,32 +473,18 @@ class AIPromptManager {
 
     const contextValues = {};
 
-    // Strategy: try cached snapshot from background (cross-tab scenario)
-    let cached = null;
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_PAGE_CONTEXT' });
-      if (resp?.success && resp.context) cached = resp.context;
-    } catch (e) { /* no cache available */ }
-
-    // Fill each variable: prefer cache, fallback to current page
     if (vars.some(v => v.name === '@page_url')) {
-      contextValues['@page_url'] = cached?.page_url || window.location.href;
+      contextValues['@page_url'] = window.location.href;
     }
     if (vars.some(v => v.name === '@page_title')) {
-      contextValues['@page_title'] = cached?.page_title || document.title || '';
+      contextValues['@page_title'] = document.title || '';
     }
     if (vars.some(v => v.name === '@selection')) {
-      // Selected text: prefer live selection (user might have just selected something)
-      const liveSelection = window.getSelection()?.toString()?.trim() || '';
-      contextValues['@selection'] = liveSelection || cached?.selected_text || '';
+      contextValues['@selection'] = window.getSelection()?.toString()?.trim() || '';
     }
     if (vars.some(v => v.name === '@page_text')) {
-      if (cached?.page_text) {
-        contextValues['@page_text'] = cached.page_text;
-      } else {
-        const article = document.querySelector('article') || document.querySelector('main') || document.body;
-        contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
-      }
+      const article = document.querySelector('article') || document.querySelector('main') || document.body;
+      contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
     }
 
     return this.resolveVariables(content, contextValues);

@@ -49,7 +49,7 @@ Auto-resolve from the current browser tab — no copy-paste needed:
 | `{{@date}}` | Today's date (YYYY-MM-DD) |
 | `{{@lang}}` | Your configured UI language |
 
-> Use **Grab Context** (`Ctrl+Shift+G`) to pre-capture a page snapshot before switching tabs.
+> `{{@...}}` variables always resolve from the current tab when the prompt runs.
 
 ### AI Prompt Optimizer
 Edit any prompt → Click **✨ Optimize** → Get 3 rewrites:
@@ -82,7 +82,7 @@ Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-
 `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) summons the Picker anywhere.
 
 ### Grab Context (`Ctrl+Shift+G`)
-Captures a snapshot of the current page (title, URL, highlighted text, full page text) and stores it for **10 minutes**. Once captured, `{{@variable}}` context variables resolve correctly even after you switch tabs.
+Turns the current page (title, URL, highlighted text, full page text) into a Smart Convert prompt card and stores that page as the card's `sourceContext` for traceability.
 
 > On Mac: `Cmd+Shift+G`
 

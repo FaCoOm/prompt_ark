@@ -258,10 +258,6 @@ async function asyncEnrichPrompt(promptId, content) {
   return _asyncEnrichPrompt(promptId, content, extractTitleAndCategory, getPrompts, buildContextMenus);
 }
 
-// --- Page Context Cache (for cross-tab magic variables) ---
-let _pageContextCache = null;
-const PAGE_CONTEXT_TTL = 10 * 60 * 1000; // 10 minutes
-
 // --- Port-based handler for long-running video prompt generation ---
 // Port keeps MV3 Service Worker alive (unlike one-shot sendMessage)
 chrome.runtime.onConnect.addListener((port) => {
@@ -342,27 +338,6 @@ async function requireHubAuth() {
 async function handleMessage(message, sendResponse) {
   try {
     switch (message.type) {
-
-      // Context Grabber: cache page snapshot for cross-tab usage
-      case 'CAPTURE_PAGE_CONTEXT':
-        _pageContextCache = {
-          page_text: message.context.page_text || '',
-          page_title: message.context.page_title || '',
-          page_url: message.context.page_url || '',
-          selected_text: message.context.selected_text || '',
-          capturedAt: Date.now()
-        };
-        sendResponse({ success: true });
-        break;
-
-      case 'GET_PAGE_CONTEXT':
-        if (_pageContextCache && (Date.now() - _pageContextCache.capturedAt < PAGE_CONTEXT_TTL)) {
-          sendResponse({ success: true, context: _pageContextCache });
-        } else {
-          _pageContextCache = null; // Expired, clear it
-          sendResponse({ success: false });
-        }
-        break;
 
       case 'GET_PROMPTS':
         sendResponse({ success: true, prompts: await getPrompts() });
