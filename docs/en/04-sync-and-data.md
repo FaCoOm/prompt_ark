@@ -27,11 +27,11 @@ Works out of the box and keeps everything on the current device.
 
 ## JSON Export / Import
 - **Export**: Settings gear → Export → Downloads a `.json` file
-- **Import**: Paste tab (raw text/JSON) or URL tab (fetch from URL)
+- **Import**: Paste tab (raw text/JSON) or URL tab (file URL / GitHub repo / GitHub folder)
 
 ## GitHub Token — Why You Want One
 
-Your GitHub Token in Settings helps with GitHub-based import workflows:
+Your GitHub Token in the URL import tab helps with GitHub-based import workflows:
 
 | Capability | Without token | With token |
 |---|---|---|

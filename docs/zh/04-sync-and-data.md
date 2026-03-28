@@ -27,11 +27,11 @@
 
 ## JSON 导出 / 导入
 - **导出**：设置齿轮 → 导出 → 下载 `.json` 文件
-- **导入**：粘贴（原始文本/JSON）或 URL（从网址抓取）
+- **导入**：粘贴（原始文本/JSON）或 URL（文件链接 / GitHub 仓库 / GitHub 目录）
 
 ## GitHub Token 有什么用？
 
-设置中的 GitHub Token 主要用于 GitHub 链接导入相关能力：
+URL 导入页中的 GitHub Token 主要用于 GitHub 链接导入相关能力：
 
 | 能力 | 没有 Token | 有 Token |
 |---|---|---|

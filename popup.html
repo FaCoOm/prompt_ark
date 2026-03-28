@@ -261,15 +261,6 @@
             </select>
           </div>
 
-          <div class="settings-section-header" style="margin-top: 16px;">
-            <label data-i18n="githubToken">🔑 GitHub Token</label>
-          </div>
-          <span class="settings-hint" data-i18n="githubTokenHint">用于 GitHub 导入（提升速率至 5000次/小时）</span>
-          <div class="form-row">
-            <input type="password" id="githubTokenInput" class="settings-input"
-              data-i18n-placeholder="githubTokenPlaceholder" placeholder="ghp_xxxxxxxxxxxx">
-          </div>
-
           <!-- [DISABLED] OpenClaw Agent (P2S) settings - kept for future use
           <div class="settings-section-header" style="margin-top: 16px;">
             <label data-i18n="openclawSettings">🤖 OpenClaw Agent (P2S)</label>
@@ -555,7 +546,14 @@
               <!-- dynamically populated -->
             </div>
           </div>
-          <button type="button" id="enhanceBtn" class="btn-enhance" data-i18n-title="addOutputRulesDesc">📜</button>
+          <button type="button" id="enhanceBtn" class="btn-enhance" data-i18n-title="addOutputRulesDesc">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+              <rect x="9" y="3" width="6" height="4" rx="1"/>
+              <line x1="9" y1="12" x2="15" y2="12"/>
+              <line x1="9" y1="16" x2="13" y2="16"/>
+            </svg>
+          </button>
 
           <!-- Output Rules Builder Panel -->
           <div id="contractBuilderPanel" class="contract-builder-panel hidden">
@@ -655,22 +653,34 @@
         <button class="modal-close" id="closeImportModal">&times;</button>
       </div>
       <div class="import-tabs">
-        <button class="import-tab active" data-tab="paste" data-i18n="tabPaste">粘贴文本</button>
-        <button class="import-tab" data-tab="url" data-i18n="tabUrl">从 URL 导入</button>
+        <button class="import-tab active" data-tab="paste" data-i18n="tabPaste">直接粘贴</button>
+        <button class="import-tab" data-tab="url" data-i18n="tabUrl">链接导入</button>
       </div>
       <div class="import-content">
         <!-- Paste Tab -->
         <div id="importPasteArea" class="import-area">
-          <p data-i18n="pasteHint">支持 JSON, CSV, Markdown 等格式</p>
+          <p data-i18n="pasteHint">适合导入一条提示词，或粘贴 Prompt Ark 导出内容。普通文本默认按 1 条导入。</p>
           <textarea id="importData" rows="10" data-i18n-placeholder="pastePlaceholder"
-            placeholder="在此粘贴内容..."></textarea>
+            placeholder="粘贴一段提示词，或 Prompt Ark 导出的内容"></textarea>
         </div>
         <!-- URL Tab -->
         <div id="importUrlArea" class="import-area hidden">
-          <p data-i18n="urlHint">输入 GitHub Repo URL 或 Raw 文件链接</p>
+          <p data-i18n="urlHint">请输入文件链接，或 GitHub 仓库/目录链接。普通网页链接暂不支持。</p>
           <div class="url-input-group">
-            <input type="url" id="importUrlInput" placeholder="https://github.com/owner/repo" class="settings-input">
+            <input type="url" id="importUrlInput" data-i18n-placeholder="urlPlaceholder"
+              placeholder="https://github.com/owner/repo 或文件直链" class="settings-input">
             <button id="scanBtn" class="btn btn-primary" data-i18n="scan">扫描</button>
+          </div>
+
+          <div id="githubTokenPanel" class="import-token-card hidden">
+            <div class="import-token-title-row">
+              <span class="import-token-badge" data-i18n="optionalTag">可选</span>
+              <strong data-i18n="githubTokenInlineTitle">GitHub 链接导入更稳定</strong>
+              <span id="githubTokenStatus" class="import-token-status">未填写</span>
+            </div>
+            <p class="import-token-hint" data-i18n="githubTokenHint">填写 GitHub Token，可减少限流，扫描大型仓库更稳定。</p>
+            <input type="password" id="githubTokenInput" class="settings-input"
+              data-i18n-placeholder="githubTokenPlaceholder" placeholder="输入 GitHub Token（可选）" autocomplete="off">
           </div>
 
           <div class="scan-options">

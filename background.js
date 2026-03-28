@@ -1035,6 +1035,12 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
+      case 'SAVE_GITHUB_TOKEN': {
+        await LocalStorage.set('githubToken', message.token || '');
+        sendResponse({ success: true });
+        break;
+      }
+
       case 'GET_SYNC_SETTINGS': {
         const syncKeys = [
           'sync_backend', 'webdavUrl', 'webdavUser', 'webdavPassword',
