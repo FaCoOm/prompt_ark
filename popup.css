@@ -1732,9 +1732,11 @@ body::before {
   background: var(--bg-elevated);
   color: var(--accent);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  vertical-align: middle;
+  margin-left: 6px;
   transition: all var(--transition);
 }
 

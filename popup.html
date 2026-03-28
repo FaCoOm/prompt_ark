@@ -659,16 +659,16 @@
       <div class="import-content">
         <!-- Paste Tab -->
         <div id="importPasteArea" class="import-area">
-          <p data-i18n="pasteHint">适合导入一条提示词，或粘贴 Prompt Ark 导出内容。普通文本默认按 1 条导入。</p>
+          <p data-i18n="pasteHint">支持纯文本、JSON、CSV、Markdown，或 Prompt Ark 导出内容。</p>
           <textarea id="importData" rows="10" data-i18n-placeholder="pastePlaceholder"
             placeholder="粘贴一段提示词，或 Prompt Ark 导出的内容"></textarea>
         </div>
         <!-- URL Tab -->
         <div id="importUrlArea" class="import-area hidden">
-          <p data-i18n="urlHint">请输入文件链接，或 GitHub 仓库/目录链接。普通网页链接暂不支持。</p>
+          <p data-i18n="urlHint">支持 GitHub Repo 或 Raw 文件链接。</p>
           <div class="url-input-group">
             <input type="url" id="importUrlInput" data-i18n-placeholder="urlPlaceholder"
-              placeholder="https://github.com/owner/repo 或文件直链" class="settings-input">
+              placeholder="GitHub Repo 或 Raw 文件链接" class="settings-input">
             <button id="scanBtn" class="btn btn-primary" data-i18n="scan">扫描</button>
           </div>
 
