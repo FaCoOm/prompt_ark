@@ -2765,9 +2765,8 @@ ${p.sourceContext ? `
 
       // Phase 3: AI Analysis — only on filtered subset (cap at 200)
       const toAnalyze = filtered.slice(0, 200);
-      const shouldSkipAiAnalysis = files.length === 1 && rawPrompts.length === 1 && filtered.length === 1;
 
-      if (toAnalyze.length > 0 && !shouldSkipAiAnalysis) {
+      if (toAnalyze.length > 0) {
         progressDiv.classList.remove('hidden');
 
         const aiResults = await this.contentAnalyzer.analyzeBatch(toAnalyze, () => { }, abortController.signal);
@@ -2788,8 +2787,6 @@ ${p.sourceContext ? `
         });
 
         statusEl.textContent = i18n.t('scanDone', { analyzed: toAnalyze.length, enriched: mergedCount });
-      } else if (shouldSkipAiAnalysis) {
-        statusEl.textContent = 'Single prompt detected. Skipped AI analysis.';
       } else {
         statusEl.textContent = rawPrompts.length > 0
           ? i18n.t('scanNonePassed', { total: rawPrompts.length, min: minScore })
