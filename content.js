@@ -534,7 +534,9 @@ class AIPromptManager {
   }
 
   filterPromptsForCurrentPage(prompts) {
-    if (this.isSupportedAIPage()) return prompts;
+    if (this.isSupportedAIPage()) {
+      return prompts.filter(prompt => !this.isGenericPageContextPrompt(prompt));
+    }
     return prompts.filter(prompt => this.isGenericPageContextPrompt(prompt));
   }
 
@@ -1304,7 +1306,19 @@ class AIPromptManager {
       return;
     }
 
-    this.onSelectCallback = onSelect;
+    const defaultOnSelect = (!onSelect && !this.isSupportedAIPage())
+      ? async (content) => {
+        const resp = await chrome.runtime.sendMessage({
+          type: 'OPEN_PROMPT_IN_DEFAULT_AI',
+          content
+        });
+        if (!resp?.success) {
+          throw new Error(resp?.error || 'OPEN_PROMPT_IN_DEFAULT_AI_FAILED');
+        }
+      }
+      : null;
+
+    this.onSelectCallback = onSelect || defaultOnSelect;
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_PROMPTS' });
       if (!response.success) {
