@@ -50,6 +50,7 @@ class PopupManager {
 
     await this.loadPrompts();
     await this.loadSettings();
+    await this.loadGithubToken();
     this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
@@ -116,6 +117,7 @@ class PopupManager {
   localize() {
     i18n.translatePage();
     this.updateControlStates();
+    this.updateGithubTokenPanel();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -257,11 +259,6 @@ class PopupManager {
     const platformSelect = document.getElementById('defaultPlatformSelect');
     if (platformSelect) platformSelect.value = dpResp.defaultPlatform || 'chatgpt';
 
-    // Load GitHub token
-    const ghResp = await chrome.runtime.sendMessage({ type: 'GET_GITHUB_TOKEN' });
-    const ghInput = document.getElementById('githubTokenInput');
-    if (ghInput && ghResp.token) ghInput.value = ghResp.token;
-
     // [DISABLED] Load OpenClaw settings
     // const ocResp = await chrome.runtime.sendMessage({ type: 'GET_OPENCLAW_SETTINGS' });
     // const ocEndpointInput = document.getElementById('openclawEndpointInput');
@@ -302,6 +299,13 @@ class PopupManager {
     this.renderImageModelSelector(imgResp.imageModelId);
   }
 
+  async loadGithubToken() {
+    const ghResp = await chrome.runtime.sendMessage({ type: 'GET_GITHUB_TOKEN' });
+    const ghInput = document.getElementById('githubTokenInput');
+    if (ghInput) ghInput.value = ghResp.token || '';
+    this.updateGithubTokenPanel();
+  }
+
   toggleSyncUI(backend) {
     document.querySelectorAll('.sync-config-panel').forEach(el => el.classList.add('hidden'));
     if (backend === 'webdav') document.getElementById('webdavContainer')?.classList.remove('hidden');
@@ -317,12 +321,6 @@ class PopupManager {
     // Save default platform
     const platform = document.getElementById('defaultPlatformSelect')?.value || 'chatgpt';
     await chrome.runtime.sendMessage({ type: 'SET_DEFAULT_PLATFORM', platform });
-
-    // Save GitHub token — only if non-empty to avoid overwriting a valid token
-    const ghToken = document.getElementById('githubTokenInput')?.value?.trim();
-    if (ghToken) {
-      await chrome.runtime.sendMessage({ type: 'SAVE_GITHUB_TOKEN', token: ghToken });
-    }
 
     // [DISABLED] Save OpenClaw settings
     // const openclawEndpoint = document.getElementById('openclawEndpointInput')?.value?.trim() || '';
@@ -368,6 +366,31 @@ class PopupManager {
     });
 
     this.showToast(i18n.t('settingsSaved'));
+  }
+
+  async saveGithubToken() {
+    const ghToken = document.getElementById('githubTokenInput')?.value?.trim() || '';
+    await chrome.runtime.sendMessage({ type: 'SAVE_GITHUB_TOKEN', token: ghToken });
+    this.updateGithubTokenPanel();
+  }
+
+  updateGithubTokenPanel() {
+    const panel = document.getElementById('githubTokenPanel');
+    const statusEl = document.getElementById('githubTokenStatus');
+    const input = document.getElementById('githubTokenInput');
+    const url = document.getElementById('importUrlInput')?.value?.trim() || '';
+    const activeTab = document.querySelector('.import-tab.active')?.dataset.tab;
+    const shouldShow = activeTab === 'url' && !!this.githubClient.parseUrl(url);
+    const hasToken = !!input?.value?.trim();
+
+    if (panel) {
+      panel.classList.toggle('hidden', !shouldShow);
+      panel.classList.toggle('has-token', hasToken);
+    }
+
+    if (statusEl) {
+      statusEl.textContent = i18n.t(hasToken ? 'githubTokenStatusReady' : 'githubTokenStatusEmpty');
+    }
   }
 
   // --- Provider Management ---
@@ -1074,6 +1097,17 @@ ${p.sourceContext ? `
 
     // Fetch URL
     document.getElementById('scanBtn').addEventListener('click', () => this.fetchUrlPrompts());
+    document.getElementById('importUrlInput')?.addEventListener('input', () => this.updateGithubTokenPanel());
+    document.getElementById('importUrlInput')?.addEventListener('change', () => this.updateGithubTokenPanel());
+    this.debouncedSaveGithubToken = this.debounce(() => this.saveGithubToken(), 600);
+    document.getElementById('githubTokenInput')?.addEventListener('input', () => {
+      this.updateGithubTokenPanel();
+      this.debouncedSaveGithubToken();
+    });
+    document.getElementById('githubTokenInput')?.addEventListener('change', () => {
+      this.updateGithubTokenPanel();
+      this.debouncedSaveGithubToken();
+    });
 
     // Score Filter
     document.getElementById('scoreFilter').addEventListener('input', (e) => {
@@ -2755,6 +2789,7 @@ ${p.sourceContext ? `
     this.importedPromptsCache = [];
     this.filteredImportCache = [];
     this.switchImportTab('paste');
+    this.updateGithubTokenPanel();
   }
 
   hideImportModal() {
@@ -2766,6 +2801,7 @@ ${p.sourceContext ? `
     document.querySelectorAll('.import-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
     document.getElementById('importPasteArea').classList.toggle('hidden', tabName !== 'paste');
     document.getElementById('importUrlArea').classList.toggle('hidden', tabName !== 'url');
+    this.updateGithubTokenPanel();
   }
 
   cancelImportScan({ silent = false } = {}) {
@@ -3000,7 +3036,7 @@ ${p.sourceContext ? `
       id: Date.now() + Math.random().toString(36).substr(2, 9),
       title: p.act,
       content: p.prompt,
-      category: p.category || 'Imported',
+      category: p.category || '',
       tags: p.tags || [],
       shortcut: p.shortcut || '',
       favorite: p.favorite || false,
@@ -3032,6 +3068,7 @@ ${p.sourceContext ? `
         document.getElementById('importData').value = '';
         document.getElementById('importUrlInput').value = '';
         document.getElementById('urlPreview').classList.add('hidden');
+        this.updateGithubTokenPanel();
       } else {
         this.showToast('❌ ' + i18n.t('importError') + ': ' + (response.error || ''));
       }

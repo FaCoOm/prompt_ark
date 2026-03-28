@@ -123,12 +123,12 @@ Select multiple prompts → Pack Mode → Publish as a bundled collection.
 Paste raw text or JSON directly into the import tab.
 
 ### URL Import
-Enter any URL (like a GitHub `awesome-prompts` repo). Prompt Ark:
-1. Crawls and parses the page for prompts
+Enter a file URL or a GitHub repo/folder URL. Prompt Ark:
+1. Scans supported content and parses prompts
 2. Scores each with AI quality analysis
 3. Lets you filter by minimum quality score
 
-> 💡 Configure your GitHub Token to avoid rate limits (5000 req/hr vs 60).
+> 💡 When importing a GitHub link, you can add a GitHub Token in the URL import tab to reduce rate limits (5000 req/hr vs 60).
 
 ---
 
