@@ -132,6 +132,8 @@ class ImagePromptHandler {
 // content.js - Prompt Ark Content Script
 // Unified deep traversal strategy for all platforms
 
+const SMART_CONVERT_MIN_LENGTH = 10;
+
 class AIPromptManager {
   constructor() {
     this.platform = this.detectPlatform();
@@ -426,22 +428,28 @@ class AIPromptManager {
   }
 
   async capturePageContext() {
-    // Exclude extension-injected DOM (Prompt Picker, selection toolbar, slash dropdown)
-    const article = document.querySelector('article') || document.querySelector('main');
-    let rawText = '';
-    if (article) {
-      const clone = article.cloneNode(true);
-      clone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
-      rawText = clone.innerText || '';
-    } else {
-      const bodyClone = document.body.cloneNode(true);
-      bodyClone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
-      rawText = bodyClone.innerText || '';
+    const selectedText = window.getSelection()?.toString()?.trim() || '';
+    const hasSelection = !!selectedText;
+    let sourceText = selectedText;
+
+    if (!sourceText) {
+      // Exclude extension-injected DOM (Prompt Picker, selection toolbar, slash dropdown)
+      const article = document.querySelector('article') || document.querySelector('main');
+      let rawText = '';
+      if (article) {
+        const clone = article.cloneNode(true);
+        clone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
+        rawText = clone.innerText || '';
+      } else {
+        const bodyClone = document.body.cloneNode(true);
+        bodyClone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
+        rawText = bodyClone.innerText || '';
+      }
+
+      sourceText = AIPromptManager.cleanExtractedText(rawText);
     }
 
-    const pageText = AIPromptManager.cleanExtractedText(rawText);
-
-    if (!pageText || pageText.length < 10) {
+    if (!sourceText || (!hasSelection && sourceText.length < 10)) {
       this.showNotification('❌ ' + this.msg('noPageText', 'No readable text found on page'), 'error');
       return;
     }
@@ -450,12 +458,14 @@ class AIPromptManager {
     try {
       const resp = await chrome.runtime.sendMessage({
         type: 'SMART_CONVERT_SELECTION',
-        text: pageText,
+        text: sourceText,
         pageTitle: document.title,
         pageUrl: location.href
       });
       if (resp?.success) {
         this._handleSmartConvertStatus('success', resp.title);
+      } else if (resp?.error === 'TEXT_TOO_SHORT') {
+        this._handleSmartConvertStatus('too_short');
       } else {
         this._handleSmartConvertStatus('error');
       }
@@ -1565,6 +1575,8 @@ class AIPromptManager {
           const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: selectedText, pageTitle: document.title, pageUrl: location.href });
           if (resp?.success) {
             this._handleSmartConvertStatus('success', resp.title);
+          } else if (resp?.error === 'TEXT_TOO_SHORT') {
+            this._handleSmartConvertStatus('too_short');
           } else {
             this._handleSmartConvertStatus('error');
           }
@@ -1600,6 +1612,7 @@ class AIPromptManager {
       success: 'background:#10b981;',
       error: 'background:#f59e0b;',
       no_provider: 'background:#ef4444;',
+      too_short: 'background:#ef4444;',
     };
 
     const MESSAGES = {
@@ -1607,6 +1620,7 @@ class AIPromptManager {
       success: title ? `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}: "${title}"` : `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}`,
       error: this.msg('contextMenuConvertError', '❌ Smart Convert failed, saved as raw text'),
       no_provider: '❌ ' + this.msg('smartConvertNoProvider', 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.'),
+      too_short: '❌ ' + this.msg('smartConvertTooShort', `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`),
     };
 
     if (status === 'start') {
@@ -1660,6 +1674,7 @@ class AIPromptManager {
         contextMenuConvertError: '智能转化失败，已保存原文',
         noPageText: '未找到页面可读取的文本内容',
         smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
+        smartConvertTooShort: `智能转换至少需要 ${SMART_CONVERT_MIN_LENGTH} 个字符`,
         selectionToolbarAdd: '添加到 Prompt Ark',
         selectionToolbarConvert: '智能转化为 Prompt',
         qaExpandLabel: '展开',
@@ -1684,6 +1699,7 @@ class AIPromptManager {
         contextMenuConvertError: 'Smart Convert failed, saved as raw text',
         noPageText: 'No readable text found on page',
         smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
+        smartConvertTooShort: `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`,
         selectionToolbarAdd: 'Add to Prompt Ark',
         selectionToolbarConvert: 'Smart Convert',
         qaExpandLabel: 'Expand',

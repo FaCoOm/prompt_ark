@@ -12,7 +12,7 @@ import { extractVariables, classifyVariables, resolveContextVariables, composePr
 import { detectLanguageHeuristic, extractTitleHeuristic, matchCategory, extractTitleAndCategory as _extractTitleAndCategory } from './lib/text-analysis.js';
 import { optimizePromptWithAI } from './lib/ai/optimize.js';
 import { translatePromptWithAI } from './lib/ai/translate.js';
-import { smartConvertWithAI } from './lib/ai/smart-convert.js';
+import { smartConvertWithAI, isSmartConvertInputValid } from './lib/ai/smart-convert.js';
 import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
 // [DISABLED] import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
@@ -612,12 +612,16 @@ async function handleMessage(message, sendResponse) {
       case 'SMART_CONVERT_SELECTION': {
         const selectedText = (message.text || '').trim();
         if (!selectedText) { sendResponse({ success: false, error: 'No text' }); break; }
+        if (!isSmartConvertInputValid(selectedText)) {
+          sendResponse({ success: false, error: 'TEXT_TOO_SHORT' });
+          break;
+        }
+        const now = Date.now();
         try {
           const result = await smartConvertWithAI(selectedText);
           if (!result?.prompt) throw new Error('Empty result');
 
           const newId = crypto.randomUUID();
-          const now = Date.now();
           const newPrompt = {
             id: newId,
             title: result.title || extractTitleHeuristic(result.prompt),
@@ -647,7 +651,36 @@ async function handleMessage(message, sendResponse) {
           sendResponse({ success: true, title: newPrompt.title });
         } catch (e) {
           console.error('[SMART_CONVERT_SELECTION] Failed:', e);
-          sendResponse({ success: false, error: e.message });
+          const heuristicTitle = extractTitleHeuristic(selectedText);
+          const lang = detectLanguageHeuristic(selectedText);
+          const fallbackId = crypto.randomUUID();
+          const fallbackPrompt = {
+            id: fallbackId,
+            title: heuristicTitle,
+            content: selectedText,
+            category: matchCategory(selectedText, lang),
+            tags: [],
+            shortcut: '',
+            variables: extractVariables(selectedText),
+            versions: [],
+            usageCount: 0,
+            lastUsedAt: null,
+            lastUsed: null,
+            favorite: false,
+            sourceContext: {
+              text: selectedText.substring(0, 5000),
+              pageTitle: message.pageTitle || '',
+              pageUrl: message.pageUrl || '',
+              capturedAt: now,
+              convertMethod: 'smart_convert',
+            },
+            createdAt: now
+          };
+          await PromptStorage.save(fallbackPrompt);
+          await buildContextMenus(getPrompts);
+          await markPendingPromptReveal(fallbackId);
+          broadcastPromptsUpdated({ action: 'create', promptId: fallbackId, prompt: fallbackPrompt });
+          sendResponse({ success: false, error: e.message, fallbackSaved: true, title: fallbackPrompt.title });
         }
         break;
       }

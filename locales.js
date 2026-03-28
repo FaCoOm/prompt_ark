@@ -46,6 +46,7 @@ export const translations = {
         noPageText: "未找到页面可读取的文本内容",
         smartConvertNoProvider:
             "智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置",
+        smartConvertTooShort: "智能转换至少需要 10 个字符",
         contextMenuConvertStart: "正在尝试转化为 Prompt...",
         contextMenuConvertSuccess: "成功保存智能 Prompt",
         contextMenuConvertError: "智能转化失败，已保存原文",
@@ -333,6 +334,7 @@ export const translations = {
         noPageText: "No readable text found on page",
         smartConvertNoProvider:
             "Smart Convert requires an AI provider. Configure one in Prompt Ark settings.",
+        smartConvertTooShort: "Smart Convert requires at least 10 characters.",
         contextMenuConvertStart: "Converting to prompt...",
         contextMenuConvertSuccess: "Smart prompt saved!",
         contextMenuConvertError: "Smart Convert failed, saved as raw text",

@@ -71,6 +71,9 @@
   "smartConvertNoProvider": {
     "message": "智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置。"
   },
+  "smartConvertTooShort": {
+    "message": "智能转换至少需要 10 个字符"
+  },
   "openPickerDesc": {
     "message": "打开 Prompt 选择器"
   },
