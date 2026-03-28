@@ -37,7 +37,7 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
 | **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
 | **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
-| **Use across devices** | ☁️ Chrome Sync or WebDAV |
+| **Use across devices** | ☁️ WebDAV or Obsidian Vault sync |
 
 ## 🔌 Works Everywhere You Chat with AI
 
@@ -91,8 +91,9 @@ Go to **Settings → Sync** and choose your sync engine:
 
 | Method | Best for |
 |---|---|
-| **Chrome Sync** (default) | Zero config, automatic, ~100KB limit |
+| **Local only** (default) | Zero config, everything stays on this device |
 | **WebDAV** | Self-hosted, privacy-first (e.g., Jianguoyun) |
+| **Obsidian Vault (WebDAV)** | Markdown-first workflows and Obsidian users |
 
 > 📚 **[Full Documentation →](docs/en/)** for more details on every feature.
 
@@ -118,7 +119,7 @@ Write variables in your prompt content and they become fill-in forms at use time
 ### Context variables (`{{@...}}`)
 Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@date}}` to auto-fill live context from the current browser tab — no typing needed.
 
-> **Grab Context** (`Ctrl+Shift+G`) pre-captures a page snapshot so context variables work even after switching tabs.
+> **Grab Context** (`Ctrl+Shift+G`) creates a Smart Convert prompt card with source context from the current page. `{{@variable}}` context variables still resolve from the current tab when the prompt runs.
 
 ### Slash commands  
 Type `/email` in any chat box → Your "Professional Email Writer" prompt expands instantly. Like text shortcuts, but for AI.
@@ -166,8 +167,9 @@ Don't start from zero. Prompt Ark ships with **100 curated prompts** (50 English
 
 | Method | Best for |
 |---|---|
-| **Chrome Sync** (default) | Automatic, zero config, works across Chrome instances |
+| **Local only** (default) | Zero config, data stays on the current device |
 | **WebDAV** | Self-hosted, privacy-first users (e.g., Jianguoyun) |
+| **Obsidian Vault (WebDAV)** | Keep prompts organized as Markdown files in your vault |
 
 Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 
@@ -178,7 +180,7 @@ Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 - **Zero-config AI** — Gemini Web session reverse-engineered as default backend; auto-redirects to login on session expiry; explicit cookie handling for Edge
 - **Multi-provider AI** — Gemini API · OpenAI protocol · Gemini Web (free) — unified dispatch, hot-swap at runtime
 - **Prompt files** — All LLM prompts live in `prompts/*.md`, editable without touching JS
-- **Context Grabber** — `Ctrl+Shift+G` captures page snapshot (10 min TTL) for cross-tab `{{@variable}}` resolution
+- **Context Grabber** — `Ctrl+Shift+G` turns the current page into a Smart Convert prompt card with traceable source context
 - **Smart Convert** — Meta-prompt that reverse-engineers selected text into a structured, variable-ized reusable prompt
 - **Runtime i18n** — Live Chinese/English switching
 - **Auto-save** — 600ms debounce across all settings

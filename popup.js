@@ -1956,11 +1956,17 @@ ${p.sourceContext ? `
     }
 
     const activeId = this._optimizeProviderId || resp.activeProviderId;
+    const typeLabels = { 'gemini-web': 'Gemini', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
     menu.innerHTML = cloudProviders.map(p => {
       const isActive = p.id === activeId;
+      const modelInfo = p.model || p.type;
+      const typeLabel = typeLabels[p.type] || p.type;
       return `<button type="button" class="optimize-provider-option${isActive ? ' active' : ''}" data-provider-id="${p.id}">
         <span class="provider-dot"></span>
-        ${p.name} <span style="color:var(--text-tertiary);font-size:11px">(${p.model || p.type})</span>
+        <div class="provider-option-info">
+          <span class="provider-option-name">${this.escapeHtml(p.name)}</span>
+          <span class="provider-option-meta">${this.escapeHtml(modelInfo)} · ${typeLabel}</span>
+        </div>
       </button>`;
     }).join('');
 

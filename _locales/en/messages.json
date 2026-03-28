@@ -71,6 +71,9 @@
   "smartConvertNoProvider": {
     "message": "Smart Convert requires an AI provider. Configure one in Prompt Ark settings."
   },
+  "smartConvertTooShort": {
+    "message": "Smart Convert requires at least 10 characters."
+  },
   "openPickerDesc": {
     "message": "Open Prompt Picker"
   },
@@ -201,6 +204,6 @@
     "message": "Sync Now"
   },
   "MSG_SYNC_SUCCESS": {
-    "message": "Chrome Sync Successful"
+    "message": "Sync Successful"
   }
 }

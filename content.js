@@ -132,6 +132,9 @@ class ImagePromptHandler {
 // content.js - Prompt Ark Content Script
 // Unified deep traversal strategy for all platforms
 
+const SMART_CONVERT_MIN_LENGTH = 10;
+const SHORTCUT_ACTION_DEDUPE_MS = 350;
+
 class AIPromptManager {
   constructor() {
     this.platform = this.detectPlatform();
@@ -140,6 +143,7 @@ class AIPromptManager {
     this.injectedMarker = 'data-apm-injected';
     this.onSelectCallback = null;
     this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
+    this.shortcutActionState = new Map();
 
     // Slash command state
     this.slashDropdown = null;
@@ -426,61 +430,54 @@ class AIPromptManager {
   }
 
   async capturePageContext() {
-    // Exclude extension-injected DOM (Prompt Picker, selection toolbar, slash dropdown)
-    const article = document.querySelector('article') || document.querySelector('main');
-    let rawText = '';
-    if (article) {
-      const clone = article.cloneNode(true);
-      clone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
-      rawText = clone.innerText || '';
-    } else {
-      const bodyClone = document.body.cloneNode(true);
-      bodyClone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
-      rawText = bodyClone.innerText || '';
-    }
-
-    const pageText = AIPromptManager.cleanExtractedText(rawText);
     const selectedText = window.getSelection()?.toString()?.trim() || '';
+    const hasSelection = !!selectedText;
+    let sourceText = selectedText;
 
-    try {
-      // Always capture page context for {{@...}} variables
-      await chrome.runtime.sendMessage({
-        type: 'CAPTURE_PAGE_CONTEXT',
-        context: {
-          page_title: document.title || '',
-          page_url: location.href || '',
-          page_text: pageText || '',
-          selected_text: selectedText
-        }
-      });
-      this.showNotification('✅ ' + this.msg('contextCaptured', 'Context captured'), 'success');
-    } catch (e) {
-      console.error('[Prompt Ark] Context capture failed:', e);
-      this.showNotification('❌ ' + this.msg('contextCaptureFailed', 'Failed to capture context'), 'error');
+    if (!sourceText) {
+      // Exclude extension-injected DOM (Prompt Picker, selection toolbar, slash dropdown)
+      const article = document.querySelector('article') || document.querySelector('main');
+      let rawText = '';
+      if (article) {
+        const clone = article.cloneNode(true);
+        clone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
+        rawText = clone.innerText || '';
+      } else {
+        const bodyClone = document.body.cloneNode(true);
+        bodyClone.querySelectorAll('#ai-prompt-picker, #apm-selection-toolbar, .apm-slash-dropdown').forEach(el => el.remove());
+        rawText = bodyClone.innerText || '';
+      }
+
+      sourceText = AIPromptManager.cleanExtractedText(rawText);
     }
 
-    if (pageText && pageText.length >= 10) {
-      this._handleSmartConvertStatus('start');
-      try {
-        const resp = await chrome.runtime.sendMessage({
-          type: 'SMART_CONVERT_SELECTION',
-          text: pageText,
-          pageTitle: document.title,
-          pageUrl: location.href
-        });
-        if (resp?.success) {
-          this._handleSmartConvertStatus('success', resp.title);
-        } else {
-          this._handleSmartConvertStatus('error');
-        }
-      } catch (err) {
-        console.error('[Prompt Ark] Smart Convert failed:', err);
+    if (!sourceText || (!hasSelection && sourceText.length < 10)) {
+      this.showNotification('❌ ' + this.msg('noPageText', 'No readable text found on page'), 'error');
+      return;
+    }
+
+    this._handleSmartConvertStatus('start');
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'SMART_CONVERT_SELECTION',
+        text: sourceText,
+        pageTitle: document.title,
+        pageUrl: location.href
+      });
+      if (resp?.success) {
+        this._handleSmartConvertStatus('success', resp.title);
+      } else if (resp?.error === 'TEXT_TOO_SHORT') {
+        this._handleSmartConvertStatus('too_short');
+      } else {
         this._handleSmartConvertStatus('error');
       }
+    } catch (err) {
+      console.error('[Prompt Ark] Smart Convert failed:', err);
+      this._handleSmartConvertStatus('error');
     }
   }
 
-  // Async resolver: tries cached context first (cross-tab), falls back to live DOM
+  // Resolve context variables against the current page only.
   async resolveContextVariables(content) {
     const vars = this.extractVariables(content);
     const hasContextVars = vars.some(v => AIPromptManager.CONTEXT_VARS.has(v.name));
@@ -488,35 +485,41 @@ class AIPromptManager {
 
     const contextValues = {};
 
-    // Strategy: try cached snapshot from background (cross-tab scenario)
-    let cached = null;
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_PAGE_CONTEXT' });
-      if (resp?.success && resp.context) cached = resp.context;
-    } catch (e) { /* no cache available */ }
-
-    // Fill each variable: prefer cache, fallback to current page
     if (vars.some(v => v.name === '@page_url')) {
-      contextValues['@page_url'] = cached?.page_url || window.location.href;
+      contextValues['@page_url'] = window.location.href;
     }
     if (vars.some(v => v.name === '@page_title')) {
-      contextValues['@page_title'] = cached?.page_title || document.title || '';
+      contextValues['@page_title'] = document.title || '';
     }
     if (vars.some(v => v.name === '@selection')) {
-      // Selected text: prefer live selection (user might have just selected something)
-      const liveSelection = window.getSelection()?.toString()?.trim() || '';
-      contextValues['@selection'] = liveSelection || cached?.selected_text || '';
+      contextValues['@selection'] = window.getSelection()?.toString()?.trim() || '';
     }
     if (vars.some(v => v.name === '@page_text')) {
-      if (cached?.page_text) {
-        contextValues['@page_text'] = cached.page_text;
-      } else {
-        const article = document.querySelector('article') || document.querySelector('main') || document.body;
-        contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
-      }
+      const article = document.querySelector('article') || document.querySelector('main') || document.body;
+      contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
     }
 
     return this.resolveVariables(content, contextValues);
+  }
+
+  async runShortcutAction(actionName, fn) {
+    const now = Date.now();
+    const state = this.shortcutActionState.get(actionName) || { lastTriggeredAt: 0, inFlight: false };
+    if (state.inFlight || (now - state.lastTriggeredAt) < SHORTCUT_ACTION_DEDUPE_MS) {
+      return false;
+    }
+
+    state.lastTriggeredAt = now;
+    state.inFlight = true;
+    this.shortcutActionState.set(actionName, state);
+
+    try {
+      await Promise.resolve(fn());
+      return true;
+    } finally {
+      state.inFlight = false;
+      this.shortcutActionState.set(actionName, state);
+    }
   }
 
   // --- Initialization ---
@@ -531,19 +534,19 @@ class AIPromptManager {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         e.stopPropagation();
-        this.showPromptPicker();
+        this.runShortcutAction('open-picker', () => this.showPromptPicker());
       }
       // Context Grabber: Ctrl+Shift+G = Smart grab page text and convert to prompt
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         e.stopPropagation();
-        this.capturePageContext();
+        this.runShortcutAction('grab-context', () => this.capturePageContext());
       }
       // Article Share: Ctrl+Shift+Y = Show platform picker for article sharing
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         e.stopPropagation();
-        this._showArticleSharePicker();
+        this.runShortcutAction('share-article', () => this._showArticleSharePicker());
       }
       if (e.key === 'Escape' && this.pickerVisible) {
         this.hidePromptPicker();
@@ -1004,7 +1007,7 @@ class AIPromptManager {
         break;
       }
       case 'SHOW_PROMPT_PICKER':
-        this.showPromptPicker();
+        this.runShortcutAction('open-picker', () => this.showPromptPicker());
         sendResponse({ success: true });
         break;
       case 'SAVE_FROM_CONTEXT_MENU_SUCCESS':
@@ -1019,7 +1022,7 @@ class AIPromptManager {
         sendResponse({ platform: this.platform });
         break;
       case 'GRAB_CONTEXT':
-        this.capturePageContext();
+        this.runShortcutAction('grab-context', () => this.capturePageContext());
         sendResponse({ success: true });
         break;
       case 'PROMPTS_UPDATED':
@@ -1055,7 +1058,7 @@ class AIPromptManager {
         sendResponse({ success: true });
         break;
       case 'SHOW_ARTICLE_SHARE_PICKER':
-        this._showArticleSharePicker();
+        this.runShortcutAction('share-article', () => this._showArticleSharePicker());
         sendResponse({ success: true });
         break;
       case 'ARTICLE_SHARE_PICK_PLATFORM':
@@ -1594,6 +1597,8 @@ class AIPromptManager {
           const resp = await chrome.runtime.sendMessage({ type: 'SMART_CONVERT_SELECTION', text: selectedText, pageTitle: document.title, pageUrl: location.href });
           if (resp?.success) {
             this._handleSmartConvertStatus('success', resp.title);
+          } else if (resp?.error === 'TEXT_TOO_SHORT') {
+            this._handleSmartConvertStatus('too_short');
           } else {
             this._handleSmartConvertStatus('error');
           }
@@ -1629,6 +1634,7 @@ class AIPromptManager {
       success: 'background:#10b981;',
       error: 'background:#f59e0b;',
       no_provider: 'background:#ef4444;',
+      too_short: 'background:#ef4444;',
     };
 
     const MESSAGES = {
@@ -1636,6 +1642,7 @@ class AIPromptManager {
       success: title ? `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}: "${title}"` : `✨ ${this.msg('contextMenuConvertSuccess', 'Smart prompt saved!')}`,
       error: this.msg('contextMenuConvertError', '❌ Smart Convert failed, saved as raw text'),
       no_provider: '❌ ' + this.msg('smartConvertNoProvider', 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.'),
+      too_short: '❌ ' + this.msg('smartConvertTooShort', `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`),
     };
 
     if (status === 'start') {
@@ -1689,6 +1696,7 @@ class AIPromptManager {
         contextMenuConvertError: '智能转化失败，已保存原文',
         noPageText: '未找到页面可读取的文本内容',
         smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
+        smartConvertTooShort: `智能转换至少需要 ${SMART_CONVERT_MIN_LENGTH} 个字符`,
         selectionToolbarAdd: '添加到 Prompt Ark',
         selectionToolbarConvert: '智能转化为 Prompt',
         qaExpandLabel: '展开',
@@ -1713,6 +1721,7 @@ class AIPromptManager {
         contextMenuConvertError: 'Smart Convert failed, saved as raw text',
         noPageText: 'No readable text found on page',
         smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
+        smartConvertTooShort: `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`,
         selectionToolbarAdd: 'Add to Prompt Ark',
         selectionToolbarConvert: 'Smart Convert',
         qaExpandLabel: 'Expand',
