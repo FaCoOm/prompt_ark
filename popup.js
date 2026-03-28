@@ -2816,29 +2816,34 @@ ${p.sourceContext ? `
 
       // Check if it's a GitHub URL
       const ghInfo = this.githubClient.parseUrl(url);
+      const isGitHubRepo = ghInfo && ghInfo.type !== 'file';
 
       if (ghInfo) {
         files = await this.githubClient.scanRecursively(url, (msg) => {
           statusEl.textContent = msg;
         }, deepScan, abortController.signal);
       } else {
+        if (!this.githubClient.isSupportedUrl(url)) {
+          throw new Error('Unsupported file type. Only md, json, csv, txt, yaml, yml are supported.');
+        }
         statusEl.textContent = 'Fetching single URL...';
         const response = await fetch(url, { signal: abortController.signal });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
-        files = [{ path: 'url', content: text, url: url }];
+        const pathname = new URL(url).pathname;
+        files = [{ path: pathname, content: text, url: url }];
       }
       if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
       if (files.length === 0) throw new Error('No supported files found.');
 
-      // Phase 1: Parse files into raw prompts (heuristic scored)
+      // Phase 1: Parse files into prompts
       statusEl.textContent = i18n.t('scanParsing', { count: files.length });
       const rawPrompts = [];
 
       for (const file of files) {
         if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
-        const parsed = PromptParser.parse(file.content, file.path);
-        parsed.forEach((p, idx) => {
+        const parsed = PromptParser.parseUrlImportContent(file.content, file.path);
+        parsed.forEach((p) => {
           const id = `p-${rawPrompts.length}`;
           rawPrompts.push({
             ...p,
@@ -2859,8 +2864,8 @@ ${p.sourceContext ? `
 
       statusEl.textContent = i18n.t('scanParsed', { total: rawPrompts.length, passed: filtered.length, min: minScore });
 
-      // Phase 3: AI Analysis — only on filtered subset (cap at 200)
-      const toAnalyze = filtered.slice(0, 200);
+      // Phase 3: AI Analysis — only on filtered subset (cap at 100)
+      const toAnalyze = filtered.slice(0, 100);
 
       if (toAnalyze.length > 0) {
         progressDiv.classList.remove('hidden');
@@ -2974,14 +2979,7 @@ ${p.sourceContext ? `
         return;
       }
       try {
-        // Try JSON first
-        try {
-          const json = JSON.parse(dataStr);
-          promptsToImport = PromptParser.parseJson(json);
-        } catch {
-          // Try other parsers
-          promptsToImport = PromptParser.parse(dataStr);
-        }
+        promptsToImport = PromptParser.parseImportContent(dataStr);
       } catch (e) {
         this.showToast('❌ ' + i18n.t('parseFailed') + ': ' + e.message);
         return;
