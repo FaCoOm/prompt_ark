@@ -338,7 +338,7 @@ class AIPromptManager {
       this.showNotification(this.msg('inputNotFound', '未找到输入框'), 'error');
       return false;
     }
-    return this.injectIntoElement(inputEl, text);
+    return this.injectIntoElement(inputEl, text, { replaceAll: true });
   }
 
   // --- Variable Processing ---
@@ -807,7 +807,7 @@ class AIPromptManager {
             this.showNotification(this.msg('inputNotFound', '输入框已失效'), 'error');
             return;
           }
-          await this.injectIntoElement(input, content);
+          await this.injectIntoElement(input, content, { replaceAll: true });
         });
       });
 
@@ -946,7 +946,7 @@ class AIPromptManager {
         e.preventDefault();
         e.stopPropagation();
         const action = actions[idx];
-        await this.injectIntoElement(inputEl, action.prompt);
+        await this.injectIntoElement(inputEl, action.prompt, { replaceAll: true });
         menu.remove();
         inputEl.classList.remove('apm-target-highlight');
       });
@@ -1454,8 +1454,8 @@ class AIPromptManager {
     }).join('')}
       </div>
       <div class="apm-actions">
-        <button class="apm-btn apm-btn-cancel">Cancel</button>
-        <button class="apm-btn apm-btn-primary">Insert</button>
+        <button type="button" class="apm-btn apm-btn-cancel">Cancel</button>
+        <button type="button" class="apm-btn apm-btn-primary">Insert</button>
       </div>
     `;
 
