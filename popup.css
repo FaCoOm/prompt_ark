@@ -1898,7 +1898,7 @@ body::before {
 .smart-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin: 8px 0 10px;
 }
 
@@ -1909,22 +1909,11 @@ body::before {
   flex-wrap: wrap;
 }
 
-.toolbar-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-right: 2px;
-}
-
-.smart-filters,
-.sort-controls {
+.smart-views {
   margin: 0;
 }
 
-.smart-filter-btn,
-.sort-mode-btn {
+.smart-view-btn {
   padding: 5px 10px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
@@ -1939,15 +1928,13 @@ body::before {
   color: var(--text-secondary);
 }
 
-.smart-filter-btn:hover,
-.sort-mode-btn:hover {
+.smart-view-btn:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.smart-filter-btn.active,
-.sort-mode-btn.active {
+.smart-view-btn.active {
   background: var(--accent);
   color: white;
   border-color: var(--accent);

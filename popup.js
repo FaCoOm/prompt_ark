@@ -16,8 +16,7 @@ class PopupManager {
     this.activeProviderId = null;
     this.currentCategory = 'all';
     this.editingId = null;
-    this.activeSmartFilter = null;
-    this.activeSortMode = 'smart';
+    this.activeViewMode = 'smart';
     this.currentPage = 1;
     this.pageSize = 10;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -100,7 +99,7 @@ class PopupManager {
   localize() {
     i18n.translatePage();
     this.updateControlStates();
-    this.updateSortSummary();
+    this.updateViewSummary();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -473,7 +472,7 @@ class PopupManager {
     return Number(prompt?.updatedAt || 0);
   }
 
-  comparePrompts(a, b, sortMode = this.activeSortMode) {
+  comparePrompts(a, b, sortMode = 'smart') {
     const favoriteDiff = Number(Boolean(b?.favorite)) - Number(Boolean(a?.favorite));
     const lastUsedDiff = this.getPromptLastUsedAt(b) - this.getPromptLastUsedAt(a);
     const usageDiff = this.getPromptUsageCount(b) - this.getPromptUsageCount(a);
@@ -509,39 +508,52 @@ class PopupManager {
     return String(a?.id || '').localeCompare(String(b?.id || ''));
   }
 
-  sortPrompts(prompts, sortMode = this.activeSortMode) {
+  sortPrompts(prompts, sortMode = 'smart') {
     return [...prompts].sort((a, b) => this.comparePrompts(a, b, sortMode));
   }
 
-  getFilterSummaryKey() {
-    if (this.activeSmartFilter === 'favorites') return 'summaryFilterFavorites';
-    if (this.activeSmartFilter === 'mostUsed') return 'summaryFilterMostUsed';
-    if (this.activeSmartFilter === 'recentAdded') return 'summaryFilterRecentlyAdded';
-    if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') return 'summaryFilterRecentlyUsed';
-    return 'summaryAllPrompts';
-  }
+  getViewConfig(viewMode = this.activeViewMode) {
+    const configs = {
+      smart: {
+        sortMode: 'smart',
+        predicate: null,
+        summaryKey: 'viewSummarySmart'
+      },
+      favorites: {
+        sortMode: 'smart',
+        predicate: (prompt) => Boolean(prompt.favorite),
+        summaryKey: 'viewSummaryFavorites'
+      },
+      mostUsed: {
+        sortMode: 'usageCount',
+        predicate: (prompt) => this.getPromptUsageCount(prompt) > 0,
+        summaryKey: 'viewSummaryMostUsed'
+      },
+      recentUsed: {
+        sortMode: 'lastUsedAt',
+        predicate: (prompt) => this.getPromptLastUsedAt(prompt) > 0,
+        summaryKey: 'viewSummaryRecentUsed'
+      },
+      recentAdded: {
+        sortMode: 'createdAt',
+        predicate: (prompt) => !prompt.builtIn && this.getPromptCreatedAt(prompt) > 0,
+        summaryKey: 'viewSummaryRecentAdded'
+      }
+    };
 
-  getSortSummaryKey() {
-    if (this.activeSortMode === 'lastUsedAt') return 'summarySortLastUsed';
-    if (this.activeSortMode === 'usageCount') return 'summarySortUsage';
-    if (this.activeSortMode === 'createdAt') return 'summarySortCreated';
-    return 'summarySortSmart';
+    return configs[viewMode] || configs.smart;
   }
 
   updateControlStates() {
-    document.querySelectorAll('.smart-filter-btn[data-filter]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.filter === this.activeSmartFilter);
-    });
-
-    document.querySelectorAll('.sort-mode-btn[data-sort]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.sort === this.activeSortMode);
+    document.querySelectorAll('.smart-view-btn[data-view]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === this.activeViewMode);
     });
   }
 
-  updateSortSummary() {
-    const summary = document.getElementById('sortSummary');
+  updateViewSummary() {
+    const summary = document.getElementById('viewSummary');
     if (!summary) return;
-    summary.textContent = `${i18n.t(this.getFilterSummaryKey())} · ${i18n.t(this.getSortSummaryKey())}`;
+    summary.textContent = i18n.t(this.getViewConfig().summaryKey);
   }
 
   renderPromptTimeMeta(prompt) {
@@ -565,18 +577,12 @@ class PopupManager {
   renderPrompts() {
     const container = document.getElementById('promptList');
     const searchQuery = (document.getElementById('searchInput').value || '').toLowerCase();
+    const viewConfig = this.getViewConfig();
 
     let filtered = this.prompts;
 
-    // Quick filters
-    if (this.activeSmartFilter === 'favorites') {
-      filtered = filtered.filter(p => p.favorite);
-    } else if (this.activeSmartFilter === 'mostUsed') {
-      filtered = filtered.filter(p => this.getPromptUsageCount(p) > 0);
-    } else if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') {
-      filtered = filtered.filter(p => this.getPromptLastUsedAt(p) > 0);
-    } else if (this.activeSmartFilter === 'recentAdded') {
-      filtered = filtered.filter(p => !p.builtIn && this.getPromptCreatedAt(p) > 0);
+    if (viewConfig.predicate) {
+      filtered = filtered.filter(viewConfig.predicate);
     }
 
     if (this.currentCategory !== 'all') {
@@ -597,9 +603,9 @@ class PopupManager {
       });
     }
 
-    filtered = this.sortPrompts(filtered);
+    filtered = this.sortPrompts(filtered, viewConfig.sortMode);
     this.updateControlStates();
-    this.updateSortSummary();
+    this.updateViewSummary();
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -1092,37 +1098,12 @@ ${p.sourceContext ? `
       }
     });
 
-    // Smart filters
-    document.getElementById('smartFilters')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.smart-filter-btn');
+    document.getElementById('smartViews')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.smart-view-btn');
       if (!btn) return;
-      const filter = btn.dataset.filter;
-      if (!filter) return;
-
-      const linkedSortModes = {
-        favorites: 'smart',
-        mostUsed: 'usageCount',
-        recentAdded: 'createdAt',
-        recentUsed: 'lastUsedAt',
-        recent: 'lastUsedAt'
-      };
-
-      if (this.activeSmartFilter === filter) {
-        this.activeSmartFilter = null; // Toggle off
-      } else {
-        this.activeSmartFilter = filter;
-        this.activeSortMode = linkedSortModes[filter] || this.activeSortMode;
-      }
-
-      this.currentPage = 1;
-      this.updateControlStates();
-      this.renderPrompts();
-    });
-
-    document.getElementById('sortControls')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.sort-mode-btn');
-      if (!btn?.dataset.sort) return;
-      this.activeSortMode = btn.dataset.sort;
+      const view = btn.dataset.view;
+      if (!view || this.activeViewMode === view) return;
+      this.activeViewMode = view;
       this.currentPage = 1;
       this.updateControlStates();
       this.renderPrompts();
