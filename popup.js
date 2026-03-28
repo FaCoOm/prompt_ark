@@ -2882,8 +2882,12 @@ ${p.sourceContext ? `
 
       if (response.success) {
         await this.loadPrompts();
+        if (newPrompts.length > 0) {
+          this.pendingRevealPromptId = String(newPrompts[0].id);
+        }
         this.renderCategories();
         this.renderPrompts();
+        await this.consumePendingPromptReveal();
         this.hideImportModal();
         this.showToast(i18n.t('importSuccess', { count: newPrompts.length }));
 
