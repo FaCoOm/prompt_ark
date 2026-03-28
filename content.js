@@ -133,6 +133,7 @@ class ImagePromptHandler {
 // Unified deep traversal strategy for all platforms
 
 const SMART_CONVERT_MIN_LENGTH = 10;
+const SHORTCUT_ACTION_DEDUPE_MS = 350;
 
 class AIPromptManager {
   constructor() {
@@ -142,6 +143,7 @@ class AIPromptManager {
     this.injectedMarker = 'data-apm-injected';
     this.onSelectCallback = null;
     this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
+    this.shortcutActionState = new Map();
 
     // Slash command state
     this.slashDropdown = null;
@@ -500,6 +502,26 @@ class AIPromptManager {
     return this.resolveVariables(content, contextValues);
   }
 
+  async runShortcutAction(actionName, fn) {
+    const now = Date.now();
+    const state = this.shortcutActionState.get(actionName) || { lastTriggeredAt: 0, inFlight: false };
+    if (state.inFlight || (now - state.lastTriggeredAt) < SHORTCUT_ACTION_DEDUPE_MS) {
+      return false;
+    }
+
+    state.lastTriggeredAt = now;
+    state.inFlight = true;
+    this.shortcutActionState.set(actionName, state);
+
+    try {
+      await Promise.resolve(fn());
+      return true;
+    } finally {
+      state.inFlight = false;
+      this.shortcutActionState.set(actionName, state);
+    }
+  }
+
   // --- Initialization ---
 
   init() {
@@ -512,19 +534,19 @@ class AIPromptManager {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         e.stopPropagation();
-        this.showPromptPicker();
+        this.runShortcutAction('open-picker', () => this.showPromptPicker());
       }
       // Context Grabber: Ctrl+Shift+G = Smart grab page text and convert to prompt
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         e.stopPropagation();
-        this.capturePageContext();
+        this.runShortcutAction('grab-context', () => this.capturePageContext());
       }
       // Article Share: Ctrl+Shift+Y = Show platform picker for article sharing
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         e.stopPropagation();
-        this._showArticleSharePicker();
+        this.runShortcutAction('share-article', () => this._showArticleSharePicker());
       }
       if (e.key === 'Escape' && this.pickerVisible) {
         this.hidePromptPicker();
@@ -985,7 +1007,7 @@ class AIPromptManager {
         break;
       }
       case 'SHOW_PROMPT_PICKER':
-        this.showPromptPicker();
+        this.runShortcutAction('open-picker', () => this.showPromptPicker());
         sendResponse({ success: true });
         break;
       case 'SAVE_FROM_CONTEXT_MENU_SUCCESS':
@@ -1000,7 +1022,7 @@ class AIPromptManager {
         sendResponse({ platform: this.platform });
         break;
       case 'GRAB_CONTEXT':
-        this.capturePageContext();
+        this.runShortcutAction('grab-context', () => this.capturePageContext());
         sendResponse({ success: true });
         break;
       case 'PROMPTS_UPDATED':
@@ -1036,7 +1058,7 @@ class AIPromptManager {
         sendResponse({ success: true });
         break;
       case 'SHOW_ARTICLE_SHARE_PICKER':
-        this._showArticleSharePicker();
+        this.runShortcutAction('share-article', () => this._showArticleSharePicker());
         sendResponse({ success: true });
         break;
       case 'ARTICLE_SHARE_PICK_PLATFORM':
