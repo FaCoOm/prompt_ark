@@ -1159,6 +1159,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   await handleContextMenuClick(info, tab, getPrompts, asyncEnrichPrompt, () => buildContextMenus(getPrompts));
 });
 
+chrome.contextMenus.onShown.addListener(async (info, tab) => {
+  await buildContextMenus(getPrompts, { tabUrl: tab?.url || '' });
+  chrome.contextMenus.refresh();
+});
+
 // Build menus on install/startup
 chrome.runtime.onInstalled.addListener(() => buildContextMenus(getPrompts));
 chrome.runtime.onStartup.addListener(() => buildContextMenus(getPrompts));
