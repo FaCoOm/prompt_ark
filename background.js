@@ -512,7 +512,7 @@ async function handleMessage(message, sendResponse) {
         // Append to existing (not overwrite!)
         const existing = await getPrompts();
         await PromptStorage.bulkSet([...existing, ...imported]);
-        await buildContextMenus(getPrompts);
+        await rebuildContextMenusForActiveTab();
         sendResponse({
           success: true,
           promptIds: imported.map(p => p.id),
@@ -537,7 +537,7 @@ async function handleMessage(message, sendResponse) {
 
       case 'LANGUAGE_CHANGED': {
         // Rebuild context menus immediately when user changes language
-        buildContextMenus(getPrompts);
+        rebuildContextMenusForActiveTab();
 
         // Broadcast new translation dictionary to all active tabs
         chrome.storage.local.get('language').then(({ language }) => {
@@ -603,7 +603,7 @@ async function handleMessage(message, sendResponse) {
           createdAt: now
         };
         await PromptStorage.save(newPrompt);
-        await buildContextMenus(getPrompts);
+        await rebuildContextMenusForActiveTab();
         await markPendingPromptReveal(newId);
         broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
         sendResponse({ success: true });
@@ -649,7 +649,7 @@ async function handleMessage(message, sendResponse) {
             createdAt: now
           };
           await PromptStorage.save(newPrompt);
-          await buildContextMenus(getPrompts);
+          await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(newId);
           broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
           sendResponse({ success: true, title: newPrompt.title });
@@ -681,7 +681,7 @@ async function handleMessage(message, sendResponse) {
             createdAt: now
           };
           await PromptStorage.save(fallbackPrompt);
-          await buildContextMenus(getPrompts);
+          await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(fallbackId);
           broadcastPromptsUpdated({ action: 'create', promptId: fallbackId, prompt: fallbackPrompt });
           sendResponse({ success: false, error: e.message, fallbackSaved: true, title: fallbackPrompt.title });
@@ -1156,21 +1156,45 @@ chrome.commands.onCommand.addListener((command) => {
 
 // Context menu click handler — delegates to lib/context-menu.js
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  await handleContextMenuClick(info, tab, getPrompts, asyncEnrichPrompt, () => buildContextMenus(getPrompts));
+  await handleContextMenuClick(info, tab, getPrompts, asyncEnrichPrompt, () => rebuildContextMenusForActiveTab());
 });
 
-chrome.contextMenus.onShown.addListener(async (info, tab) => {
-  await buildContextMenus(getPrompts, { tabUrl: tab?.url || '' });
-  chrome.contextMenus.refresh();
-});
+async function rebuildContextMenusForActiveTab() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    await buildContextMenus(getPrompts, { tabUrl: tabs[0]?.url || '' });
+  } catch (e) {
+    await buildContextMenus(getPrompts);
+  }
+}
 
 // Build menus on install/startup
-chrome.runtime.onInstalled.addListener(() => buildContextMenus(getPrompts));
-chrome.runtime.onStartup.addListener(() => buildContextMenus(getPrompts));
+chrome.runtime.onInstalled.addListener(() => rebuildContextMenusForActiveTab());
+chrome.runtime.onStartup.addListener(() => rebuildContextMenusForActiveTab());
+
+chrome.tabs.onActivated.addListener(() => {
+  rebuildContextMenusForActiveTab();
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!tab?.active) return;
+  if (changeInfo.status === 'complete' || changeInfo.url) {
+    rebuildContextMenusForActiveTab();
+  }
+});
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId !== chrome.windows.WINDOW_ID_NONE) {
+    rebuildContextMenusForActiveTab();
+  }
+});
 
 // Auto-rebuild menus when prompts change
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && (changes.prompts || Object.keys(changes).some(k => k.startsWith('prompts_')))) {
-    buildContextMenus(getPrompts);
+    rebuildContextMenusForActiveTab();
+  }
+  if (area === 'local' && changes.language) {
+    rebuildContextMenusForActiveTab();
   }
 });
