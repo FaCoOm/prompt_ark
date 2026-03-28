@@ -27,6 +27,10 @@ class PopupManager {
     this.contentAnalyzer = new ContentAnalyzer();
     this.history = new HistoryPanel();
     this.shareManager = new ShareManager({ getPrompts: () => this.prompts });
+    
+    // Track current tab for side panel context
+    this.currentTab = null;
+    this.isSidePanel = false;
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init());
@@ -51,6 +55,9 @@ class PopupManager {
 
     // Render Hub user info if logged in
     this.renderHubUserInfo();
+    
+    // Detect if running in side panel and track tab changes
+    this.detectSidePanelAndTrackTab();
 
     // Listen for Hub auth changes (real-time sync)
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -110,6 +117,80 @@ class PopupManager {
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
+  }
+
+  async detectSidePanelAndTrackTab() {
+    const url = new URL(window.location.href);
+    this.isSidePanel = url.searchParams.get('panel') === 'side' || window.outerWidth > 400;
+    
+    if (this.isSidePanel) {
+      await this.refreshActiveTab();
+      chrome.tabs.onActivated.addListener(() => this.refreshActiveTab());
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+        if (this.currentTab?.id === tabId && changeInfo.status === 'complete') {
+          this.refreshActiveTab();
+        }
+      });
+    }
+  }
+  
+  async refreshActiveTab() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      this.currentTab = tab;
+      this.renderPlatformStatus();
+    } catch (e) {
+      console.warn('Failed to refresh active tab:', e);
+    }
+  }
+  
+  renderPlatformStatus() {
+    const indicator = document.getElementById('platformIndicator');
+    if (!indicator) return;
+    
+    const platform = this.getPlatformFromUrl(this.currentTab?.url);
+    if (platform && platform !== 'generic') {
+      indicator.textContent = `当前页面: ${this.getPlatformName(platform)}`;
+      indicator.className = 'platform-indicator supported';
+    } else {
+      indicator.textContent = '当前页面: 不支持自动插入';
+      indicator.className = 'platform-indicator unsupported';
+    }
+  }
+  
+  getPlatformFromUrl(url) {
+    if (!url) return null;
+    try {
+      const h = new URL(url).hostname;
+      if (h.includes('chatgpt.com') || h.includes('chat.openai.com')) return 'chatgpt';
+      if (h.includes('claude.ai')) return 'claude';
+      if (h.includes('gemini.google.com')) return 'gemini';
+      if (h.includes('notebooklm.google.com')) return 'notebooklm';
+      if (h.includes('aistudio.google.com')) return 'aistudio';
+      if (h.includes('grok.com')) return 'grok';
+      if (h.includes('chat.deepseek.com')) return 'deepseek';
+      if (h.includes('kimi.com') || h.includes('kimi.moonshot.cn')) return 'kimi';
+      if (h.includes('chatglm.cn')) return 'zhipu';
+      if (h.includes('doubao.com')) return 'doubao';
+      if (h.includes('yiyan.baidu.com')) return 'wenxin';
+      if (h.includes('tongyi.aliyun.com') || h.includes('qwen.ai')) return 'qwen';
+      if (h.includes('hailuoai.com')) return 'minimax';
+      if (h.includes('hunyuan.tencent.com')) return 'hunyuan';
+      return 'generic';
+    } catch {
+      return null;
+    }
+  }
+  
+  getPlatformName(platform) {
+    const names = {
+      chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini',
+      notebooklm: 'NotebookLM', aistudio: 'AI Studio', grok: 'Grok',
+      deepseek: 'DeepSeek', kimi: 'Kimi', zhipu: '智谱清言',
+      doubao: '豆包', wenxin: '文心一言', qwen: '通义千问',
+      minimax: '海螺AI', hunyuan: '混元'
+    };
+    return names[platform] || platform;
   }
 
   // --- Hub User Info (登录显示头像和名字) ---
@@ -2426,9 +2507,25 @@ ${p.sourceContext ? `
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
 
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    let tab = this.currentTab;
+    if (!tab) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = tabs[0];
+    }
+
     if (!tab?.id) {
       this.showToast(i18n.t('insertError'));
+      return;
+    }
+
+    const platform = this.getPlatformFromUrl(tab.url);
+    if (!platform || platform === 'generic') {
+      const isSidePanel = this.isSidePanel || window.outerWidth > 400;
+      if (isSidePanel) {
+        this.showToast('当前页面不支持自动插入，请先切换到AI平台页面');
+      } else {
+        this.showToast(i18n.t('insertError'));
+      }
       return;
     }
 
@@ -2462,31 +2559,30 @@ ${p.sourceContext ? `
 
     const composedPrompt = { ...prompt, content: composedContent, variables: composedVars };
 
-    // Check for remaining user variables
-    if (composedVars && composedVars.length > 0) {
-      this.showVariableFillModal(composedPrompt, async (filledContent) => {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'INSERT_PROMPT',
-            content: filledContent
-          });
-          await this.markPromptUsed(id, prompt);
-          window.close();
-        } catch (error) {
-          this.showToast(i18n.t('insertError'));
-        }
-      }, i18n.t('insert'));
-    } else {
+    const performInsert = async (content) => {
       try {
         await chrome.tabs.sendMessage(tab.id, {
           type: 'INSERT_PROMPT',
-          content: composedContent
+          content: content
         });
         await this.markPromptUsed(id, prompt);
-        window.close();
+        if (!this.isSidePanel) {
+          window.close();
+        }
       } catch (error) {
-        this.showToast(i18n.t('insertError'));
+        if (this.isSidePanel && !this.getPlatformFromUrl(tab.url)) {
+          this.showToast('页面已切换，请切换到AI平台页面后重试');
+        } else {
+          this.showToast(i18n.t('insertError'));
+        }
       }
+    };
+
+    // Check for remaining user variables
+    if (composedVars && composedVars.length > 0) {
+      this.showVariableFillModal(composedPrompt, performInsert, i18n.t('insert'));
+    } else {
+      await performInsert(composedContent);
     }
   }
   showVariableFillModal(prompt, onComplete, actionBtnText = 'Confirm') {
