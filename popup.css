@@ -2498,13 +2498,23 @@ body::before {
   top: 100%;
   right: 0;
   z-index: 100;
-  min-width: 180px;
+  width: 260px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 4px;
-  margin-top: 4px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 6px;
+  margin-top: 6px;
+}
+
+.optimize-provider-menu::before {
+  content: '✨ 选择优化模型';
+  display: block;
+  padding: 8px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
 }
 
 .optimize-provider-menu.hidden {
@@ -2513,39 +2523,69 @@ body::before {
 
 .optimize-provider-option {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  text-align: left;
 }
 
 .optimize-provider-option:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .optimize-provider-option.active {
-  color: var(--primary-color);
-  font-weight: 600;
+  background: var(--accent-soft);
 }
 
 .optimize-provider-option .provider-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--text-tertiary);
+  background: var(--border);
   flex-shrink: 0;
+  margin-top: 4px;
+  transition: all 0.15s ease;
 }
 
 .optimize-provider-option.active .provider-dot {
-  background: var(--primary-color);
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.provider-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-option-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.optimize-provider-option.active .provider-option-name {
+  color: var(--accent);
+}
+
+.provider-option-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===================== SYNC SETTINGS ===================== */
