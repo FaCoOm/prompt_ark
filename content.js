@@ -140,6 +140,7 @@ class AIPromptManager {
     this.platform = this.detectPlatform();
     this.pickerVisible = false;
     this.prompts = [];
+    this._savedSelection = null;
     this.injectedMarker = 'data-apm-injected';
     this.onSelectCallback = null;
     this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
@@ -479,28 +480,35 @@ class AIPromptManager {
   }
 
   // Resolve context variables against the current page only.
-  async resolveContextVariables(content) {
+  async resolveContextVariables(content, overrides = {}) {
     const vars = this.extractVariables(content);
     const hasContextVars = vars.some(v => AIPromptManager.CONTEXT_VARS.has(v.name));
     if (!hasContextVars) return content;
 
     const contextValues = {};
+    const selectionOverride = typeof overrides['@selection'] === 'string'
+      ? overrides['@selection']
+      : null;
 
     if (vars.some(v => v.name === '@page_url')) {
-      contextValues['@page_url'] = window.location.href;
+      contextValues['@page_url'] = overrides['@page_url'] ?? window.location.href;
     }
     if (vars.some(v => v.name === '@page_title')) {
-      contextValues['@page_title'] = document.title || '';
+      contextValues['@page_title'] = overrides['@page_title'] ?? (document.title || '');
     }
     if (vars.some(v => v.name === '@selection')) {
-      contextValues['@selection'] = window.getSelection()?.toString()?.trim() || '';
+      contextValues['@selection'] = selectionOverride ?? this._savedSelection ?? (window.getSelection()?.toString()?.trim() || '');
     }
     if (vars.some(v => v.name === '@page_text')) {
-      const article = document.querySelector('article') || document.querySelector('main') || document.body;
-      contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
+      if (typeof overrides['@page_text'] === 'string') {
+        contextValues['@page_text'] = overrides['@page_text'];
+      } else {
+        const article = document.querySelector('article') || document.querySelector('main') || document.body;
+        contextValues['@page_text'] = (article?.innerText || '').substring(0, 4000).trim();
+      }
     }
     if (vars.some(v => v.name === '@date')) {
-      contextValues['@date'] = new Date().toISOString().split('T')[0];
+      contextValues['@date'] = overrides['@date'] ?? new Date().toISOString().split('T')[0];
     }
 
     return this.resolveVariables(content, contextValues);
@@ -1038,6 +1046,40 @@ class AIPromptManager {
         this.runShortcutAction('open-picker', () => this.showPromptPicker());
         sendResponse({ success: true });
         break;
+      case 'RUN_CONTEXT_MENU_PROMPT': {
+        const prompt = message.prompt;
+        const selectionText = (message.selectedText || '').trim();
+        const deliveryMode = message.deliveryMode || 'open_default_ai';
+
+        if (!prompt) {
+          sendResponse({ success: false, error: 'PROMPT_MISSING' });
+          break;
+        }
+
+        const onSelect = deliveryMode === 'open_default_ai'
+          ? async (content) => {
+            const resp = await chrome.runtime.sendMessage({
+              type: 'OPEN_PROMPT_IN_DEFAULT_AI',
+              content
+            });
+            if (!resp?.success) {
+              throw new Error(resp?.error || 'OPEN_PROMPT_IN_DEFAULT_AI_FAILED');
+            }
+          }
+          : null;
+
+        this.executePromptWorkflow(prompt, {
+          selectionText,
+          onSelect
+        }).then(() => {
+          sendResponse({ success: true });
+        }).catch((err) => {
+          console.error('[Prompt Ark] Context menu prompt workflow failed:', err);
+          this.showNotification('❌ ' + this.msg('loadError', '无法加载Prompts'), 'error');
+          sendResponse({ success: false, error: err?.message || 'RUN_CONTEXT_MENU_PROMPT_FAILED' });
+        });
+        break;
+      }
       case 'SAVE_FROM_CONTEXT_MENU_SUCCESS':
         this.showNotification(this.msg('contextMenuSaveSuccess', '已添加到 Prompt Ark ✓'), 'success');
         sendResponse({ success: true });
@@ -1061,7 +1103,7 @@ class AIPromptManager {
         if (request.dict) this.i18nDict = request.dict;
         break;
       case 'GET_SELECTION':
-        sendResponse({ text: this._savedSelection || window.getSelection().toString() });
+        sendResponse({ text: typeof this._savedSelection === 'string' ? this._savedSelection : window.getSelection().toString() });
         break;
       case 'GET_PAGE_TEXT': {
         // Return cleaned page text, capped at 5000 chars
@@ -1284,10 +1326,65 @@ class AIPromptManager {
     const picker = document.getElementById('ai-prompt-picker');
     if (picker) picker.remove();
     this.pickerVisible = false;
+    this._savedSelection = null;
     this.onSelectCallback = null;
     document.querySelectorAll('.apm-target-highlight').forEach(el => {
       el.classList.remove('apm-target-highlight');
     });
+  }
+
+  ensurePromptPickerShell() {
+    let picker = document.getElementById('ai-prompt-picker');
+    if (picker) return picker;
+
+    picker = document.createElement('div');
+    picker.id = 'ai-prompt-picker';
+    picker.innerHTML = `
+      <div class="apm-overlay"></div>
+      <div class="apm-modal"></div>
+    `;
+    document.body.appendChild(picker);
+    picker.querySelector('.apm-overlay')?.addEventListener('click', () => this.hidePromptPicker());
+    this.pickerVisible = true;
+    return picker;
+  }
+
+  async preparePromptForUse(prompt, options = {}) {
+    const hasSelectionOverride = typeof options.selectionText === 'string';
+    const selectionText = hasSelectionOverride
+      ? options.selectionText.trim()
+      : '';
+    if (hasSelectionOverride) {
+      this._savedSelection = selectionText;
+    }
+
+    const composeResp = await chrome.runtime.sendMessage({ type: 'COMPOSE_PROMPT', prompt });
+    const composedRaw = composeResp?.success ? composeResp.composed : prompt.content;
+    const contextResolved = await this.resolveContextVariables(
+      composedRaw,
+      selectionText ? { '@selection': selectionText } : {}
+    );
+    const variables = this.extractVariables(contextResolved).filter(v => v.type !== 'context');
+
+    return { contextResolved, variables };
+  }
+
+  async executePromptWorkflow(prompt, options = {}) {
+    const { contextResolved, variables } = await this.preparePromptForUse(prompt, options);
+    this.onSelectCallback = options.onSelect ?? null;
+
+    if (variables.length > 0) {
+      this.showVariableForm({ ...prompt, content: contextResolved }, variables);
+      return { success: true, needsInput: true };
+    }
+
+    if (this.onSelectCallback) {
+      await this.onSelectCallback(contextResolved);
+    } else {
+      await this.injectPromptRobust(contextResolved);
+    }
+    this.hidePromptPicker();
+    return { success: true, needsInput: false };
   }
 
   async selectPrompt(id) {
@@ -1297,27 +1394,9 @@ class AIPromptManager {
     // Track usage
     chrome.runtime.sendMessage({ type: 'TRACK_USAGE', id }).catch(() => { });
 
-    // 1. Compose prompt content
-    const composeResp = await chrome.runtime.sendMessage({ type: 'COMPOSE_PROMPT', prompt });
-    const composedRaw = composeResp?.success ? composeResp.composed : prompt.content;
-
-    // 2. Context Grabber: auto-resolve magic variables FIRST
-    const contextResolved = await this.resolveContextVariables(composedRaw);
-
-    // 3. Now check for remaining user-defined variables (exclude context vars)
-    const variables = this.extractVariables(contextResolved).filter(v => v.type !== 'context');
-
-    if (variables.length > 0) {
-      // Show variable fill form (only manual variables remain)
-      this.showVariableForm({ ...prompt, content: contextResolved }, variables);
-    } else {
-      if (this.onSelectCallback) {
-        await this.onSelectCallback(contextResolved);
-      } else {
-        await this.injectPromptRobust(contextResolved);
-      }
-      this.hidePromptPicker();
-    }
+    await this.executePromptWorkflow(prompt, {
+      onSelect: this.onSelectCallback
+    });
   }
 
 
@@ -1326,8 +1405,7 @@ class AIPromptManager {
 
   showVariableForm(prompt, variables) {
     // Remove picker modal content, replace with variable form
-    const picker = document.getElementById('ai-prompt-picker');
-    if (!picker) return;
+    const picker = this.ensurePromptPickerShell();
 
     const modal = picker.querySelector('.apm-modal');
     modal.innerHTML = `

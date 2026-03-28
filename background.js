@@ -17,7 +17,7 @@ import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
 // [DISABLED] import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
 import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS, buildFallbackText } from './lib/ai/share.js';
-import { buildContextMenus, handleContextMenuClick } from './lib/context-menu.js';
+import { buildContextMenus, handleContextMenuClick, openPromptInDefaultAI } from './lib/context-menu.js';
 import { initSupabase, initSupabaseFromStorage, isAuthenticated as isSupabaseAuthenticated, from as supabaseFrom, signOut } from './lib/supabase/client.js';
 
 
@@ -874,6 +874,18 @@ async function handleMessage(message, sendResponse) {
             sendResponse({ success: true, title: articleTitle, body: shareText });
           } catch (e) {
             console.error('[ARTICLE_SHARE_TO_PLATFORM] Error:', e);
+            sendResponse({ success: false, error: e.message });
+          }
+        })();
+        return true;
+      }
+
+      case 'OPEN_PROMPT_IN_DEFAULT_AI': {
+        (async () => {
+          try {
+            await openPromptInDefaultAI(message.content || '');
+            sendResponse({ success: true });
+          } catch (e) {
             sendResponse({ success: false, error: e.message });
           }
         })();
