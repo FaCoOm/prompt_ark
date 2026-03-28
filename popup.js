@@ -16,10 +16,11 @@ class PopupManager {
     this.activeProviderId = null;
     this.currentCategory = 'all';
     this.editingId = null;
-    this.activeSmartFilter = null;
-    this.timeSortDirection = 'desc';
+    this.activeViewMode = 'smart';
     this.currentPage = 1;
     this.pageSize = 10;
+    this.pendingRevealPromptId = null;
+    this.revealPromptTimer = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
     this.githubClient = new GitHubClient();
@@ -46,6 +47,7 @@ class PopupManager {
     this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
+    await this.consumePendingPromptReveal();
 
     // Render Hub user info if logged in
     this.renderHubUserInfo();
@@ -86,11 +88,16 @@ class PopupManager {
           }
           this.renderCategories();
           this.renderPrompts();
+          if (msg.action === 'create' && msg.prompt?.id) {
+            this.pendingRevealPromptId = String(msg.prompt.id);
+            this.consumePendingPromptReveal();
+          }
         } else {
           // Full reload fallback (e.g. force-sync from remote)
           this.loadPrompts().then(() => {
             this.renderCategories();
             this.renderPrompts();
+            this.consumePendingPromptReveal();
           });
         }
       }
@@ -99,7 +106,7 @@ class PopupManager {
 
   localize() {
     i18n.translatePage();
-    this.updateTimeSortButton();
+    this.updateControlStates();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -450,26 +457,174 @@ class PopupManager {
     return Array.from(categories).sort();
   }
 
+  async getStoredPendingPromptReveal() {
+    try {
+      const { pendingPromptReveal } = await chrome.storage.local.get('pendingPromptReveal');
+      if (!pendingPromptReveal?.id) return null;
+
+      const timestamp = Number(pendingPromptReveal.timestamp || 0);
+      if (timestamp && (Date.now() - timestamp) > 10 * 60 * 1000) {
+        await chrome.storage.local.remove('pendingPromptReveal');
+        return null;
+      }
+
+      return String(pendingPromptReveal.id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async clearPendingPromptReveal() {
+    this.pendingRevealPromptId = null;
+    try {
+      await chrome.storage.local.remove('pendingPromptReveal');
+    } catch (e) {
+      // Ignore storage cleanup failures for this ephemeral state.
+    }
+  }
+
+  async consumePendingPromptReveal() {
+    const revealId = this.pendingRevealPromptId || await this.getStoredPendingPromptReveal();
+    if (!revealId) return false;
+
+    const prompt = this.prompts.find(p => String(p.id) === String(revealId));
+    if (!prompt) return false;
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    this.activeViewMode = 'recentAdded';
+    this.currentCategory = 'all';
+    this.currentPage = 1;
+    this.renderCategories();
+    this.renderPrompts();
+
+    const selector = `.prompt-item[data-id="${String(revealId).replace(/"/g, '\\"')}"]`;
+    const target = document.querySelector(selector);
+    if (target) {
+      target.classList.add('prompt-item-reveal');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      clearTimeout(this.revealPromptTimer);
+      this.revealPromptTimer = setTimeout(() => {
+        target.classList.remove('prompt-item-reveal');
+      }, 2600);
+    }
+
+    await this.clearPendingPromptReveal();
+    return true;
+  }
+
+  getPromptUsageCount(prompt) {
+    return Number(prompt?.usageCount || 0);
+  }
+
+  getPromptLastUsedAt(prompt) {
+    const usageCount = this.getPromptUsageCount(prompt);
+    const legacyLastUsed = usageCount > 0 ? Number(prompt?.lastUsed || 0) : 0;
+    return Number(prompt?.lastUsedAt || legacyLastUsed || 0);
+  }
+
+  getPromptCreatedAt(prompt) {
+    const explicitCreatedAt = Number(prompt?.createdAt || 0);
+    if (explicitCreatedAt > 0) return explicitCreatedAt;
+
+    // Backward compatibility for old imported prompts that only wrote `lastUsed`.
+    if (!prompt?.lastUsedAt && this.getPromptUsageCount(prompt) === 0 && prompt?.lastUsed) {
+      return Number(prompt.lastUsed || 0);
+    }
+
+    return Number(prompt?.updatedAt || 0);
+  }
+
+  comparePrompts(a, b, sortMode = 'smart') {
+    const favoriteDiff = Number(Boolean(b?.favorite)) - Number(Boolean(a?.favorite));
+    const lastUsedDiff = this.getPromptLastUsedAt(b) - this.getPromptLastUsedAt(a);
+    const usageDiff = this.getPromptUsageCount(b) - this.getPromptUsageCount(a);
+    const createdDiff = this.getPromptCreatedAt(b) - this.getPromptCreatedAt(a);
+
+    if (sortMode === 'lastUsedAt') {
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (usageDiff !== 0) return usageDiff;
+      if (createdDiff !== 0) return createdDiff;
+    } else if (sortMode === 'usageCount') {
+      if (usageDiff !== 0) return usageDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (createdDiff !== 0) return createdDiff;
+    } else if (sortMode === 'createdAt') {
+      if (createdDiff !== 0) return createdDiff;
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (usageDiff !== 0) return usageDiff;
+    } else {
+      if (favoriteDiff !== 0) return favoriteDiff;
+      if (lastUsedDiff !== 0) return lastUsedDiff;
+      if (usageDiff !== 0) return usageDiff;
+      if (createdDiff !== 0) return createdDiff;
+    }
+
+    const titleA = String(a?.title || '');
+    const titleB = String(b?.title || '');
+    const titleDiff = titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+    if (titleDiff !== 0) return titleDiff;
+
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  }
+
+  sortPrompts(prompts, sortMode = 'smart') {
+    return [...prompts].sort((a, b) => this.comparePrompts(a, b, sortMode));
+  }
+
+  getViewConfig(viewMode = this.activeViewMode) {
+    const configs = {
+      smart: {
+        sortMode: 'smart',
+        predicate: null
+      },
+      favorites: {
+        sortMode: 'smart',
+        predicate: (prompt) => Boolean(prompt.favorite)
+      },
+      mostUsed: {
+        sortMode: 'usageCount',
+        predicate: (prompt) => this.getPromptUsageCount(prompt) > 0
+      },
+      recentUsed: {
+        sortMode: 'lastUsedAt',
+        predicate: (prompt) => this.getPromptLastUsedAt(prompt) > 0
+      },
+      recentAdded: {
+        sortMode: 'createdAt',
+        predicate: (prompt) => !prompt.builtIn && this.getPromptCreatedAt(prompt) > 0
+      }
+    };
+
+    return configs[viewMode] || configs.smart;
+  }
+
+  updateControlStates() {
+    document.querySelectorAll('.smart-view-btn[data-view]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === this.activeViewMode);
+    });
+  }
+
+  renderPromptScoreBadge(prompt) {
+    const score = PromptScorer.score(prompt?.content);
+    return `<span class="prompt-score-badge" style="color:${PromptScorer.getScoreColor(score)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${score}/100">${(score / 10).toFixed(1)}</span>`;
+  }
+
   // --- Prompt List Rendering ---
 
   renderPrompts() {
     const container = document.getElementById('promptList');
-    const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+    const searchQuery = (document.getElementById('searchInput').value || '').toLowerCase();
+    const viewConfig = this.getViewConfig();
 
     let filtered = this.prompts;
-    let sortMode = 'default';
 
-    // Smart filter
-    if (this.activeSmartFilter === 'favorites') {
-      filtered = filtered.filter(p => p.favorite);
-    } else if (this.activeSmartFilter === 'mostUsed') {
-      filtered = filtered.filter(p => (p.usageCount || 0) > 0);
-    } else if (this.activeSmartFilter === 'recentUsed' || this.activeSmartFilter === 'recent') {
-      filtered = filtered.filter(p => p.lastUsedAt || (p.lastUsed && (p.usageCount || 0) > 0));
-      sortMode = 'lastUsedAt';
-    } else if (this.activeSmartFilter === 'recentAdded') {
-      filtered = filtered.filter(p => !p.builtIn && p.createdAt);
-      sortMode = 'createdAt';
+    if (viewConfig.predicate) {
+      filtered = filtered.filter(viewConfig.predicate);
     }
 
     if (this.currentCategory !== 'all') {
@@ -477,16 +632,21 @@ class PopupManager {
     }
 
     if (searchQuery) {
-      filtered = filtered.filter(p =>
-        p.title.toLowerCase().includes(searchQuery) ||
-        p.content.toLowerCase().includes(searchQuery) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery)) ||
-        (p.tags && p.tags.some(t => t.toLowerCase().includes(searchQuery))) ||
-        (p.sourceContext?.text && p.sourceContext.text.toLowerCase().includes(searchQuery))
-      );
+      filtered = filtered.filter(p => {
+        const title = String(p.title || '').toLowerCase();
+        const content = String(p.content || '').toLowerCase();
+        const category = String(p.category || '').toLowerCase();
+        const sourceText = String(p.sourceContext?.text || '').toLowerCase();
+        return title.includes(searchQuery) ||
+          content.includes(searchQuery) ||
+          category.includes(searchQuery) ||
+          (p.tags && p.tags.some(t => String(t || '').toLowerCase().includes(searchQuery))) ||
+          sourceText.includes(searchQuery);
+      });
     }
 
-    filtered = this.sortPromptsByTime(filtered, sortMode);
+    filtered = this.sortPrompts(filtered, viewConfig.sortMode);
+    this.updateControlStates();
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -508,7 +668,10 @@ class PopupManager {
       <div class="prompt-item ${this.shareManager.isPackMode ? 'selectable' : ''}" data-id="${p.id}">
         <div class="prompt-main">
           <div class="prompt-header">
-            <div class="prompt-title" title="${this.escapeHtml(p.title)}">${this.escapeHtml(p.title)}</div>
+            <div class="prompt-title-row">
+              <div class="prompt-title" title="${this.escapeHtml(p.title)}">${this.escapeHtml(p.title)}</div>
+              ${this.renderPromptScoreBadge(p)}
+            </div>
             <div class="prompt-actions">
               <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}">
                 ${p.favorite ? '⭐' : '☆'}
@@ -555,10 +718,8 @@ class PopupManager {
             ${p.category ? `<span class="prompt-category">${this.escapeHtml(p.category)}</span>` : ''}
             ${p.tags && p.tags.length > 0 ? p.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
             ${p.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(p.shortcut)}</span>` : ''}
-            ${(p.usageCount || 0) > 0 ? `<span class="prompt-usage">${p.usageCount}×</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
-            ${(() => { const s = PromptScorer.score(p.content); return `<span class="prompt-score" style="color:${PromptScorer.getScoreColor(s)}" title="${i18n.t('promptQuality') || 'Prompt Quality'}: ${s}/100">${s >= 75 ? '●' : s >= 50 ? '◐' : '○'} ${(s / 10).toFixed(1)}</span>`; })()}
           </div>
 ${p.sourceContext ? `
           <div class="source-panel">
@@ -603,39 +764,6 @@ ${p.sourceContext ? `
     if (page < 1 || isNaN(page)) return;
     this.currentPage = page;
     this.renderPrompts();
-  }
-
-  getPromptTimestamp(prompt, sortMode = 'default') {
-    if (sortMode === 'createdAt') return Number(prompt.createdAt || 0);
-    if (sortMode === 'lastUsedAt') {
-      const legacy = (prompt.usageCount || 0) > 0 ? prompt.lastUsed : 0;
-      return Number(prompt.lastUsedAt || legacy || 0);
-    }
-    return Number(prompt.lastUsedAt || prompt.lastUsed || prompt.updatedAt || prompt.createdAt || 0);
-  }
-
-  sortPromptsByTime(prompts, sortMode = 'default') {
-    const direction = this.timeSortDirection === 'asc' ? 1 : -1;
-    return [...prompts].sort((a, b) => {
-      const timeDiff = (this.getPromptTimestamp(a, sortMode) - this.getPromptTimestamp(b, sortMode)) * direction;
-      if (timeDiff !== 0) return timeDiff;
-
-      const createdDiff = ((a.createdAt || 0) - (b.createdAt || 0)) * direction;
-      if (createdDiff !== 0) return createdDiff;
-
-      return String(a.id || '').localeCompare(String(b.id || '')) * direction;
-    });
-  }
-
-  updateTimeSortButton() {
-    const btn = document.getElementById('timeSortBtn');
-    if (!btn) return;
-    const isAsc = this.timeSortDirection === 'asc';
-    btn.title = isAsc ? i18n.t('timeSortOldestFirst') : i18n.t('timeSortNewestFirst');
-    btn.innerHTML = `
-      <span class="sort-arrow sort-arrow-up ${isAsc ? 'active' : ''}">↑</span>
-      <span class="sort-arrow sort-arrow-down ${isAsc ? '' : 'active'}">↓</span>
-    `;
   }
 
   // --- Event Binding ---
@@ -1011,28 +1139,14 @@ ${p.sourceContext ? `
       }
     });
 
-    // Smart filters
-    document.getElementById('smartFilters')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.smart-filter-btn');
+    document.getElementById('smartViews')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.smart-view-btn');
       if (!btn) return;
-      const filter = btn.dataset.filter;
-      if (!filter) return;
-      if (this.activeSmartFilter === filter) {
-        this.activeSmartFilter = null; // Toggle off
-        btn.classList.remove('active');
-      } else {
-        this.activeSmartFilter = filter;
-        document.querySelectorAll('.smart-filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      }
+      const view = btn.dataset.view;
+      if (!view || this.activeViewMode === view) return;
+      this.activeViewMode = view;
       this.currentPage = 1;
-      this.renderPrompts();
-    });
-
-    document.getElementById('timeSortBtn')?.addEventListener('click', () => {
-      this.timeSortDirection = this.timeSortDirection === 'desc' ? 'asc' : 'desc';
-      this.currentPage = 1;
-      this.updateTimeSortButton();
+      this.updateControlStates();
       this.renderPrompts();
     });
 
@@ -1871,6 +1985,7 @@ ${p.sourceContext ? `
   }
 
   async savePrompt() {
+    const isEditing = Boolean(this.editingId);
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
       category: document.getElementById('categoryInput').value.trim(),
@@ -1915,6 +2030,10 @@ ${p.sourceContext ? `
       this.renderCategories();
       this.renderPrompts();
       this.hideEditModal();
+      if (!isEditing && response.promptId) {
+        this.pendingRevealPromptId = String(response.promptId);
+      }
+      await this.consumePendingPromptReveal();
     } else {
       console.error('Save failed:', response);
       this.showToast('❌ ' + i18n.t('saveError'));
@@ -2745,9 +2864,11 @@ ${p.sourceContext ? `
       favorite: p.favorite || false,
       variables: p.variables || [],
       usageCount: 0,
-      lastUsed: Date.now(),
+      lastUsedAt: null,
+      lastUsed: null,
       pinned: false,
-      keywords: [p.act.toLowerCase()]
+      keywords: [String(p.act || '').toLowerCase()],
+      createdAt: Date.now()
     }));
 
     try {

@@ -415,13 +415,30 @@
       <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="搜索 Prompt...">
     </div>
 
-    <!-- Smart Filters -->
-    <div class="smart-filters" id="smartFilters">
-      <button class="smart-filter-btn" data-filter="favorites" data-i18n-title="favorites">⭐</button>
-      <button class="smart-filter-btn" data-filter="mostUsed" data-i18n-title="mostUsed">🔥</button>
-      <button class="smart-filter-btn recent-added-btn" data-filter="recentAdded" data-i18n-title="recentlyAdded">➕</button>
-      <button class="smart-filter-btn" data-filter="recentUsed" data-i18n-title="recentlyUsed">🕐</button>
-      <button id="timeSortBtn" class="smart-filter-btn sort-time-btn" title="按时间排序">↑↓</button>
+    <!-- Smart Views -->
+    <div class="smart-toolbar">
+      <div class="toolbar-row smart-views" id="smartViews">
+        <button class="smart-view-btn active" data-view="smart" data-i18n-title="sortSmart">
+          <span class="chip-icon">✨</span>
+          <span class="chip-text" data-i18n="sortSmart">智能</span>
+        </button>
+        <button class="smart-view-btn" data-view="favorites" data-i18n-title="favorites">
+          <span class="chip-icon">⭐</span>
+          <span class="chip-text" data-i18n="favorites">收藏</span>
+        </button>
+        <button class="smart-view-btn" data-view="mostUsed" data-i18n-title="mostUsed">
+          <span class="chip-icon">🔥</span>
+          <span class="chip-text" data-i18n="mostUsed">常用</span>
+        </button>
+        <button class="smart-view-btn" data-view="recentUsed" data-i18n-title="recentlyUsed">
+          <span class="chip-icon">🕐</span>
+          <span class="chip-text" data-i18n="recentlyUsed">最近使用</span>
+        </button>
+        <button class="smart-view-btn" data-view="recentAdded" data-i18n-title="recentlyAdded">
+          <span class="chip-icon">➕</span>
+          <span class="chip-text" data-i18n="recentlyAdded">最近添加</span>
+        </button>
+      </div>
     </div>
 
     <!-- 分类标签 -->

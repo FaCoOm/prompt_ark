@@ -37,7 +37,7 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
 | **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
 | **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
-| **Use across devices** | ☁️ Chrome Sync, GitHub Gist, or WebDAV |
+| **Use across devices** | ☁️ Chrome Sync or WebDAV |
 
 ## 🔌 Works Everywhere You Chat with AI
 
@@ -92,7 +92,6 @@ Go to **Settings → Sync** and choose your sync engine:
 | Method | Best for |
 |---|---|
 | **Chrome Sync** (default) | Zero config, automatic, ~100KB limit |
-| **GitHub Gist** | Unlimited storage, team sharing |
 | **WebDAV** | Self-hosted, privacy-first (e.g., Jianguoyun) |
 
 > 📚 **[Full Documentation →](docs/en/)** for more details on every feature.
@@ -168,7 +167,6 @@ Don't start from zero. Prompt Ark ships with **100 curated prompts** (50 English
 | Method | Best for |
 |---|---|
 | **Chrome Sync** (default) | Automatic, zero config, works across Chrome instances |
-| **GitHub Gist** | Unlimited storage, version history, share with team |
 | **WebDAV** | Self-hosted, privacy-first users (e.g., Jianguoyun) |
 
 Full JSON export/import. URL import from GitHub repos with AI quality scoring.

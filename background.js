@@ -461,8 +461,9 @@ async function handleMessage(message, sendResponse) {
         // Preserve structured video data for re-rendering in video modal
         if (message.prompt.videoData) newPrompt.videoData = message.prompt.videoData;
         await PromptStorage.save(newPrompt);
-        sendResponse({ success: true });
-        broadcastPromptsUpdated({ action: 'save', promptId: newId });
+        await markPendingPromptReveal(newId);
+        sendResponse({ success: true, promptId: newId });
+        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
 
         // Async AI enrichment — MUST be awaited (not fire-and-forget)
         // to keep MV3 Service Worker alive until completion
@@ -600,7 +601,7 @@ async function handleMessage(message, sendResponse) {
         const hLang = detectLanguageHeuristic(selectedText);
         const newId = crypto.randomUUID();
         const now = Date.now();
-        await PromptStorage.save({
+        const newPrompt = {
           id: newId,
           title: hTitle,
           content: selectedText,
@@ -621,9 +622,11 @@ async function handleMessage(message, sendResponse) {
             convertMethod: 'quick_add',
           },
           createdAt: now
-        });
+        };
+        await PromptStorage.save(newPrompt);
         await buildContextMenus(getPrompts);
-        try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED' }); } catch { /* OK */ }
+        await markPendingPromptReveal(newId);
+        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
         sendResponse({ success: true });
         // Async AI enrichment (non-blocking)
         await asyncEnrichPrompt(newId, selectedText);
@@ -664,7 +667,8 @@ async function handleMessage(message, sendResponse) {
           };
           await PromptStorage.save(newPrompt);
           await buildContextMenus(getPrompts);
-          try { chrome.runtime.sendMessage({ type: 'PROMPTS_UPDATED', prompt: newPrompt }); } catch { /* OK */ }
+          await markPendingPromptReveal(newId);
+          broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
           sendResponse({ success: true, title: newPrompt.title });
         } catch (e) {
           console.error('[SMART_CONVERT_SELECTION] Failed:', e);
@@ -1094,6 +1098,20 @@ async function handleMessage(message, sendResponse) {
     }
   } catch (error) {
     sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function markPendingPromptReveal(promptId) {
+  if (!promptId) return;
+  try {
+    await chrome.storage.local.set({
+      pendingPromptReveal: {
+        id: String(promptId),
+        timestamp: Date.now()
+      }
+    });
+  } catch (e) {
+    console.warn('[PromptReveal] Failed to persist pending prompt id:', e);
   }
 }
 
