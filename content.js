@@ -259,7 +259,7 @@ class AIPromptManager {
   async injectIntoElement(inputEl, text, options = {}) {
     if (!inputEl) return false;
 
-    const { replaceAll = false } = options;
+    const { replaceAll = false, suppressNotifications = false } = options;
 
     inputEl.focus();
     await new Promise(r => setTimeout(r, 50));
@@ -328,17 +328,21 @@ class AIPromptManager {
       new KeyboardEvent('keyup', { bubbles: true, key: ' ' })
     ].forEach(e => inputEl.dispatchEvent(e));
 
-    this.showNotification(this.msg('insertSuccess', 'Prompt已填入'), 'success');
+    if (!suppressNotifications) {
+      this.showNotification(this.msg('insertSuccess', 'Prompt已填入'), 'success');
+    }
     return true;
   }
 
-  async injectPromptRobust(text) {
+  async injectPromptRobust(text, options = {}) {
     const inputEl = this.findInputElement();
     if (!inputEl) {
-      this.showNotification(this.msg('inputNotFound', '未找到输入框'), 'error');
+      if (!options.suppressNotifications) {
+        this.showNotification(this.msg('inputNotFound', '未找到输入框'), 'error');
+      }
       return false;
     }
-    return this.injectIntoElement(inputEl, text, { replaceAll: true });
+    return this.injectIntoElement(inputEl, text, { replaceAll: true, ...options });
   }
 
   // --- Variable Processing ---
@@ -966,7 +970,9 @@ class AIPromptManager {
   handleMessage(message, sendResponse) {
     switch (message.type) {
       case 'INSERT_PROMPT':
-        this.injectPromptRobust(message.content).then(success => sendResponse({ success }));
+        this.injectPromptRobust(message.content, {
+          suppressNotifications: !!message.suppressNotifications
+        }).then(success => sendResponse({ success }));
         break;
       case 'INSERT_SHARE_CONTENT': {
         // Inject share content into social platform editors (知乎, 小红书, etc.)
@@ -1093,6 +1099,11 @@ class AIPromptManager {
       case 'GET_PLATFORM':
         sendResponse({ platform: this.platform });
         break;
+      case 'GET_ACTIVE_INPUT_TEXT': {
+        const inputEl = this.findInputElement();
+        sendResponse({ text: inputEl ? this.getInputText(inputEl) : '' });
+        break;
+      }
       case 'GRAB_CONTEXT':
         this.runShortcutAction('grab-context', () => this.capturePageContext());
         sendResponse({ success: true });
