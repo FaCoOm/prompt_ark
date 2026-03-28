@@ -23,6 +23,8 @@ class PopupManager {
     this.revealPromptTimer = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
+    this.isImportScanRunning = false;
+    this.importScanAbortController = null;
     this.githubClient = new GitHubClient();
     this.contentAnalyzer = new ContentAnalyzer();
     this.history = new HistoryPanel();
@@ -2720,7 +2722,15 @@ ${p.sourceContext ? `
   async exportPrompts() {
     const response = await chrome.runtime.sendMessage({ type: 'EXPORT_PROMPTS' });
     if (response.success) {
-      const data = JSON.stringify(response.data, null, 2);
+      const sorted = [...response.data].sort((a, b) => {
+        const catA = (a.category || '').toLowerCase();
+        const catB = (b.category || '').toLowerCase();
+        if (!catA && catB) return 1;
+        if (catA && !catB) return -1;
+        if (catA !== catB) return catA.localeCompare(catB);
+        return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+      });
+      const data = JSON.stringify(sorted, null, 2);
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2748,6 +2758,7 @@ ${p.sourceContext ? `
   }
 
   hideImportModal() {
+    this.cancelImportScan({ silent: true });
     document.getElementById('importModal').classList.add('hidden');
   }
 
@@ -2757,6 +2768,19 @@ ${p.sourceContext ? `
     document.getElementById('importUrlArea').classList.toggle('hidden', tabName !== 'url');
   }
 
+  cancelImportScan({ silent = false } = {}) {
+    if (!this.isImportScanRunning || !this.importScanAbortController) return false;
+    this.importScanAbortController.abort();
+    if (!silent) {
+      const statusEl = document.getElementById('scanStatus');
+      if (statusEl) {
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = 'Stopping scan...';
+      }
+    }
+    return true;
+  }
+
   async fetchUrlPrompts() {
     const url = document.getElementById('importUrlInput').value.trim();
     if (!url) return;
@@ -2764,10 +2788,19 @@ ${p.sourceContext ? `
     const btn = document.getElementById('scanBtn');
     const statusEl = document.getElementById('scanStatus');
     const deepScan = document.getElementById('deepScan').checked;
+    const progressDiv = document.getElementById('aiProgress');
+
+    if (this.isImportScanRunning) {
+      this.cancelImportScan();
+      return;
+    }
 
     const originalText = btn.innerText;
+    const abortController = new AbortController();
+    this.isImportScanRunning = true;
+    this.importScanAbortController = abortController;
     btn.innerText = 'Stop';
-    btn.disabled = true;
+    btn.disabled = false;
     statusEl.classList.remove('hidden');
     statusEl.textContent = 'Initializing scan...';
 
@@ -2787,14 +2820,15 @@ ${p.sourceContext ? `
       if (ghInfo) {
         files = await this.githubClient.scanRecursively(url, (msg) => {
           statusEl.textContent = msg;
-        }, deepScan);
+        }, deepScan, abortController.signal);
       } else {
         statusEl.textContent = 'Fetching single URL...';
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: abortController.signal });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
         files = [{ path: 'url', content: text, url: url }];
       }
+      if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
       if (files.length === 0) throw new Error('No supported files found.');
 
       // Phase 1: Parse files into raw prompts (heuristic scored)
@@ -2802,6 +2836,7 @@ ${p.sourceContext ? `
       const rawPrompts = [];
 
       for (const file of files) {
+        if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
         const parsed = PromptParser.parse(file.content, file.path);
         parsed.forEach((p, idx) => {
           const id = `p-${rawPrompts.length}`;
@@ -2828,10 +2863,10 @@ ${p.sourceContext ? `
       const toAnalyze = filtered.slice(0, 200);
 
       if (toAnalyze.length > 0) {
-        const progressDiv = document.getElementById('aiProgress');
         progressDiv.classList.remove('hidden');
 
-        const aiResults = await this.contentAnalyzer.analyzeBatch(toAnalyze, () => { });
+        const aiResults = await this.contentAnalyzer.analyzeBatch(toAnalyze, () => { }, abortController.signal);
+        if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
         progressDiv.classList.add('hidden');
 
         // Phase 4: Merge AI results back
@@ -2858,10 +2893,17 @@ ${p.sourceContext ? `
       this.filterImportedPrompts(minScore);
 
     } catch (error) {
-      console.error('[Prompt Ark] Scan error:', error);
-      this.showToast('❌ ' + i18n.t('scanFailed') + ': ' + error.message);
-      statusEl.textContent = 'Error: ' + error.message;
+      if (error.name === 'AbortError') {
+        statusEl.textContent = 'Scan cancelled.';
+      } else {
+        console.error('[Prompt Ark] Scan error:', error);
+        this.showToast('❌ ' + i18n.t('scanFailed') + ': ' + error.message);
+        statusEl.textContent = 'Error: ' + error.message;
+      }
     } finally {
+      progressDiv.classList.add('hidden');
+      this.isImportScanRunning = false;
+      this.importScanAbortController = null;
       btn.innerText = originalText;
       btn.disabled = false;
     }
@@ -2978,8 +3020,12 @@ ${p.sourceContext ? `
 
       if (response.success) {
         await this.loadPrompts();
+        if (response.firstPromptId) {
+          this.pendingRevealPromptId = String(response.firstPromptId);
+        }
         this.renderCategories();
         this.renderPrompts();
+        await this.consumePendingPromptReveal();
         this.hideImportModal();
         this.showToast(i18n.t('importSuccess', { count: newPrompts.length }));
 
