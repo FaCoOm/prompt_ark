@@ -813,9 +813,12 @@
         <button class="modal-close" id="closeLoginRequiredModal">&times;</button>
       </div>
       <div class="login-required-body">
-        <p id="loginRequiredMessage" class="login-required-message">
-          这个分享操作已经为你保存。登录 Prompt Ark Hub 后，会自动继续，无需重新点击。
-        </p>
+        <div class="login-required-hero">
+          <div class="login-required-icon" aria-hidden="true">↗</div>
+          <p id="loginRequiredMessage" class="login-required-message">
+            这个分享操作已经为你保存。登录 Prompt Ark Hub 后，会自动继续，无需重新点击。
+          </p>
+        </div>
         <div class="login-required-summary">
           <div class="login-required-summary-label" data-i18n="loginRequiredPendingLabel">待继续操作</div>
           <div id="loginRequiredActionSummary" class="login-required-summary-value"></div>
