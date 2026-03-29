@@ -360,16 +360,9 @@ class AIPromptManager {
         try {
           inputEl.innerHTML = buildParagraphHtml(text);
           inputEl.dispatchEvent(new InputEvent('beforeinput', {
-            bubbles: true,
-            cancelable: true,
-            inputType: 'insertText',
-            data: text,
+            bubbles: true, cancelable: true, inputType: 'insertText', data: text,
           }));
-          inputEl.dispatchEvent(new InputEvent('input', {
-            bubbles: true,
-            inputType: 'insertText',
-            data: text,
-          }));
+          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
           await new Promise(r => setTimeout(r, 120));
           success = hasExpectedText(inputEl, text);
         } catch (e) { /* fallback below */ }
@@ -1249,12 +1242,12 @@ class AIPromptManager {
             return el;
           };
 
-          // Step 1: Click "新的创作" button if needed (小红书)
-          if (preClickSelector) {
+          // Step 1: Click preClick button if needed (小红书)
+          if (preClickSelector && !location.hostname.includes('linkedin')) {
             const btn = document.querySelector(preClickSelector);
             if (btn) {
               btn.click();
-              await new Promise(r => setTimeout(r, 1500)); // Wait for editor to appear
+              await new Promise(r => setTimeout(r, 1500));
             }
           }
 
@@ -1310,7 +1303,8 @@ class AIPromptManager {
           sendResponse({ success: contentInjected });
         };
 
-        doInject().catch(() => {
+        doInject().catch((e) => {
+          console.log(`🚀 => AIPromptManager => handleMessage => e:`, e);
           this.showNotification('📋 编辑器未就绪，内容已复制到剪贴板', 'info');
           sendResponse({ success: false });
         });
