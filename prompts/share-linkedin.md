@@ -28,7 +28,7 @@ Never open with: "Excited to share", "Thrilled to announce", "AI is transforming
 2. **Show 1 design choice from the prompt** and explain why it matters
 3. **Include a before/after comparison**
 4. **Each paragraph: 1-2 sentences.** Mobile readability.
-5. **End with**: specific discussion question + "Link in first comment 👇"
+5. **End with**: specific discussion question + direct link to the template URL. Do not mention comments.
 6. **Hashtags**: 3-4, separate final line. Include #PromptEngineering.
 
 ## Voice
@@ -54,7 +54,7 @@ Never open with: "Excited to share", "Thrilled to announce", "AI is transforming
 ## Output Format
 ```json
 {
-  "text": "📊 Concrete number or finding.\n\nThe design trick: **specific technique from prompt**.\n\nBefore: one-liner → generic output.\nAfter: this template → specific result.\n\nMy takeaway: honest sentence.\n\nWhat's your experience with structured vs free-form prompts? Link in first comment 👇\n\n#PromptEngineering #AI #Productivity"
+  "text": "📊 Concrete number or finding.\n\nThe design trick: **specific technique from prompt**.\n\nBefore: one-liner → generic output.\nAfter: this template → specific result.\n\nMy takeaway: honest sentence.\n\nWhat's your experience with structured vs free-form prompts?\n\nTemplate: https://example.com\n\n#PromptEngineering #AI #Productivity"
 }
 ```
 
