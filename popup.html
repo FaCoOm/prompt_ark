@@ -806,6 +806,31 @@
     </div>
   </div>
 
+  <div id="loginRequiredModal" class="modal hidden">
+    <div class="modal-content login-required-modal">
+      <div class="modal-header">
+        <h2 id="loginRequiredTitle" data-i18n="loginRequiredTitle">登录后自动继续</h2>
+        <button class="modal-close" id="closeLoginRequiredModal">&times;</button>
+      </div>
+      <div class="login-required-body">
+        <p id="loginRequiredMessage" class="login-required-message">
+          这个分享操作已经为你保存。登录 Prompt Ark Hub 后，会自动继续，无需重新点击。
+        </p>
+        <div class="login-required-summary">
+          <div class="login-required-summary-label" data-i18n="loginRequiredPendingLabel">待继续操作</div>
+          <div id="loginRequiredActionSummary" class="login-required-summary-value"></div>
+        </div>
+        <p id="loginRequiredHint" class="login-required-hint" data-i18n="loginRequiredHint">
+          接下来会打开 Hub 登录页。登录成功后可以直接关闭该页，扩展会继续执行刚才的操作。
+        </p>
+      </div>
+      <div class="login-required-actions">
+        <button id="loginRequiredCancelBtn" class="btn btn-secondary" data-i18n="loginRequiredNotNow">稍后再说</button>
+        <button id="loginRequiredGoBtn" class="btn btn-primary" data-i18n="loginRequiredGoLogin">去登录并继续</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pack Selection Toolbar (bottom bar during selection mode) -->
   <div id="packToolbar" class="pack-toolbar hidden">
     <div class="pack-toolbar-info">

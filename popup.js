@@ -1230,8 +1230,14 @@ ${p.sourceContext ? `
       const platform = opt.dataset.platform;
       this._handleShareOption(platform);
     });
+    document.getElementById('closeLoginRequiredModal')?.addEventListener('click', () => this.hideLoginRequiredModal());
+    document.getElementById('loginRequiredCancelBtn')?.addEventListener('click', () => this.hideLoginRequiredModal());
+    document.getElementById('loginRequiredGoBtn')?.addEventListener('click', () => this.continuePendingLoginAction());
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.hideSharePanel();
+      if (e.key === 'Escape') {
+        this.hideSharePanel();
+        this.hideLoginRequiredModal();
+      }
     });
 
     // --- Pack Mode ---
@@ -2400,6 +2406,8 @@ ${p.sourceContext ? `
   async sharePrompt(id) { await this.shareManager.sharePrompt(id); }
   showSharePanel(url, title) { this.shareManager.showSharePanel(url, title); }
   hideSharePanel() { this.shareManager.hideSharePanel(); }
+  async hideLoginRequiredModal() { await this.shareManager.hideLoginRequiredModal(); }
+  async continuePendingLoginAction() { await this.shareManager.continuePendingLoginAction(); }
   async _handleShareOption(platform) { await this.shareManager.handleShareOption(platform); }
   enterPackMode() { this.shareManager.enterPackMode(); }
   exitPackMode() { this.shareManager.exitPackMode(); }

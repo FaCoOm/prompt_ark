@@ -51,7 +51,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[Hub Auth Sync] Auth state updated:', { isLoggedIn, user: user?.email });
       
       if (isLoggedIn && accessToken && refreshToken) {
-        initSupabase(accessToken, refreshToken, expiresAt, user);
+        await initSupabase(accessToken, refreshToken, expiresAt, user);
         await handlePendingIntent();
       } else {
         signOut();
@@ -70,6 +70,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const PENDING_INTENT_TTL = 15 * 60 * 1000;
 let _isPendingIntentRunning = false;
+
+async function getCurrentLocale() {
+  const { language } = await chrome.storage.local.get('language');
+  return language || (chrome.i18n.getUILanguage().startsWith('zh') ? 'zh_CN' : 'en');
+}
+
+async function t(key, params = {}) {
+  const locale = await getCurrentLocale();
+  const dict = translations[locale] || translations.en || {};
+  let text = dict[key] || translations.en?.[key] || key;
+  Object.keys(params).forEach((param) => {
+    text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), String(params[param]));
+  });
+  return text;
+}
 
 async function handlePendingIntent() {
   if (_isPendingIntentRunning) {
@@ -96,6 +111,14 @@ async function handlePendingIntent() {
     await chrome.storage.local.remove('pendingIntent');
     
     console.log('[PendingIntent] Executing:', intent.action);
+    if (intent.summary) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: await t('pendingResumeTitle'),
+        message: await t('pendingResumeMessage', { summary: intent.summary })
+      });
+    }
     
     if (intent.action === 'PUBLISH_TO_HUB') {
       const resp = await HubClient.publishPrompt(intent.promptData, intent.promptData.visibility || 'public');
