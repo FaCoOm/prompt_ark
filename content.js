@@ -1784,7 +1784,9 @@ class AIPromptManager {
       const filtered = this.prompts.filter(p =>
         p.title.toLowerCase().includes(term) || p.content.toLowerCase().includes(term)
       );
-      picker.querySelector('.apm-list').innerHTML = this.renderPromptList(filtered);
+      const list = picker.querySelector('.apm-list');
+      list.innerHTML = this.renderPromptList(filtered);
+      this.bindHoverEvents(list);
     });
 
     picker.querySelector('.apm-list').addEventListener('click', (e) => {
@@ -1798,21 +1800,33 @@ class AIPromptManager {
     // Hover preview with 200ms delay
     this._hoverTimer = null;
     this._hoverCard = null;
+    this._hoverItem = null;
 
-    picker.querySelector('.apm-list').addEventListener('mouseover', (e) => {
-      const item = e.target.closest('.apm-item');
-      if (!item) return;
-      clearTimeout(this._hoverTimer);
-      this._hoverTimer = setTimeout(() => {
-        this.showHoverPreview(item);
-      }, 200);
-    });
+    this.bindHoverEvents(picker.querySelector('.apm-list'));
+  }
 
-    picker.querySelector('.apm-list').addEventListener('mouseout', (e) => {
-      const item = e.target.closest('.apm-item');
-      if (!item) return;
-      clearTimeout(this._hoverTimer);
-      this.hideHoverPreview();
+  bindHoverEvents(list) {
+    list.querySelectorAll('.apm-item').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        if (this._hoverItem && this._hoverItem !== item) {
+          this.hideHoverPreview();
+        }
+        this._hoverItem = item;
+        clearTimeout(this._hoverTimer);
+        this._hoverTimer = setTimeout(() => {
+          this.showHoverPreview(item);
+        }, 200);
+      });
+
+      item.addEventListener('mouseleave', (e) => {
+        if (item !== this._hoverItem) return;
+        const toElement = e.relatedTarget;
+        if (this._hoverCard && this._hoverCard.contains(toElement)) {
+          return;
+        }
+        clearTimeout(this._hoverTimer);
+        this.hideHoverPreview();
+      });
     });
   }
 
@@ -1821,32 +1835,41 @@ class AIPromptManager {
     const prompt = this.prompts.find(p => p.id === item.dataset.id);
     if (!prompt) return;
 
+    this._hoverItem = item;
+
     const card = document.createElement('div');
     card.className = 'apm-hover-preview';
     card.textContent = prompt.content;
 
-    document.body.appendChild(card);
+    const picker = document.getElementById('ai-prompt-picker');
+    const modal = picker?.querySelector('.apm-modal');
+    if (picker) {
+      picker.appendChild(card);
+    } else {
+      document.body.appendChild(card);
+    }
     this._hoverCard = card;
 
-    // Position relative to item
-    const rect = item.getBoundingClientRect();
-    let left = rect.right + 8;
-    let top = rect.top;
+    const itemRect = item.getBoundingClientRect();
+    const pickerRect = picker ? picker.getBoundingClientRect() : { left: 0, top: 0 };
+    const modalRect = modal ? modal.getBoundingClientRect() : pickerRect;
 
-    // Adjust if overflowing right edge
-    if (left + 400 > window.innerWidth) {
-      left = rect.left - 400 - 8;
-      if (left < 0) left = rect.left;
-    }
+    const cardWidth = 520;
+    const cardHeight = 200;
 
-    // Adjust if overflowing bottom edge
-    if (top + 300 > window.innerHeight) {
-      top = window.innerHeight - 300 - 8;
-      if (top < 0) top = 8;
+    let left = modalRect.left - pickerRect.left + (modalRect.width - cardWidth) / 2 + 80;
+    // let top = itemRect.top - pickerRect.top - cardHeight + 18;
+    let top = itemRect.bottom - pickerRect.top - 18;
+
+    if (top < 0) {
+      top = itemRect.top - pickerRect.top - cardHeight + 18;
     }
 
     card.style.left = left + 'px';
     card.style.top = top + 'px';
+
+    card.addEventListener('mouseenter', () => clearTimeout(this._hoverTimer));
+    card.addEventListener('mouseleave', () => this.hideHoverPreview());
   }
 
   hideHoverPreview() {
@@ -1854,6 +1877,8 @@ class AIPromptManager {
       this._hoverCard.remove();
       this._hoverCard = null;
     }
+    this._hoverItem = null;
+    clearTimeout(this._hoverTimer);
   }
 
   // --- Selection Floating Toolbar ---
