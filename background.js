@@ -152,7 +152,7 @@ async function handlePendingIntent() {
             if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
           });
         } else if (platform === 'linkedin') {
-          await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' });
+          await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/?shareActive=true' });
           await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
             if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
           });
@@ -855,7 +855,7 @@ async function handleMessage(message, sendResponse) {
               }, sendResponse);
               return;
             } else if (platform === 'linkedin') {
-              const newTab = await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' });
+              const newTab = await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/?shareActive=true' });
               const listener = async (tabId, changeInfo) => {
                 if (tabId === newTab.id && changeInfo.status === 'complete') {
                   chrome.tabs.onUpdated.removeListener(listener);
