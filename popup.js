@@ -1036,6 +1036,7 @@ ${p.sourceContext ? `
       const targetLang = document.getElementById('translateTargetLang').value;
       const titleInput = document.getElementById('titleInput');
       const categoryInput = document.getElementById('categoryInput');
+      const tagsInput = document.getElementById('tagsInput');
       const contentInput = document.getElementById('contentInput');
 
       if (!contentInput.value.trim()) {
@@ -1054,6 +1055,7 @@ ${p.sourceContext ? `
           promptData: {
             title: titleInput.value.trim(),
             category: categoryInput.value.trim(),
+            tags: tagsInput?.value.trim() || '',
             content: contentInput.value.trim()
           }
         });
@@ -1061,6 +1063,11 @@ ${p.sourceContext ? `
         if (resp && resp.success && resp.data) {
           if (resp.data.title) titleInput.value = resp.data.title;
           if (resp.data.category) categoryInput.value = resp.data.category;
+          if (resp.data.tags && tagsInput) {
+            tagsInput.value = Array.isArray(resp.data.tags)
+              ? resp.data.tags.join(', ')
+              : String(resp.data.tags || '');
+          }
           if (resp.data.content) {
             contentInput.value = resp.data.content;
             // Update markdown preview if visible
@@ -1304,8 +1311,14 @@ ${p.sourceContext ? `
       const platform = opt.dataset.platform;
       this._handleShareOption(platform);
     });
+    document.getElementById('closeLoginRequiredModal')?.addEventListener('click', () => this.hideLoginRequiredModal());
+    document.getElementById('loginRequiredCancelBtn')?.addEventListener('click', () => this.hideLoginRequiredModal());
+    document.getElementById('loginRequiredGoBtn')?.addEventListener('click', () => this.continuePendingLoginAction());
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.hideSharePanel();
+      if (e.key === 'Escape') {
+        this.hideSharePanel();
+        this.hideLoginRequiredModal();
+      }
     });
 
     // --- Pack Mode ---
@@ -1765,6 +1778,7 @@ ${p.sourceContext ? `
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
       document.getElementById('categoryInput').value = prompt.category || '';
+      document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
       this.editingId = prompt.id;
@@ -2112,6 +2126,10 @@ ${p.sourceContext ? `
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
       category: document.getElementById('categoryInput').value.trim(),
+      tags: String(document.getElementById('tagsInput')?.value || '')
+        .split(/[,\n，、]/)
+        .map(tag => tag.trim())
+        .filter(Boolean),
       shortcut: document.getElementById('shortcutInput').value.trim().replace(/^\//, '').replace(/[^a-zA-Z0-9_-]/g, ''),
       content: document.getElementById('contentInput').value.trim()
     };
@@ -2126,13 +2144,6 @@ ${p.sourceContext ? `
     // prompt.skillMode = isSkill;
     // prompt.systemPrompt = isSkill ? document.getElementById('systemPromptInput').value.trim() : '';
     // prompt.knowledgeSnippets = isSkill ? this._collectSnippets() : [];
-
-    // Instant fallback: use content snippet as title if empty
-    // AI extraction happens asynchronously in background after save
-    if (!prompt.title) {
-      prompt.title = prompt.content.substring(0, 30).replace(/\n/g, ' ') + '...';
-      document.getElementById('titleInput').value = prompt.title;
-    }
 
     let response;
     try {
@@ -2476,6 +2487,8 @@ ${p.sourceContext ? `
   async sharePrompt(id) { await this.shareManager.sharePrompt(id); }
   showSharePanel(url, title) { this.shareManager.showSharePanel(url, title); }
   hideSharePanel() { this.shareManager.hideSharePanel(); }
+  async hideLoginRequiredModal() { await this.shareManager.hideLoginRequiredModal(); }
+  async continuePendingLoginAction() { await this.shareManager.continuePendingLoginAction(); }
   async _handleShareOption(platform) { await this.shareManager.handleShareOption(platform); }
   enterPackMode() { this.shareManager.enterPackMode(); }
   exitPackMode() { this.shareManager.exitPackMode(); }
@@ -2852,22 +2865,17 @@ ${p.sourceContext ? `
 
       // Check if it's a GitHub URL
       const ghInfo = this.githubClient.parseUrl(url);
-      const isGitHubRepo = ghInfo && ghInfo.type !== 'file';
 
       if (ghInfo) {
         files = await this.githubClient.scanRecursively(url, (msg) => {
           statusEl.textContent = msg;
         }, deepScan, abortController.signal);
       } else {
-        if (!this.githubClient.isSupportedUrl(url)) {
-          throw new Error('Unsupported file type. Only md, json, csv, txt, yaml, yml are supported.');
-        }
         statusEl.textContent = 'Fetching single URL...';
         const response = await fetch(url, { signal: abortController.signal });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
-        const pathname = new URL(url).pathname;
-        files = [{ path: pathname, content: text, url: url }];
+        files = [{ path: 'url', content: text, url: url }];
       }
       if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
       if (files.length === 0) throw new Error('No supported files found.');
@@ -2878,7 +2886,9 @@ ${p.sourceContext ? `
 
       for (const file of files) {
         if (abortController.signal.aborted) throw new DOMException('Scan cancelled', 'AbortError');
-        const parsed = PromptParser.parseUrlImportContent(file.content, file.path);
+        const parsed = ghInfo
+          ? PromptParser.parseUrlImportContent(file.content, file.path)
+          : PromptParser.parse(file.content, file.path);
         parsed.forEach((p) => {
           const id = `p-${rawPrompts.length}`;
           rawPrompts.push({
@@ -3038,6 +3048,10 @@ ${p.sourceContext ? `
       content: p.prompt,
       category: p.category || '',
       tags: p.tags || [],
+      titleAutoGenerated: activeTab === 'paste'
+        ? (!p.category && (!p.tags || p.tags.length === 0))
+        : (!p.tags || p.tags.length === 0),
+      categoryAutoGenerated: !p.category,
       shortcut: p.shortcut || '',
       favorite: p.favorite || false,
       variables: p.variables || [],

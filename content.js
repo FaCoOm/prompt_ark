@@ -792,6 +792,16 @@ class AIPromptManager {
         this.handleHubAuthSync(event.data.payload);
       }
     });
+
+    const shouldRequestHubAuthSync = verifiedDomains.includes(window.location.origin);
+    if (shouldRequestHubAuthSync) {
+      // Ask the Hub page to resend the current auth state in case the initial sync
+      // happened before the content script finished wiring up its listener.
+      window.postMessage({ type: 'PROMPT_ARK_AUTH_SYNC_REQUEST' }, '*');
+      setTimeout(() => {
+        window.postMessage({ type: 'PROMPT_ARK_AUTH_SYNC_REQUEST' }, '*');
+      }, 500);
+    }
   }
 
 
