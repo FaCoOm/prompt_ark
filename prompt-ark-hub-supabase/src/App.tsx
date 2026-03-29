@@ -39,6 +39,41 @@ function getLegalSection(pathname: string): LegalSection | null {
   return null
 }
 
+function extractVariablesFromContent(content: string): string[] {
+  const vars = (content || '').match(/\{\{([^}]+)\}\}/g) || []
+  return [...new Set(vars.map(v => v.replace(/\{\{|\}\}/g, '').split(/[:=|]/)[0].trim()))]
+}
+
+function waitForExtensionImport(payload: unknown, timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+
+    const cleanup = () => {
+      window.removeEventListener('message', handleMessage)
+      window.clearTimeout(timeoutId)
+    }
+
+    const finish = (success: boolean) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(success)
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type === 'PROMPT_ARK_IMPORT_SUCCESS') {
+        finish(true)
+      }
+    }
+
+    const timeoutId = window.setTimeout(() => finish(false), timeoutMs)
+
+    window.addEventListener('message', handleMessage)
+    window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*')
+  })
+}
+
 interface HubContentProps {
   user: any
   onAuthChange: (user: any) => void
@@ -229,13 +264,6 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
   const totalPages = Math.ceil(filteredPrompts.length / PAGE_SIZE)
 
-  // Extract variables from content (e.g., {{topic}}, {{lang:EN|ZH}})
-  const extractVariables = (content: string): string[] => {
-    const vars = (content || '').match(/\{\{([^}]+)\}\}/g) || []
-    const uniqueVars = [...new Set(vars.map(v => v.replace(/\{\{|\}\}/g, '').split(/[:=|]/)[0].trim()))]
-    return uniqueVars
-  }
-
   // Handle vote - directly update prompts table
   async function handleVote(type: 'up' | 'down') {
     if (!selectedPrompt) return
@@ -276,18 +304,6 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
     const currentInstallCount = selectedPrompt.install_count || 0
 
-    // Optimistic update
-    const updated = { 
-      ...selectedPrompt,
-      install_count: currentInstallCount + 1
-    }
-    setSelectedPrompt(updated)
-
-    // Update local prompts list
-    setPrompts(prompts.map(p => 
-      p.id === selectedPrompt.id ? updated : p
-    ))
-
     // Check if this is a pack
     const isPack = selectedPrompt.type === 'pack'
 
@@ -305,7 +321,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
             content: item.content,
             category: item.category || '',
             tags: item.tags || [],
-            variables: []
+            variables: extractVariablesFromContent(item.content || '').map(name => ({ name }))
           })),
           pack: { title: selectedPrompt.title, count: packItems.length }
         }
@@ -314,8 +330,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
         return
       }
     } else {
-      // Single prompt: extract variables
-      const uniqueVars = extractVariables(selectedPrompt.content || '')
+      const uniqueVars = extractVariablesFromContent(selectedPrompt.content || '')
       payload = {
         format: 'prompt-ark',
         version: 1,
@@ -329,7 +344,20 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
       }
     }
 
-    window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*')
+    const imported = await waitForExtensionImport(payload)
+    if (!imported) {
+      showToast('❌ Prompt Ark did not confirm the import')
+      return
+    }
+
+    const updated = {
+      ...selectedPrompt,
+      install_count: currentInstallCount + 1
+    }
+    setSelectedPrompt(updated)
+    setPrompts(prompts.map(p =>
+      p.id === selectedPrompt.id ? updated : p
+    ))
     showToast('✅ Prompt sent to Prompt Ark!')
 
     // Save to Supabase
@@ -351,7 +379,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
   }
 
   // Handle fork (only for single prompts, not packs)
-  function handleFork() {
+  async function handleFork() {
     if (!selectedPrompt) return
     if (!selectedPrompt.content) {
       showToast('❌ No prompt data to fork')
@@ -359,7 +387,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
     }
 
     // Extract variables from content
-    const uniqueVars = extractVariables(selectedPrompt.content || '')
+    const uniqueVars = extractVariablesFromContent(selectedPrompt.content || '')
 
     const payload = {
       format: 'prompt-ark',
@@ -373,7 +401,12 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
       }],
     }
 
-    window.postMessage({ type: 'PROMPT_ARK_IMPORT', payload }, '*')
+    const imported = await waitForExtensionImport(payload)
+    if (!imported) {
+      showToast('❌ Prompt Ark did not confirm the fork import')
+      return
+    }
+
     showToast(`🍴 Forked prompt to Prompt Ark!`)
   }
 
