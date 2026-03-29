@@ -77,6 +77,14 @@ function updatePromptParamsInUrl(promptId: string | null, batchPromptIds: string
   window.history.replaceState({}, '', url.toString())
 }
 
+function exitBatchShareView() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('ids')
+  url.searchParams.delete('id')
+  url.searchParams.delete('prompt')
+  window.location.assign(url.toString())
+}
+
 function waitForExtensionImport(payload: unknown, timeoutMs = 2000): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false
@@ -134,78 +142,11 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
     updatePromptParamsInUrl(null, batchPromptIds)
   }, [batchPromptIds])
 
-  // Get unique categories from prompts
-  const categories = useMemo(() => {
-    const cats = new Set<string>()
-    prompts.forEach(p => { if (p.category) cats.add(p.category) })
-    return ['all', ...Array.from(cats).sort()]
-  }, [prompts])
-
-  const handleExternalLoginTrigger = async () => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('action') !== 'login' || params.get('source') !== 'extension') return
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: getHubUrl(),
-        queryParams: { access_type: 'offline', prompt: 'consent' },
-      },
-    })
-    if (error) console.error('Auto login error:', error)
-  }
-
-  useEffect(() => {
-    initAuthSync()
-    handleExternalLoginTrigger()
+  const handleExitBatchView = useCallback(() => {
+    exitBatchShareView()
   }, [])
 
-  useEffect(() => {
-    loadPrompts()
-  }, [batchPromptIds])
-
-  useEffect(() => {
-    if (isBatchShareView) return undefined
-
-    const channel = supabase
-      .channel('prompts-insert')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'prompts',
-          filter: 'visibility=eq.public',
-        },
-        (payload) => {
-          console.log('[Hub] New prompt inserted:', payload.new)
-          setPrompts((prev) => {
-            const newList = [payload.new as Prompt, ...prev]
-            return newList.sort((a, b) => 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
-          })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [isBatchShareView])
-
-  // Load prompt by ID from URL params (supports unlisted access)
-  useEffect(() => {
-    if (isBatchShareView) return
-
-    const params = new URLSearchParams(window.location.search)
-    const promptId = params.get('prompt') || params.get('id')
-    if (promptId) {
-      loadPromptById(promptId)
-    }
-  }, [isBatchShareView])
-
-  async function loadPromptById(id: string) {
+  const loadPromptById = useCallback(async (id: string) => {
     const { data, error } = await supabase
       .from('prompts')
       .select('*')
@@ -223,22 +164,9 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
     } else if (data?.visibility === 'private') {
       showToast('This prompt is private')
     }
-  }
+  }, [showToast])
 
-  // Open detail when id param present in URL (fallback to local search)
-  useEffect(() => {
-    if (prompts.length === 0) return
-    const params = new URLSearchParams(window.location.search)
-    const id = params.get('id')
-    if (id) {
-      const found = prompts.find(p => p.id === id)
-      if (found) {
-        setSelectedPrompt(found)
-      }
-    }
-  }, [prompts])
-
-  async function loadPrompts() {
+  const loadPrompts = useCallback(async () => {
     setLoading(true)
 
     let data: Prompt[] | null = null
@@ -281,7 +209,91 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
       setPrompts(sorted)
     }
     setLoading(false)
+  }, [batchPromptIds, showToast])
+
+  // Get unique categories from prompts
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    prompts.forEach(p => { if (p.category) cats.add(p.category) })
+    return ['all', ...Array.from(cats).sort()]
+  }, [prompts])
+
+  const handleExternalLoginTrigger = async () => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('action') !== 'login' || params.get('source') !== 'extension') return
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: getHubUrl(),
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
+    })
+    if (error) console.error('Auto login error:', error)
   }
+
+  useEffect(() => {
+    initAuthSync()
+    handleExternalLoginTrigger()
+  }, [])
+
+  useEffect(() => {
+    loadPrompts()
+  }, [loadPrompts])
+
+  useEffect(() => {
+    if (isBatchShareView) return undefined
+
+    const channel = supabase
+      .channel('prompts-insert')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'prompts',
+          filter: 'visibility=eq.public',
+        },
+        (payload) => {
+          console.log('[Hub] New prompt inserted:', payload.new)
+          setPrompts((prev) => {
+            const newList = [payload.new as Prompt, ...prev]
+            return newList.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isBatchShareView])
+
+  // Load prompt by ID from URL params (supports unlisted access)
+  useEffect(() => {
+    if (isBatchShareView) return
+
+    const params = new URLSearchParams(window.location.search)
+    const promptId = params.get('prompt') || params.get('id')
+    if (promptId) {
+      loadPromptById(promptId)
+    }
+  }, [isBatchShareView, loadPromptById])
+
+  // Open detail when id param present in URL (fallback to local search)
+  useEffect(() => {
+    if (prompts.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('id')
+    if (id) {
+      const found = prompts.find(p => p.id === id)
+      if (found) {
+        setSelectedPrompt(found)
+      }
+    }
+  }, [prompts])
 
   // Reset page when filters change
   useEffect(() => {
@@ -498,6 +510,23 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
         <h1 className="hub-title">{APP_NAME} Hub</h1>
         <p className="hub-subtitle">Discover, install, and share AI prompts from the community</p>
       </div>
+
+      {isBatchShareView ? (
+        <div className="hub-batch-banner">
+          <div className="hub-batch-banner-copy">
+            <div className="hub-batch-banner-title">This share contains {batchPromptIds.length} prompts</div>
+            <div className="hub-batch-banner-text">
+              You are viewing only this shared batch. Click any card to open its details.
+            </div>
+          </div>
+          <div className="hub-batch-banner-actions">
+            <button className="hub-action-btn" onClick={handleExitBatchView}>
+              View full Hub
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <SearchBar value={search} onChange={setSearch} />
       
       <div className="hub-controls">
