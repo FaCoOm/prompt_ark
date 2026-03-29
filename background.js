@@ -131,17 +131,20 @@ async function handlePendingIntent() {
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
       }
-    } else if (intent.action === 'PUBLISH_PACK_TO_HUB') {
-      const resp = await HubClient.publishPack(
-        intent.promptData.prompts,
-        intent.promptData.packTitle,
+    } else if (intent.action === 'PUBLISH_PROMPTS_TO_HUB' || intent.action === 'PUBLISH_PACK_TO_HUB') {
+      const batchPrompts = intent.promptData.prompts || [];
+      const resp = await HubClient.publishPrompts(
+        batchPrompts,
         intent.promptData.visibility || 'public'
       );
+      const count = resp?.ids?.length || batchPrompts.length || 0;
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🎉 Pack Published!',
-        message: `Your prompt pack "${intent.promptData.packTitle}" is now live on Hub.`
+        title: '🎉 Prompts Published!',
+        message: count > 1
+          ? `${count} prompts are now live on Hub.`
+          : 'Your prompt is now live on Hub.'
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -1244,11 +1247,12 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
+      case 'PUBLISH_PROMPTS_TO_HUB':
       case 'PUBLISH_PACK_TO_HUB': {
         try {
           await requireHubAuth();
-          const result = await HubClient.publishPack(message.prompts, message.packTitle, message.visibility || 'public');
-          sendResponse({ success: true, id: result.id, url: result.url });
+          const result = await HubClient.publishPrompts(message.prompts, message.visibility || 'public');
+          sendResponse({ success: true, id: result.id, ids: result.ids, url: result.url });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
         }

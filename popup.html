@@ -447,7 +447,7 @@
     <footer class="footer">
       <button id="importBtn" class="btn btn-secondary btn-small" data-i18n="import">导入</button>
       <button id="exportBtn" class="btn btn-secondary btn-small" data-i18n="export">导出</button>
-      <button id="packBtn" class="btn btn-secondary btn-small" data-i18n-title="sharePromptPack">📦</button>
+      <button id="packBtn" class="btn btn-secondary btn-small" data-i18n-title="sharePromptPack">☑️</button>
       <button id="youtubePromptBtn" class="btn btn-secondary btn-small"
         data-i18n-title="videoToPrompt">🎬</button>
       <!-- [DISABLED] <button id="skillManagerBtn" class="btn btn-secondary btn-small" data-i18n-title="skillManager">🧩</button> -->
@@ -813,9 +813,12 @@
         <button class="modal-close" id="closeLoginRequiredModal">&times;</button>
       </div>
       <div class="login-required-body">
-        <p id="loginRequiredMessage" class="login-required-message">
-          这个分享操作已经为你保存。登录 Prompt Ark Hub 后，会自动继续，无需重新点击。
-        </p>
+        <div class="login-required-hero">
+          <div class="login-required-icon" aria-hidden="true">↗</div>
+          <p id="loginRequiredMessage" class="login-required-message">
+            这个分享操作已经为你保存。登录 Prompt Ark Hub 后，会自动继续，无需重新点击。
+          </p>
+        </div>
         <div class="login-required-summary">
           <div class="login-required-summary-label" data-i18n="loginRequiredPendingLabel">待继续操作</div>
           <div id="loginRequiredActionSummary" class="login-required-summary-value"></div>
@@ -837,10 +840,8 @@
       <span id="packSelectedCount">0</span> <span data-i18n="selected">已选</span>
     </div>
     <div class="pack-toolbar-actions">
-      <input type="text" id="packTitleInput" class="pack-title-input" data-i18n-placeholder="packTitlePlaceholder"
-        placeholder="合集标题">
-      <button id="packShareBtn" class="btn btn-primary btn-small" disabled data-i18n="packShare">📦
-        分享合集</button>
+      <button id="packShareBtn" class="btn btn-primary btn-small" disabled data-i18n="packShare">📢
+        批量发布到 Hub</button>
       <button id="packCancelBtn" class="btn btn-small" data-i18n="cancel">取消</button>
     </div>
   </div>
