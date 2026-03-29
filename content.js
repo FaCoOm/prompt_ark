@@ -267,18 +267,41 @@ class AIPromptManager {
     let success = false;
     const normalizeText = (value) => String(value || '')
       .replace(/\u200B/g, '')
+      .replace(/\u00A0/g, ' ')
       .replace(/\r/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+    const compactText = (value) => normalizeText(value).replace(/\s+/g, ' ').trim();
     const readText = (el) => normalizeText(
       el?.value ?? el?.innerText ?? el?.textContent ?? ''
     );
     const hasExpectedText = (el, value) => {
       const expected = normalizeText(value);
       const actual = readText(el);
-      if (!expected) return actual.length === 0;
-      if (!actual) return false;
-      return actual.includes(expected) || expected.includes(actual);
+      const expectedCompact = compactText(value);
+      const actualCompact = compactText(actual);
+      if (!expectedCompact) return actualCompact.length === 0;
+      if (!actualCompact) return false;
+      if (
+        actualCompact.includes(expectedCompact)
+        || expectedCompact.includes(actualCompact)
+      ) {
+        return true;
+      }
+
+      const lines = expected
+        .split('\n')
+        .map(line => compactText(line))
+        .filter(line => line.length >= 4);
+      const samples = [...new Set([
+        lines[0],
+        lines[Math.floor(lines.length / 2)],
+        lines[lines.length - 1],
+        expectedCompact.slice(0, 24),
+        expectedCompact.slice(-24)
+      ].filter(Boolean))];
+      const matches = samples.filter(sample => actualCompact.includes(sample)).length;
+      return matches >= Math.min(2, samples.length);
     };
     const selectContents = (el) => {
       const selection = window.getSelection();
@@ -1122,7 +1145,7 @@ class AIPromptManager {
         };
 
         doInject().catch(() => {
-          this.showNotification('📋 内容已复制到剪贴板', 'info');
+          this.showNotification('📋 编辑器未就绪，内容已复制到剪贴板', 'info');
           sendResponse({ success: false });
         });
         break;
