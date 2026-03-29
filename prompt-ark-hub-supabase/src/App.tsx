@@ -44,6 +44,20 @@ function extractVariablesFromContent(content: string): string[] {
   return [...new Set(vars.map(v => v.replace(/\{\{|\}\}/g, '').split(/[:=|]/)[0].trim()))]
 }
 
+function extractBatchPromptIds(searchString: string): string[] {
+  const params = new URLSearchParams(searchString)
+  const rawIds = params.get('ids')
+
+  if (!rawIds) return []
+
+  return [...new Set(
+    rawIds
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean)
+  )]
+}
+
 function waitForExtensionImport(payload: unknown, timeoutMs = 2000): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false
@@ -88,6 +102,8 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
   const { showToast } = useToast()
+  const batchPromptIds = useMemo(() => extractBatchPromptIds(window.location.search), [])
+  const isBatchShareView = batchPromptIds.length > 0
 
   // Get unique categories from prompts
   const categories = useMemo(() => {
@@ -117,9 +133,11 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
   useEffect(() => {
     loadPrompts()
-  }, [])
+  }, [batchPromptIds])
 
   useEffect(() => {
+    if (isBatchShareView) return undefined
+
     const channel = supabase
       .channel('prompts-insert')
       .on(
@@ -145,16 +163,18 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [isBatchShareView])
 
   // Load prompt by ID from URL params (supports unlisted access)
   useEffect(() => {
+    if (isBatchShareView) return
+
     const params = new URLSearchParams(window.location.search)
     const promptId = params.get('prompt') || params.get('id')
     if (promptId) {
       loadPromptById(promptId)
     }
-  }, [])
+  }, [isBatchShareView])
 
   async function loadPromptById(id: string) {
     const { data, error } = await supabase
@@ -178,6 +198,8 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
   // Open detail when id param present in URL (fallback to local search)
   useEffect(() => {
+    if (isBatchShareView || prompts.length === 0) return
+
     if (prompts.length === 0) return
     const params = new URLSearchParams(window.location.search)
     const id = params.get('id')
@@ -187,26 +209,48 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
         setSelectedPrompt(found)
       }
     }
-  }, [prompts])
+  }, [isBatchShareView, prompts])
 
   async function loadPrompts() {
     setLoading(true)
 
-    let query = supabase
-      .from('prompts')
-      .select('*')
-      .eq('visibility', 'public')
-    
-    const { data, error } = await query
+    let data: Prompt[] | null = null
+    let error: unknown = null
+
+    if (batchPromptIds.length > 0) {
+      const result = await supabase
+        .from('prompts')
+        .select('*')
+        .in('id', batchPromptIds)
+
+      data = result.data
+      error = result.error
+    } else {
+      const result = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('visibility', 'public')
+
+      data = result.data
+      error = result.error
+    }
     
     if (error) {
       console.error('Error loading prompts:', error)
       showToast('Failed to load prompts')
     } else {
-      // Sort by created_at descending
-      const sorted = (data || []).sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
+      let sorted: Prompt[]
+
+      if (batchPromptIds.length > 0) {
+        const visiblePrompts = (data || []).filter(p => ['public', 'unlisted'].includes(p.visibility))
+        const orderMap = new Map(batchPromptIds.map((id, index) => [id, index]))
+        sorted = visiblePrompts.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+      } else {
+        sorted = (data || []).sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      }
+
       setPrompts(sorted)
     }
     setLoading(false)
@@ -498,7 +542,7 @@ function AppShell() {
   const legalSection = getLegalSection(pathname)
   
   const urlParams = new URLSearchParams(window.location.search)
-  const hasPromptParam = urlParams.get('prompt') || urlParams.get('id')
+  const hasPromptParam = urlParams.get('prompt') || urlParams.get('id') || urlParams.get('ids')
   const isHubRoute = pathname === HUB_PATH || hasPromptParam
 
   useEffect(() => {

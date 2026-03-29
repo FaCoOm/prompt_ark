@@ -2541,22 +2541,7 @@ body::before {
   align-items: center;
   gap: 8px;
   flex: 1;
-}
-
-.pack-title-input {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 12px;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.pack-title-input:focus {
-  border-color: var(--accent);
+  justify-content: flex-end;
 }
 
 /* ===== Selection Mode ===== */
