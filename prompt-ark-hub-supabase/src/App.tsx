@@ -58,6 +58,25 @@ function extractBatchPromptIds(searchString: string): string[] {
   )]
 }
 
+function updatePromptParamsInUrl(promptId: string | null, batchPromptIds: string[]) {
+  const url = new URL(window.location.href)
+
+  if (batchPromptIds.length > 0) {
+    url.searchParams.set('ids', batchPromptIds.join(','))
+  } else {
+    url.searchParams.delete('ids')
+  }
+
+  if (promptId) {
+    url.searchParams.set('id', promptId)
+  } else {
+    url.searchParams.delete('id')
+    url.searchParams.delete('prompt')
+  }
+
+  window.history.replaceState({}, '', url.toString())
+}
+
 function waitForExtensionImport(payload: unknown, timeoutMs = 2000): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false
@@ -104,6 +123,16 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
   const { showToast } = useToast()
   const batchPromptIds = useMemo(() => extractBatchPromptIds(window.location.search), [])
   const isBatchShareView = batchPromptIds.length > 0
+
+  const handlePromptClick = useCallback((prompt: Prompt) => {
+    setSelectedPrompt(prompt)
+    updatePromptParamsInUrl(prompt.id, batchPromptIds)
+  }, [batchPromptIds])
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedPrompt(null)
+    updatePromptParamsInUrl(null, batchPromptIds)
+  }, [batchPromptIds])
 
   // Get unique categories from prompts
   const categories = useMemo(() => {
@@ -198,8 +227,6 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
   // Open detail when id param present in URL (fallback to local search)
   useEffect(() => {
-    if (isBatchShareView || prompts.length === 0) return
-
     if (prompts.length === 0) return
     const params = new URLSearchParams(window.location.search)
     const id = params.get('id')
@@ -209,7 +236,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
         setSelectedPrompt(found)
       }
     }
-  }, [isBatchShareView, prompts])
+  }, [prompts])
 
   async function loadPrompts() {
     setLoading(true)
@@ -494,7 +521,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
         <>
           <PromptGrid 
             prompts={paginatedPrompts} 
-            onPromptClick={setSelectedPrompt} 
+            onPromptClick={handlePromptClick} 
           />
           <Pagination 
             currentPage={currentPage}
@@ -509,7 +536,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
 
       <DetailModal 
         prompt={selectedPrompt} 
-        onClose={() => setSelectedPrompt(null)}
+        onClose={handleCloseDetail}
         onCopyLink={handleCopyLink}
         onFork={handleFork}
         onInstall={handleInstall}
