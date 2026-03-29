@@ -3,7 +3,7 @@ export const HUB_PATH = '/hub'
 export const EXTENSION_URL = 'https://github.com/KeyonZeng/prompt_ark'
 
 export function getCurrentPageUrl() {
-  return `${window.location.origin}${window.location.pathname}`
+  return `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`
 }
 
 export function getHubUrl() {
