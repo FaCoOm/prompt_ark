@@ -2493,11 +2493,11 @@ body::before {
 .prompt-item.selectable::before {
   content: '';
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border: 1.5px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.02);
@@ -2533,6 +2533,8 @@ body::before {
   border-color: var(--accent);
   background: linear-gradient(180deg, #f4b267 0%, #f0a050 100%);
   box-shadow: 0 0 0 4px rgba(240, 160, 80, 0.12);
+  width: 14px;
+  height: 14px;
 }
 
 .prompt-item.selectable .prompt-actions {
