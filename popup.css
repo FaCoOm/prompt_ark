@@ -2533,8 +2533,8 @@ body::before {
   border-color: var(--accent);
   background: linear-gradient(180deg, #f4b267 0%, #f0a050 100%);
   box-shadow: 0 0 0 4px rgba(240, 160, 80, 0.12);
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .prompt-item.selectable .prompt-actions {
