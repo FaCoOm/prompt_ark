@@ -2535,19 +2535,6 @@ body::before {
   box-shadow: 0 0 0 4px rgba(240, 160, 80, 0.12);
 }
 
-.prompt-item.selectable.selected::after {
-  content: '';
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  width: 6px;
-  height: 10px;
-  transform: translate(-50%, -58%) rotate(45deg);
-  border-right: 2px solid #12141c;
-  border-bottom: 2px solid #12141c;
-  z-index: 2;
-}
-
 .prompt-item.selectable .prompt-actions {
   display: none;
 }
