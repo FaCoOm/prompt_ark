@@ -1123,6 +1123,26 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
+      case 'GET_PENDING_DOUBAO_PROMPT': {
+        try {
+          const data = await chrome.storage.session.get(['pendingDoubaoPrompt', 'pendingDoubaoTimestamp']);
+          sendResponse({ success: true, prompt: data.pendingDoubaoPrompt, timestamp: data.pendingDoubaoTimestamp });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
+      case 'CLEAR_PENDING_DOUBAO_PROMPT': {
+        try {
+          await chrome.storage.session.remove(['pendingDoubaoPrompt', 'pendingDoubaoTimestamp']);
+          sendResponse({ success: true });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
       default:
         sendResponse({ success: false, error: 'Unknown message type' });
     }

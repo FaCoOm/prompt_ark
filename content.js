@@ -196,7 +196,15 @@ class AIPromptManager {
       deepseek: ['textarea#chat-input', 'textarea[placeholder]'],
       kimi: ['div[contenteditable="true"][class*="editor"]', 'div[contenteditable="true"].ProseMirror'],
       zhipu: ['textarea.ant-input'],
-      doubao: ['div[data-slate-editor="true"]', 'div[contenteditable="true"][role="textbox"]'],
+      doubao: [
+        'div[data-slate-editor="true"]',
+        'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"][data-testid="chat_input"]',
+        'div[class*="input"][contenteditable="true"]',
+        'div[class*="editor"][contenteditable="true"]',
+        'textarea[placeholder*="发送消息"]',
+        'textarea[placeholder*="输入"]'
+      ],
       wenxin: ['div[contenteditable="true"]', 'textarea[placeholder]'],
       qwen: ['div[contenteditable="true"][class*="editor"]'],
       minimax: ['textarea[placeholder]', 'div[contenteditable="true"]'],
@@ -345,7 +353,40 @@ class AIPromptManager {
     return this.injectIntoElement(inputEl, text, { replaceAll: true, ...options });
   }
 
-  // --- Variable Processing ---
+  async autoInjectDoubaoPrompt() {
+    const maxAttempts = 30;
+    const interval = 500;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'GET_PENDING_DOUBAO_PROMPT' });
+        if (!resp?.success || !resp.prompt) return;
+        
+        const age = Date.now() - (resp.timestamp || 0);
+        if (age > 60000) {
+          await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_DOUBAO_PROMPT' });
+          return;
+        }
+        
+        const inputEl = this.findInputElement();
+        if (inputEl) {
+          console.log('[Prompt Ark] Doubao input found, injecting prompt...');
+          const promptWithPrefix = `帮我生成图片：${resp.prompt}`;
+          const success = await this.injectIntoElement(inputEl, promptWithPrefix, { replaceAll: true });
+          if (success) {
+            await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_DOUBAO_PROMPT' });
+            console.log('[Prompt Ark] Doubao prompt injection successful');
+            return;
+          }
+        } else {
+          console.log(`[Prompt Ark] Doubao input not found, attempt ${i + 1}/${maxAttempts}`);
+        }
+      } catch (e) {
+        console.error('[Prompt Ark] Doubao injection error:', e);
+      }
+      await new Promise(r => setTimeout(r, interval));
+    }
+    console.log('[Prompt Ark] Doubao injection timed out after 30 attempts');
+  }
 
   extractVariables(content) {
     const rawMatches = [];
@@ -600,6 +641,10 @@ class AIPromptManager {
 
     // Initialize Image Prompt Handler (runs on all pages)
     this.imagePromptHandler = new ImagePromptHandler();
+
+    if (this.platform === 'doubao') {
+      this.autoInjectDoubaoPrompt();
+    }
 
     // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
     // Running this heavily active observer globally on <all_urls> would destroy browser performance.
