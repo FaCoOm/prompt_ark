@@ -265,29 +265,82 @@ class AIPromptManager {
     await new Promise(r => setTimeout(r, 50));
 
     let success = false;
+    const normalizeText = (value) => String(value || '')
+      .replace(/\u200B/g, '')
+      .replace(/\r/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const readText = (el) => normalizeText(
+      el?.value ?? el?.innerText ?? el?.textContent ?? ''
+    );
+    const hasExpectedText = (el, value) => {
+      const expected = normalizeText(value);
+      const actual = readText(el);
+      if (!expected) return actual.length === 0;
+      if (!actual) return false;
+      return actual.includes(expected) || expected.includes(actual);
+    };
+    const selectContents = (el) => {
+      const selection = window.getSelection();
+      if (!selection || !el) return;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const escapeHtml = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    const buildParagraphHtml = (value) => value.split('\n')
+      .map(line => `<p>${line ? escapeHtml(line) : '<br>'}</p>`).join('');
 
     // Strategy A: ProseMirror / ContentEditable (ChatGPT, Claude)
     if (inputEl.classList.contains('ProseMirror') || inputEl.isContentEditable) {
+      const quill = inputEl.__quill
+        || inputEl.closest('.ql-container')?.__quill
+        || window.Quill?.find?.(inputEl.closest('.ql-container') || inputEl);
+
+      if (quill && typeof quill.setText === 'function') {
+        try {
+          quill.setText(text, 'user');
+          await new Promise(r => setTimeout(r, 120));
+          success = hasExpectedText(inputEl, text);
+        } catch (e) { /* fall through */ }
+      }
+
       if (replaceAll) {
         try {
-          const selection = window.getSelection();
-          if (selection) {
-            const range = document.createRange();
-            range.selectNodeContents(inputEl);
-            selection.removeAllRanges();
-            selection.addRange(range);
-          }
+          selectContents(inputEl);
         } catch (e) { /* selection API may fail on some editors */ }
       }
 
-      try {
-        success = document.execCommand('insertText', false, text);
-      } catch (e) { /* execCommand not supported */ }
+      if (!success) {
+        try {
+          success = document.execCommand('insertText', false, text);
+        } catch (e) { /* execCommand not supported */ }
+        await new Promise(r => setTimeout(r, 120));
+        success = success && hasExpectedText(inputEl, text);
+      }
 
       if (!success && replaceAll) {
         try {
-          inputEl.textContent = text;
-          success = true;
+          inputEl.innerHTML = buildParagraphHtml(text);
+          inputEl.dispatchEvent(new InputEvent('beforeinput', {
+            bubbles: true,
+            cancelable: true,
+            inputType: 'insertText',
+            data: text,
+          }));
+          inputEl.dispatchEvent(new InputEvent('input', {
+            bubbles: true,
+            inputType: 'insertText',
+            data: text,
+          }));
+          await new Promise(r => setTimeout(r, 120));
+          success = hasExpectedText(inputEl, text);
         } catch (e) { /* fallback below */ }
       }
     }
@@ -312,11 +365,18 @@ class AIPromptManager {
         const tracker = inputEl._valueTracker;
         if (tracker) tracker.setValue('');
 
-        success = true;
+        await new Promise(r => setTimeout(r, 50));
+        success = hasExpectedText(inputEl, text);
       } else {
         // ContentEditable fallback
-        inputEl.textContent = text;
-        success = true;
+        inputEl.innerHTML = buildParagraphHtml(text);
+        inputEl.dispatchEvent(new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data: text,
+        }));
+        await new Promise(r => setTimeout(r, 120));
+        success = hasExpectedText(inputEl, text);
       }
     }
 
@@ -328,10 +388,10 @@ class AIPromptManager {
       new KeyboardEvent('keyup', { bubbles: true, key: ' ' })
     ].forEach(e => inputEl.dispatchEvent(e));
 
-    if (!suppressNotifications) {
+    if (success && !suppressNotifications) {
       this.showNotification(this.msg('insertSuccess', 'Prompt已填入'), 'success');
     }
-    return true;
+    return success;
   }
 
   async injectPromptRobust(text, options = {}) {
@@ -1008,8 +1068,10 @@ class AIPromptManager {
             for (const sel of titleSelectors) {
               const el = document.querySelector(sel);
               if (el) {
-                await this.injectIntoElement(el, titleText);
-                titleInjected = true;
+                titleInjected = await this.injectIntoElement(el, titleText, {
+                  replaceAll: true,
+                  suppressNotifications: true
+                });
                 break;
               }
             }
@@ -1021,8 +1083,10 @@ class AIPromptManager {
           for (const sel of contentSelectors) {
             const el = document.querySelector(sel);
             if (el) {
-              await this.injectIntoElement(el, contentText);
-              contentInjected = true;
+              contentInjected = await this.injectIntoElement(el, contentText, {
+                replaceAll: true,
+                suppressNotifications: true
+              });
               break;
             }
           }
@@ -1031,8 +1095,10 @@ class AIPromptManager {
           if (!contentInjected) {
             const genericEl = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
             if (genericEl) {
-              await this.injectIntoElement(genericEl, shareContent);
-              contentInjected = true;
+              contentInjected = await this.injectIntoElement(genericEl, shareContent, {
+                replaceAll: true,
+                suppressNotifications: true
+              });
             }
           }
 
