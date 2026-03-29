@@ -955,6 +955,7 @@ ${p.sourceContext ? `
       const targetLang = document.getElementById('translateTargetLang').value;
       const titleInput = document.getElementById('titleInput');
       const categoryInput = document.getElementById('categoryInput');
+      const tagsInput = document.getElementById('tagsInput');
       const contentInput = document.getElementById('contentInput');
 
       if (!contentInput.value.trim()) {
@@ -973,6 +974,7 @@ ${p.sourceContext ? `
           promptData: {
             title: titleInput.value.trim(),
             category: categoryInput.value.trim(),
+            tags: tagsInput?.value.trim() || '',
             content: contentInput.value.trim()
           }
         });
@@ -980,6 +982,11 @@ ${p.sourceContext ? `
         if (resp && resp.success && resp.data) {
           if (resp.data.title) titleInput.value = resp.data.title;
           if (resp.data.category) categoryInput.value = resp.data.category;
+          if (resp.data.tags && tagsInput) {
+            tagsInput.value = Array.isArray(resp.data.tags)
+              ? resp.data.tags.join(', ')
+              : String(resp.data.tags || '');
+          }
           if (resp.data.content) {
             contentInput.value = resp.data.content;
             // Update markdown preview if visible
@@ -1684,6 +1691,7 @@ ${p.sourceContext ? `
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
       document.getElementById('categoryInput').value = prompt.category || '';
+      document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
       this.editingId = prompt.id;
@@ -2031,6 +2039,10 @@ ${p.sourceContext ? `
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
       category: document.getElementById('categoryInput').value.trim(),
+      tags: String(document.getElementById('tagsInput')?.value || '')
+        .split(/[,\n，、]/)
+        .map(tag => tag.trim())
+        .filter(Boolean),
       shortcut: document.getElementById('shortcutInput').value.trim().replace(/^\//, '').replace(/[^a-zA-Z0-9_-]/g, ''),
       content: document.getElementById('contentInput').value.trim()
     };
