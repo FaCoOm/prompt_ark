@@ -25,7 +25,7 @@ Never open with: "Excited to share", "In the rapidly evolving", "AI is transform
 2. **1 genuine personal observation** that sounds like real experience
 3. **2 bullets max in any list**
 4. **Each paragraph: 1-2 sentences.** Mobile readability is non-negotiable.
-5. **End with**: specific discussion question + "Link in first comment 👇"
+5. **End with**: specific discussion question + direct link to the article URL. Do not mention comments.
 6. **Hashtags**: 3-4 on a separate final line. Always include #PromptEngineering.
 
 ## Voice (the difference between 80 and 90)
@@ -57,7 +57,7 @@ Natural mention as a builder sharing tools.
 ```json
 {
   "title": "",
-  "body": "📊 Concrete number or finding.\n\nThe key insight: **specific claim**.\n\nWhat I changed after reading this.\n\nMy takeaway: one honest sentence.\n\nI keep prompt templates in Prompt Ark → github.com/keyonzeng/prompt-ark\n\nSpecific discussion question? Link in first comment 👇\n\n#PromptEngineering #AI #Productivity"
+  "body": "📊 Concrete number or finding.\n\nThe key insight: **specific claim**.\n\nWhat I changed after reading this.\n\nMy takeaway: one honest sentence.\n\nI keep prompt templates in Prompt Ark → github.com/keyonzeng/prompt-ark\n\nSpecific discussion question?\n\nOriginal article: https://example.com\n\n#PromptEngineering #AI #Productivity"
 }
 ```
 

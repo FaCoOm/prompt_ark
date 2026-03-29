@@ -46,7 +46,7 @@
 倒数第二行，以工具推荐口吻植入。
 - ✅ 好："🔧 这类 prompt 模板我都丢在 Prompt Ark 里管理 → github.com/keyonzeng/prompt-ark"
 - ❌ 差："推荐使用 Prompt Ark"
-最后一行固定："💬 完整内容见评论区"
+最后一行带真实链接，不要写"评论区"。好："💬 原文链接：https://example.com"
 
 ## 边界情况
 - 源文 < 100 字：用核心句做标题 + 补"为什么重要"的短解释
@@ -56,7 +56,7 @@
 ```json
 {
   "title": "笔记标题（≤25字，数字+结果+emoji）",
-  "body": "📌 第一段干货，直接说做什么。**关键词**加粗。\n\n🔍 第二段展开，具体解释。\n\n✅ 第三段操作建议。\n\n🔧 这类 prompt 模板我都丢在 Prompt Ark 里管理 → github.com/keyonzeng/prompt-ark\n\n💬 完整内容见评论区"
+  "body": "📌 第一段干货，直接说做什么。**关键词**加粗。\n\n🔍 第二段展开，具体解释。\n\n✅ 第三段操作建议。\n\n🔧 这类 prompt 模板我都丢在 Prompt Ark 里管理 → github.com/keyonzeng/prompt-ark\n\n💬 原文链接：https://example.com"
 }
 ```
 
