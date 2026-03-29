@@ -264,6 +264,39 @@ body::after {
   color: var(--text-secondary);
 }
 
+.hub-batch-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 auto 18px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(16, 185, 129, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.hub-batch-banner-copy {
+  min-width: 0;
+}
+
+.hub-batch-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.hub-batch-banner-text {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hub-batch-banner-actions {
+  flex-shrink: 0;
+}
+
 /* ===== Prompt Grid ===== */
 .hub-grid {
   display: grid;
