@@ -91,21 +91,31 @@ async function handlePendingIntent() {
     console.log('[PendingIntent] Executing:', intent.action);
     
     if (intent.action === 'PUBLISH_TO_HUB') {
-      const resp = await HubClient.publishPrompt(intent.promptData, 'public');
+      const resp = await HubClient.publishPrompt(intent.promptData, intent.promptData.visibility || 'public');
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
         title: '🎉 Published to Hub!',
         message: `Your prompt "${intent.promptData.title}" is now live on Hub.`
       });
+      if (resp?.url) {
+        await chrome.tabs.create({ url: resp.url });
+      }
     } else if (intent.action === 'PUBLISH_PACK_TO_HUB') {
-      const resp = await HubClient.publishPack(intent.promptData.prompts, intent.promptData.packTitle, 'public');
+      const resp = await HubClient.publishPack(
+        intent.promptData.prompts,
+        intent.promptData.packTitle,
+        intent.promptData.visibility || 'public'
+      );
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
         title: '🎉 Pack Published!',
         message: `Your prompt pack "${intent.promptData.packTitle}" is now live on Hub.`
       });
+      if (resp?.url) {
+        await chrome.tabs.create({ url: resp.url });
+      }
     } else if (intent.action === 'SHARE_TO_PLATFORM') {
       const { promptData } = intent;
       const platform = promptData.platform;
