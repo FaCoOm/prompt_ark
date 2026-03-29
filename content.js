@@ -1043,6 +1043,23 @@ class AIPromptManager {
         navigator.clipboard.writeText(shareContent).catch(() => { });
 
         const doInject = async () => {
+          const findEl = (selectors = []) => {
+            for (const sel of selectors) {
+              const el = document.querySelector(sel);
+              if (el) return el;
+            }
+            return null;
+          };
+          const waitForEl = async (selectors = [], timeoutMs = 8000, intervalMs = 250) => {
+            const startedAt = Date.now();
+            let el = findEl(selectors);
+            while (!el && (Date.now() - startedAt) < timeoutMs) {
+              await new Promise(r => setTimeout(r, intervalMs));
+              el = findEl(selectors);
+            }
+            return el;
+          };
+
           // Step 1: Click "新的创作" button if needed (小红书)
           if (preClickSelector) {
             const btn = document.querySelector(preClickSelector);
@@ -1065,35 +1082,29 @@ class AIPromptManager {
           // Step 3: Inject title
           let titleInjected = false;
           if (titleText && titleSelectors.length > 0) {
-            for (const sel of titleSelectors) {
-              const el = document.querySelector(sel);
-              if (el) {
-                titleInjected = await this.injectIntoElement(el, titleText, {
-                  replaceAll: true,
-                  suppressNotifications: true
-                });
-                break;
-              }
+            const titleEl = await waitForEl(titleSelectors, 5000, 250);
+            if (titleEl) {
+              titleInjected = await this.injectIntoElement(titleEl, titleText, {
+                replaceAll: true,
+                suppressNotifications: true
+              });
             }
           }
 
           // Step 4: Inject content body
           let contentInjected = false;
           const contentText = titleInjected ? bodyText : shareContent;
-          for (const sel of contentSelectors) {
-            const el = document.querySelector(sel);
-            if (el) {
-              contentInjected = await this.injectIntoElement(el, contentText, {
-                replaceAll: true,
-                suppressNotifications: true
-              });
-              break;
-            }
+          const contentEl = await waitForEl(contentSelectors, 8000, 250);
+          if (contentEl) {
+            contentInjected = await this.injectIntoElement(contentEl, contentText, {
+              replaceAll: true,
+              suppressNotifications: true
+            });
           }
 
           // Fallback: try generic selectors
           if (!contentInjected) {
-            const genericEl = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
+            const genericEl = await waitForEl(['[contenteditable="true"]', 'textarea'], 3000, 250);
             if (genericEl) {
               contentInjected = await this.injectIntoElement(genericEl, shareContent, {
                 replaceAll: true,
