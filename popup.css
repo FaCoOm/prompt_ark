@@ -238,12 +238,20 @@ body::before {
   font-size: 12px;
 }
 
-#packBtn {
-  padding: 6px 10px;
+.footer-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  flex: 0 0 32px;
+}
+
+.footer-btn-icon {
+  display: block;
 }
 
 #packBtn .pack-btn-icon {
-  display: block;
+  transform: translateX(0.25px);
 }
 
 #packBtn:hover {
@@ -258,6 +266,12 @@ body::before {
     linear-gradient(180deg, rgba(240, 160, 80, 0.08), rgba(240, 160, 80, 0.03)),
     var(--bg-elevated);
   box-shadow: 0 0 0 1px rgba(240, 160, 80, 0.08);
+}
+
+#youtubePromptBtn:hover {
+  color: #ff8a3d;
+  background: rgba(255, 138, 61, 0.12);
+  border-color: rgba(255, 138, 61, 0.16);
 }
 
 .icon {
