@@ -791,15 +791,9 @@ class AIPromptManager {
 
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
     window.addEventListener('message', (event) => {
-      // Security Check 1: Accept only from Verified Domains (e.g. your GitHub Pages, local dev)
+      // Security Check 1: Accept only from the verified production Hub origin
       const verifiedDomains = [
         'https://promptark.oometa.ai',
-        'http://127.0.0.1:8080',
-        'http://localhost:8080',
-        'http://127.0.0.1:5173',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://localhost:3000',
       ];
 
       if (!verifiedDomains.includes(event.origin)) {

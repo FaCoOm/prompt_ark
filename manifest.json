@@ -102,10 +102,5 @@
       },
       "description": "__MSG_shareArticleDesc__"
     }
-  },
-  "externally_connectable": {
-    "matches": [
-      "http://localhost:5173/*"
-    ]
   }
 }
