@@ -118,9 +118,10 @@ function waitForExtensionImport(payload: unknown, timeoutMs = 2000): Promise<boo
 interface HubContentProps {
   user: any
   onAuthChange: (user: any) => void
+  authLoading?: boolean
 }
 
-function HubContent({ user, onAuthChange }: HubContentProps) {
+function HubContent({ user, onAuthChange, authLoading = false }: HubContentProps) {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -503,6 +504,7 @@ function HubContent({ user, onAuthChange }: HubContentProps) {
       <Header 
         user={user}
         onAuthChange={onAuthChange}
+        authLoading={authLoading}
       />
       
       
@@ -594,6 +596,7 @@ export default function App() {
 
 function AppShell() {
   const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const pathname = normalizePath(window.location.pathname)
   const legalSection = getLegalSection(pathname)
   
@@ -612,10 +615,13 @@ function AppShell() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
+    }).finally(() => {
+      setAuthLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setAuthLoading(false)
     })
 
     return () => {
@@ -626,11 +632,11 @@ function AppShell() {
   return (
     <ToastProvider>
       {legalSection ? (
-        <LegalPage section={legalSection} user={user} onAuthChange={setUser} />
+        <LegalPage section={legalSection} user={user} onAuthChange={setUser} authLoading={authLoading} />
       ) : isHubRoute ? (
-        <HubContent user={user} onAuthChange={setUser} />
+        <HubContent user={user} onAuthChange={setUser} authLoading={authLoading} />
       ) : (
-        <LandingPage user={user} onAuthChange={setUser} />
+        <LandingPage user={user} onAuthChange={setUser} authLoading={authLoading} />
       )}
     </ToastProvider>
   )
