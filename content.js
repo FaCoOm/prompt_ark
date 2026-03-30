@@ -146,10 +146,11 @@ class AIPromptManager {
     this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
     this.shortcutActionState = new Map();
 
-    // Slash command state
     this.slashDropdown = null;
     this.slashShortcuts = [];
     this.slashActiveIndex = -1;
+    this._lastInsertPrompt = { contentHash: '', timestamp: 0 };
+    this._insertInFlight = new Set();
 
     this.init();
     this._loadI18nDict();
@@ -181,6 +182,16 @@ class AIPromptManager {
     if (h.includes('hailuoai.com')) return 'minimax';
     if (h.includes('hunyuan.tencent.com')) return 'hunyuan';
     return 'generic';
+  }
+
+  _hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(16);
   }
 
   // --- Input Detection ---
@@ -372,25 +383,38 @@ class AIPromptManager {
     // Strategy B: Textarea/Input with React bypass (Gemini, NotebookLM, or Generic Web Forms)
     if (!success) {
       if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
-        const valueSetter = Object.getOwnPropertyDescriptor(inputEl, 'value')?.set;
-        const protoSetter = Object.getOwnPropertyDescriptor(
-          Object.getPrototypeOf(inputEl), 'value'
-        )?.set;
-
-        const finalSetter = valueSetter || protoSetter;
-
-        if (finalSetter) {
-          finalSetter.call(inputEl, text);
-        } else {
+        const isSemiDesign = inputEl.classList.contains('semi-input-textarea') || 
+                             inputEl.classList.contains('semi-input') ||
+                             inputEl.closest('.semi-input-wrapper') !== null;
+        
+        if (isSemiDesign) {
           inputEl.value = text;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 100));
+          success = hasExpectedText(inputEl, text);
         }
+        
+        if (!success) {
+          const valueSetter = Object.getOwnPropertyDescriptor(inputEl, 'value')?.set;
+          const protoSetter = Object.getOwnPropertyDescriptor(
+            Object.getPrototypeOf(inputEl), 'value'
+          )?.set;
 
-        // Reset React's value tracker so it recognizes the change
-        const tracker = inputEl._valueTracker;
-        if (tracker) tracker.setValue('');
+          const finalSetter = valueSetter || protoSetter;
 
-        await new Promise(r => setTimeout(r, 50));
-        success = hasExpectedText(inputEl, text);
+          if (finalSetter) {
+            finalSetter.call(inputEl, text);
+          } else {
+            inputEl.value = text;
+          }
+
+          const tracker = inputEl._valueTracker;
+          if (tracker) tracker.setValue('');
+
+          await new Promise(r => setTimeout(r, 50));
+          success = hasExpectedText(inputEl, text);
+        }
       } else {
         // ContentEditable fallback
         inputEl.innerHTML = buildParagraphHtml(text);
@@ -411,6 +435,12 @@ class AIPromptManager {
       new KeyboardEvent('keydown', { bubbles: true, key: ' ' }),
       new KeyboardEvent('keyup', { bubbles: true, key: ' ' })
     ].forEach(e => inputEl.dispatchEvent(e));
+
+    // Verify content was not cleared by event handlers
+    await new Promise(r => setTimeout(r, 100));
+    if (success && !hasExpectedText(inputEl, text)) {
+      success = false;
+    }
 
     if (success && !suppressNotifications) {
       this.showNotification(this.msg('insertSuccess', 'Prompt已填入'), 'success');
@@ -1211,11 +1241,30 @@ class AIPromptManager {
 
   handleMessage(message, sendResponse) {
     switch (message.type) {
-      case 'INSERT_PROMPT':
+      case 'INSERT_PROMPT': {
+        const contentHash = this._hashString(message.content || '');
+        const now = Date.now();
+
+        const isRecentlyCompleted = this._lastInsertPrompt.contentHash === contentHash &&
+                                   (now - this._lastInsertPrompt.timestamp) < 5000;
+        const isInFlight = this._insertInFlight.has(contentHash);
+
+        if (isRecentlyCompleted || isInFlight) {
+          sendResponse({ success: true, deduped: true });
+          break;
+        }
+
+        this._insertInFlight.add(contentHash);
+
         this.injectPromptRobust(message.content, {
           suppressNotifications: !!message.suppressNotifications
-        }).then(success => sendResponse({ success }));
+        }).then(success => {
+          this._insertInFlight.delete(contentHash);
+          this._lastInsertPrompt = { contentHash, timestamp: Date.now() };
+          sendResponse({ success });
+        });
         break;
+      }
       case 'INSERT_SHARE_CONTENT': {
         // Inject share content into social platform editors (知乎, 小红书, etc.)
         const { contentSelectors = [], titleSelectors = [], preClickSelector, promptTitle } = message;
