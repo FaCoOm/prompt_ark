@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../icons/icon128.png" width="80" />
+  <img src="./icons/icon128.png" width="80" />
 </p>
 
 <h1 align="center">Prompt Ark Hub</h1>
