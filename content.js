@@ -146,10 +146,11 @@ class AIPromptManager {
     this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
     this.shortcutActionState = new Map();
 
-    // Slash command state
     this.slashDropdown = null;
     this.slashShortcuts = [];
     this.slashActiveIndex = -1;
+    this._lastInsertPrompt = { contentHash: '', timestamp: 0 };
+    this._insertInFlight = new Set();
 
     this.init();
     this._loadI18nDict();
@@ -183,6 +184,16 @@ class AIPromptManager {
     return 'generic';
   }
 
+  _hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(16);
+  }
+
   // --- Input Detection ---
 
   findInputSimple() {
@@ -196,7 +207,15 @@ class AIPromptManager {
       deepseek: ['textarea#chat-input', 'textarea[placeholder]'],
       kimi: ['div[contenteditable="true"][class*="editor"]', 'div[contenteditable="true"].ProseMirror'],
       zhipu: ['textarea.ant-input'],
-      doubao: ['div[data-slate-editor="true"]', 'div[contenteditable="true"][role="textbox"]'],
+      doubao: [
+        'div[data-slate-editor="true"]',
+        'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"][data-testid="chat_input"]',
+        'div[class*="input"][contenteditable="true"]',
+        'div[class*="editor"][contenteditable="true"]',
+        'textarea[placeholder*="发送消息"]',
+        'textarea[placeholder*="输入"]'
+      ],
       wenxin: ['div[contenteditable="true"]', 'textarea[placeholder]'],
       qwen: ['div[contenteditable="true"][class*="editor"]'],
       minimax: ['textarea[placeholder]', 'div[contenteditable="true"]'],
@@ -352,16 +371,9 @@ class AIPromptManager {
         try {
           inputEl.innerHTML = buildParagraphHtml(text);
           inputEl.dispatchEvent(new InputEvent('beforeinput', {
-            bubbles: true,
-            cancelable: true,
-            inputType: 'insertText',
-            data: text,
+            bubbles: true, cancelable: true, inputType: 'insertText', data: text,
           }));
-          inputEl.dispatchEvent(new InputEvent('input', {
-            bubbles: true,
-            inputType: 'insertText',
-            data: text,
-          }));
+          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
           await new Promise(r => setTimeout(r, 120));
           success = hasExpectedText(inputEl, text);
         } catch (e) { /* fallback below */ }
@@ -371,25 +383,38 @@ class AIPromptManager {
     // Strategy B: Textarea/Input with React bypass (Gemini, NotebookLM, or Generic Web Forms)
     if (!success) {
       if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
-        const valueSetter = Object.getOwnPropertyDescriptor(inputEl, 'value')?.set;
-        const protoSetter = Object.getOwnPropertyDescriptor(
-          Object.getPrototypeOf(inputEl), 'value'
-        )?.set;
-
-        const finalSetter = valueSetter || protoSetter;
-
-        if (finalSetter) {
-          finalSetter.call(inputEl, text);
-        } else {
+        const isSemiDesign = inputEl.classList.contains('semi-input-textarea') || 
+                             inputEl.classList.contains('semi-input') ||
+                             inputEl.closest('.semi-input-wrapper') !== null;
+        
+        if (isSemiDesign) {
           inputEl.value = text;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 100));
+          success = hasExpectedText(inputEl, text);
         }
+        
+        if (!success) {
+          const valueSetter = Object.getOwnPropertyDescriptor(inputEl, 'value')?.set;
+          const protoSetter = Object.getOwnPropertyDescriptor(
+            Object.getPrototypeOf(inputEl), 'value'
+          )?.set;
 
-        // Reset React's value tracker so it recognizes the change
-        const tracker = inputEl._valueTracker;
-        if (tracker) tracker.setValue('');
+          const finalSetter = valueSetter || protoSetter;
 
-        await new Promise(r => setTimeout(r, 50));
-        success = hasExpectedText(inputEl, text);
+          if (finalSetter) {
+            finalSetter.call(inputEl, text);
+          } else {
+            inputEl.value = text;
+          }
+
+          const tracker = inputEl._valueTracker;
+          if (tracker) tracker.setValue('');
+
+          await new Promise(r => setTimeout(r, 50));
+          success = hasExpectedText(inputEl, text);
+        }
       } else {
         // ContentEditable fallback
         inputEl.innerHTML = buildParagraphHtml(text);
@@ -411,6 +436,12 @@ class AIPromptManager {
       new KeyboardEvent('keyup', { bubbles: true, key: ' ' })
     ].forEach(e => inputEl.dispatchEvent(e));
 
+    // Verify content was not cleared by event handlers
+    await new Promise(r => setTimeout(r, 100));
+    if (success && !hasExpectedText(inputEl, text)) {
+      success = false;
+    }
+
     if (success && !suppressNotifications) {
       this.showNotification(this.msg('insertSuccess', 'Prompt已填入'), 'success');
     }
@@ -428,7 +459,40 @@ class AIPromptManager {
     return this.injectIntoElement(inputEl, text, { replaceAll: true, ...options });
   }
 
-  // --- Variable Processing ---
+  async autoInjectDoubaoPrompt() {
+    const maxAttempts = 30;
+    const interval = 500;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'GET_PENDING_DOUBAO_PROMPT' });
+        if (!resp?.success || !resp.prompt) return;
+        
+        const age = Date.now() - (resp.timestamp || 0);
+        if (age > 60000) {
+          await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_DOUBAO_PROMPT' });
+          return;
+        }
+        
+        const inputEl = this.findInputElement();
+        if (inputEl) {
+          console.log('[Prompt Ark] Doubao input found, injecting prompt...');
+          const promptWithPrefix = `帮我生成图片：${resp.prompt}`;
+          const success = await this.injectIntoElement(inputEl, promptWithPrefix, { replaceAll: true });
+          if (success) {
+            await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_DOUBAO_PROMPT' });
+            console.log('[Prompt Ark] Doubao prompt injection successful');
+            return;
+          }
+        } else {
+          console.log(`[Prompt Ark] Doubao input not found, attempt ${i + 1}/${maxAttempts}`);
+        }
+      } catch (e) {
+        console.error('[Prompt Ark] Doubao injection error:', e);
+      }
+      await new Promise(r => setTimeout(r, interval));
+    }
+    console.log('[Prompt Ark] Doubao injection timed out after 30 attempts');
+  }
 
   extractVariables(content) {
     const rawMatches = [];
@@ -684,6 +748,10 @@ class AIPromptManager {
     // Initialize Image Prompt Handler (runs on all pages)
     this.imagePromptHandler = new ImagePromptHandler();
 
+    if (this.platform === 'doubao') {
+      this.autoInjectDoubaoPrompt();
+    }
+
     // Guard: Deep DOM traversal and helper buttons only run on known AI platforms!
     // Running this heavily active observer globally on <all_urls> would destroy browser performance.
     if (this.platform !== 'generic') {
@@ -698,6 +766,27 @@ class AIPromptManager {
       };
       window.addEventListener('scroll', updatePositions, { passive: true });
       window.addEventListener('resize', updatePositions, { passive: true });
+      document.addEventListener('input', updatePositions, { passive: true });
+      document.addEventListener('paste', updatePositions, { passive: true });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          setTimeout(() => this.updateHelperButtonPositions(), 300);
+        }
+      });
+      document.addEventListener('click', () => {
+        setTimeout(() => this.updateHelperButtonPositions(), 200);
+      });
+
+      const reinjectOnNavigation = () => setTimeout(() => this.reinjectHelperButtons(), 500);
+      window.addEventListener('popstate', reinjectOnNavigation);
+      window.addEventListener('hashchange', reinjectOnNavigation);
+      this.hijackHistoryAPI(reinjectOnNavigation);
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          setTimeout(() => this.updateHelperButtonPositions(), 100);
+        }
+      });
     }
 
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
@@ -834,6 +923,131 @@ class AIPromptManager {
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  reinjectHelperButtons() {
+    document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => wrapper.remove());
+    document.querySelectorAll('[data-apm-injected]').forEach(el => el.removeAttribute('data-apm-injected'));
+    this.slashShortcuts = [];
+    setTimeout(() => this.initHelperButtons(), 300);
+  }
+
+  hijackHistoryAPI(callback) {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = (...args) => {
+      originalPushState.apply(history, args);
+      callback();
+    };
+
+    history.replaceState = (...args) => {
+      originalReplaceState.apply(history, args);
+      callback();
+    };
+  }
+
+  findPositioningContainer(input) {
+    let container = input.parentElement;
+    let bestContainer = null;
+    let distance = 0;
+    const maxDistance = 10;
+
+    while (container && distance < maxDistance) {
+      const style = window.getComputedStyle(container);
+      const position = style.position;
+
+      if (position !== 'static') {
+        const overflow = style.overflow + style.overflowX + style.overflowY;
+        const hasOverflowClip = overflow.includes('hidden') || overflow.includes('clip') || overflow.includes('scroll');
+
+        if (!hasOverflowClip) {
+          return container;
+        }
+
+        if (!bestContainer) {
+          bestContainer = container;
+        }
+      }
+
+      if (container === document.body) break;
+      container = container.parentElement;
+      distance++;
+    }
+
+    if (bestContainer) {
+      return bestContainer;
+    }
+
+    const parent = input.parentElement;
+    if (parent && parent !== document.body) {
+      const parentStyle = window.getComputedStyle(parent);
+      if (parentStyle.position === 'static') {
+        parent.style.position = 'relative';
+      }
+      return parent;
+    }
+
+    if (input.parentElement) {
+      return input.parentElement;
+    }
+
+    return document.body;
+  }
+
+  getButtonPosition(rect, platform) {
+    const btnHeight = 32;
+    const offset = 10;
+    let bottom, right;
+
+    if (platform === 'chatgpt') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset + 55;
+      right = window.innerWidth - rect.right + 50;
+    } else if (platform === 'claude') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 154;
+    } else if (platform === 'gemini') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - (2 * offset);
+      right = window.innerWidth - rect.right + 110;
+    } else if (platform === 'notebooklm') {
+      bottom = window.innerHeight - rect.bottom - btnHeight;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'aistudio') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 2;
+      right = window.innerWidth - rect.right + 185;
+    } else if (platform === 'grok') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'deepseek') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 85;
+    } else if (platform === 'kimi') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 130;
+    } else if (platform === 'zhipu') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'doubao') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 25;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'wenxin') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'qwen') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'minimax') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else if (platform === 'hunyuan') {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    } else {
+      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
+      right = window.innerWidth - rect.right + 55;
+    }
+
+    return { bottom, right };
+  }
+
   initHelperButtons() {
     // Clean up orphaned wrappers whose target input is no longer in the DOM
     document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => {
@@ -857,25 +1071,16 @@ class AIPromptManager {
     const candidates = this.queryAllDeep(isValidInput);
 
     candidates.forEach(input => {
-      // Walk up to find a container without overflow clipping (max 5 levels)
-      let container = input.parentElement;
-      for (let i = 0; i < 5 && container && container !== document.body; i++) {
-        const s = window.getComputedStyle(container);
-        if (s.overflow !== 'hidden' && s.overflowX !== 'hidden' && s.overflowY !== 'hidden') break;
-        container = container.parentElement;
-      }
-      if (!container) return;
+      const positioningContainer = this.findPositioningContainer(input);
+      if (!positioningContainer) return;
 
-      // Get input rect for positioning
-      const rect = input.getBoundingClientRect();
-
-      // Container for multiple buttons
       const btnWrapper = document.createElement('div');
       btnWrapper.className = 'notebook-helper-wrapper';
       btnWrapper._apmTargetInput = input;
       btnWrapper.style.display = 'flex';
       btnWrapper.style.gap = '4px';
       btnWrapper.style.zIndex = '9999';
+      btnWrapper.style.position = 'fixed';
 
       const btn = document.createElement('button');
       btn.className = 'notebook-helper-btn';
@@ -910,9 +1115,7 @@ class AIPromptManager {
 
       btnWrapper.appendChild(btn);
 
-      // Only add Quick Actions on Chat inputs, not Search inputs
       if (!isSearch) {
-        // Button 1: Quick Actions
         const qaBtn = document.createElement('button');
         qaBtn.className = 'notebook-helper-btn apm-type-qa';
         qaBtn.innerHTML = '<span>⚡</span>';
@@ -932,36 +1135,19 @@ class AIPromptManager {
         btnWrapper.appendChild(qaBtn);
       }
 
-      // Position: fixed positioning outside input (upper-right)
-      btnWrapper.style.position = 'fixed';
+      const rect = input.getBoundingClientRect();
+      const position = this.getButtonPosition(rect, this.platform);
 
-      // Calculate position - place above the input, right-aligned
-      const btnHeight = 32; // 28px button + 4px margin
-      const offset = 10;
-
-      // Platform specific positioning
-      if (this.platform === 'notebooklm') {
-        // NotebookLM: position at top-right outside input
-        btnWrapper.style.top = (rect.top) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      } else if (this.platform === 'gemini') {
-        // Gemini: position at top-right outside input
-        btnWrapper.style.top = (rect.top - btnHeight - (2 * offset)) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right) + 'px';
-      } else {
-        // Default: position at upper-right outside input
-        btnWrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        btnWrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      }
+      btnWrapper.style.bottom = position.bottom + 'px';
+      btnWrapper.style.right = position.right + 'px';
+      btnWrapper.style.top = 'auto';
 
       document.body.appendChild(btnWrapper);
       input.setAttribute(this.injectedMarker, 'true');
     });
   }
-  updateHelperButtonPositions() {
-    const btnHeight = 32;
-    const offset = 4;
 
+  updateHelperButtonPositions() {
     document.querySelectorAll('.notebook-helper-wrapper').forEach(wrapper => {
       const input = wrapper._apmTargetInput;
       if (!input || !input.isConnected) {
@@ -970,26 +1156,19 @@ class AIPromptManager {
       }
 
       const rect = input.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0;
 
-      // Hide if input is outside viewport
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      if (!isVisible) {
         wrapper.style.display = 'none';
         return;
       }
 
       wrapper.style.display = 'flex';
 
-      // Platform specific positioning
-      if (this.platform === 'notebooklm') {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      } else if (this.platform === 'gemini') {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 48) + 'px';
-      } else {
-        wrapper.style.top = (rect.top - btnHeight - offset) + 'px';
-        wrapper.style.right = (window.innerWidth - rect.right + 4) + 'px';
-      }
+      const position = this.getButtonPosition(rect, this.platform);
+      wrapper.style.bottom = position.bottom + 'px';
+      wrapper.style.right = position.right + 'px';
+      wrapper.style.top = 'auto';
     });
   }
 
@@ -1062,11 +1241,30 @@ class AIPromptManager {
 
   handleMessage(message, sendResponse) {
     switch (message.type) {
-      case 'INSERT_PROMPT':
+      case 'INSERT_PROMPT': {
+        const contentHash = this._hashString(message.content || '');
+        const now = Date.now();
+
+        const isRecentlyCompleted = this._lastInsertPrompt.contentHash === contentHash &&
+                                   (now - this._lastInsertPrompt.timestamp) < 5000;
+        const isInFlight = this._insertInFlight.has(contentHash);
+
+        if (isRecentlyCompleted || isInFlight) {
+          sendResponse({ success: true, deduped: true });
+          break;
+        }
+
+        this._insertInFlight.add(contentHash);
+
         this.injectPromptRobust(message.content, {
           suppressNotifications: !!message.suppressNotifications
-        }).then(success => sendResponse({ success }));
+        }).then(success => {
+          this._insertInFlight.delete(contentHash);
+          this._lastInsertPrompt = { contentHash, timestamp: Date.now() };
+          sendResponse({ success });
+        });
         break;
+      }
       case 'INSERT_SHARE_CONTENT': {
         // Inject share content into social platform editors (知乎, 小红书, etc.)
         const { contentSelectors = [], titleSelectors = [], preClickSelector, promptTitle } = message;
@@ -1093,12 +1291,12 @@ class AIPromptManager {
             return el;
           };
 
-          // Step 1: Click "新的创作" button if needed (小红书)
-          if (preClickSelector) {
+          // Step 1: Click preClick button if needed (小红书)
+          if (preClickSelector && !location.hostname.includes('linkedin')) {
             const btn = document.querySelector(preClickSelector);
             if (btn) {
               btn.click();
-              await new Promise(r => setTimeout(r, 1500)); // Wait for editor to appear
+              await new Promise(r => setTimeout(r, 1500));
             }
           }
 
@@ -1505,6 +1703,15 @@ class AIPromptManager {
   }
 
   async executePromptWorkflow(prompt, options = {}) {
+    const allVars = this.extractVariables(prompt.content);
+    const requiresSelection = allVars.some(v => v.name === '@selection');
+    const hasSelection = (options.selectionText || this._savedSelection);
+    if (requiresSelection && !hasSelection) {
+      const msg = this.msg('selectionRequired', '此 Prompt 需要选中文本才能使用');
+      this.showNotification('❌ ' + msg, 'error');
+      return { success: false, error: 'SELECTION_REQUIRED' };
+    }
+
     const { contextResolved, variables } = await this.preparePromptForUse(prompt, options);
     this.onSelectCallback = options.onSelect ?? null;
 
@@ -1661,7 +1868,9 @@ class AIPromptManager {
       const filtered = this.prompts.filter(p =>
         p.title.toLowerCase().includes(term) || p.content.toLowerCase().includes(term)
       );
-      picker.querySelector('.apm-list').innerHTML = this.renderPromptList(filtered);
+      const list = picker.querySelector('.apm-list');
+      list.innerHTML = this.renderPromptList(filtered);
+      this.bindHoverEvents(list);
     });
 
     picker.querySelector('.apm-list').addEventListener('click', (e) => {
@@ -1675,21 +1884,33 @@ class AIPromptManager {
     // Hover preview with 200ms delay
     this._hoverTimer = null;
     this._hoverCard = null;
+    this._hoverItem = null;
 
-    picker.querySelector('.apm-list').addEventListener('mouseover', (e) => {
-      const item = e.target.closest('.apm-item');
-      if (!item) return;
-      clearTimeout(this._hoverTimer);
-      this._hoverTimer = setTimeout(() => {
-        this.showHoverPreview(item);
-      }, 200);
-    });
+    this.bindHoverEvents(picker.querySelector('.apm-list'));
+  }
 
-    picker.querySelector('.apm-list').addEventListener('mouseout', (e) => {
-      const item = e.target.closest('.apm-item');
-      if (!item) return;
-      clearTimeout(this._hoverTimer);
-      this.hideHoverPreview();
+  bindHoverEvents(list) {
+    list.querySelectorAll('.apm-item').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        if (this._hoverItem && this._hoverItem !== item) {
+          this.hideHoverPreview();
+        }
+        this._hoverItem = item;
+        clearTimeout(this._hoverTimer);
+        this._hoverTimer = setTimeout(() => {
+          this.showHoverPreview(item);
+        }, 200);
+      });
+
+      item.addEventListener('mouseleave', (e) => {
+        if (item !== this._hoverItem) return;
+        const toElement = e.relatedTarget;
+        if (this._hoverCard && this._hoverCard.contains(toElement)) {
+          return;
+        }
+        clearTimeout(this._hoverTimer);
+        this.hideHoverPreview();
+      });
     });
   }
 
@@ -1698,32 +1919,41 @@ class AIPromptManager {
     const prompt = this.prompts.find(p => p.id === item.dataset.id);
     if (!prompt) return;
 
+    this._hoverItem = item;
+
     const card = document.createElement('div');
     card.className = 'apm-hover-preview';
     card.textContent = prompt.content;
 
-    document.body.appendChild(card);
+    const picker = document.getElementById('ai-prompt-picker');
+    const modal = picker?.querySelector('.apm-modal');
+    if (picker) {
+      picker.appendChild(card);
+    } else {
+      document.body.appendChild(card);
+    }
     this._hoverCard = card;
 
-    // Position relative to item
-    const rect = item.getBoundingClientRect();
-    let left = rect.right + 8;
-    let top = rect.top;
+    const itemRect = item.getBoundingClientRect();
+    const pickerRect = picker ? picker.getBoundingClientRect() : { left: 0, top: 0 };
+    const modalRect = modal ? modal.getBoundingClientRect() : pickerRect;
 
-    // Adjust if overflowing right edge
-    if (left + 400 > window.innerWidth) {
-      left = rect.left - 400 - 8;
-      if (left < 0) left = rect.left;
-    }
+    const cardWidth = 520;
+    const cardHeight = 200;
 
-    // Adjust if overflowing bottom edge
-    if (top + 300 > window.innerHeight) {
-      top = window.innerHeight - 300 - 8;
-      if (top < 0) top = 8;
+    let left = modalRect.left - pickerRect.left + (modalRect.width - cardWidth) / 2 + 80;
+    // let top = itemRect.top - pickerRect.top - cardHeight + 18;
+    let top = itemRect.bottom - pickerRect.top - 18;
+
+    if (top < 0) {
+      top = itemRect.top - pickerRect.top - cardHeight + 18;
     }
 
     card.style.left = left + 'px';
     card.style.top = top + 'px';
+
+    card.addEventListener('mouseenter', () => clearTimeout(this._hoverTimer));
+    card.addEventListener('mouseleave', () => this.hideHoverPreview());
   }
 
   hideHoverPreview() {
@@ -1731,6 +1961,8 @@ class AIPromptManager {
       this._hoverCard.remove();
       this._hoverCard = null;
     }
+    this._hoverItem = null;
+    clearTimeout(this._hoverTimer);
   }
 
   // --- Selection Floating Toolbar ---
@@ -2050,6 +2282,61 @@ class AIPromptManager {
     this.showSlashDropdown(el, filtered, query);
   }
 
+  getSlashDropdownPosition(rect, platform) {
+    let bottom, left, width;
+    width = Math.min(rect.width, 360);
+
+    if (platform === 'chatgpt') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left + 170;
+    } else if (platform === 'claude') {
+      bottom = window.innerHeight - rect.top + 4;
+      // bottom = 0;
+      left = rect.left + 180;
+    } else if (platform === 'gemini') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'notebooklm') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'aistudio') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'grok') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'deepseek') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'kimi') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'zhipu') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'doubao') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left + 150;
+    } else if (platform === 'wenxin') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'qwen') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'minimax') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else if (platform === 'hunyuan') {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    } else {
+      bottom = window.innerHeight - rect.top + 4;
+      left = rect.left;
+    }
+
+    return { bottom, left, width };
+  }
+
   showSlashDropdown(inputEl, items, query) {
     this.hideSlashDropdown();
 
@@ -2062,12 +2349,12 @@ class AIPromptManager {
       </div>
     `).join('');
 
-    // Position near the input
     const rect = inputEl.getBoundingClientRect();
+    const position = this.getSlashDropdownPosition(rect, this.platform);
     dropdown.style.position = 'fixed';
-    dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.width = Math.min(rect.width, 360) + 'px';
+    dropdown.style.bottom = position.bottom + 'px';
+    dropdown.style.left = position.left + 'px';
+    dropdown.style.width = position.width + 'px';
 
     document.body.appendChild(dropdown);
     this.slashDropdown = dropdown;
