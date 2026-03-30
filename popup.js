@@ -51,7 +51,6 @@ class PopupManager {
     await this.loadPrompts();
     await this.loadSettings();
     await this.loadGithubToken();
-    await this.syncHubAuthState();
     this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
@@ -59,6 +58,7 @@ class PopupManager {
 
     // Render Hub user info if logged in
     this.renderHubUserInfo();
+    void this.syncHubAuthState();
     
     // Detect if running in side panel and track tab changes
     this.detectSidePanelAndTrackTab();
