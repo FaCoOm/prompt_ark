@@ -4,11 +4,13 @@ import { APP_NAME, EXTENSION_URL } from '../lib/site'
 interface HeaderProps {
   user?: any
   onAuthChange?: (user: any) => void
+  authLoading?: boolean
 }
 
 export function Header({ 
   user,
-  onAuthChange
+  onAuthChange,
+  authLoading = false
 }: HeaderProps) {
   return (
     <header className="hub-header">
@@ -29,7 +31,11 @@ export function Header({
         >
           🧩 Get Extension
         </a>
-        <AuthButton user={user} onAuthChange={onAuthChange || (() => {})} />
+        <AuthButton
+          user={user}
+          onAuthChange={onAuthChange || (() => {})}
+          loading={authLoading}
+        />
       </div>
     </header>
   )

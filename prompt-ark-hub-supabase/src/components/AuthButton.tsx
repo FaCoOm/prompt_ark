@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { syncSignedOutToExtension } from '../lib/auth-sync'
 import { getCurrentPageUrl } from '../lib/site'
 
 interface AuthButtonProps {
@@ -7,6 +8,7 @@ interface AuthButtonProps {
   onAuthChange: (user: any) => void
   loginLabel?: string
   logoutLabel?: string
+  loading?: boolean
 }
 
 export function AuthButton({
@@ -14,6 +16,7 @@ export function AuthButton({
   onAuthChange,
   loginLabel = 'Sign In',
   logoutLabel = 'Logout',
+  loading = false,
 }: AuthButtonProps) {
   const [avatarError, setAvatarError] = useState(false)
 
@@ -35,7 +38,12 @@ export function AuthButton({
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    await syncSignedOutToExtension(3)
     onAuthChange(null)
+  }
+
+  if (loading) {
+    return <div className="hub-auth-placeholder" aria-hidden="true" />
   }
 
   if (user) {

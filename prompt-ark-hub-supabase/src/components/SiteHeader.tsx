@@ -6,6 +6,7 @@ import { useI18n } from '../lib/i18n'
 interface SiteHeaderProps {
   user: any
   onAuthChange: (user: any) => void
+  authLoading?: boolean
 }
 
 function GitHubMark() {
@@ -34,7 +35,7 @@ const headerCopy = {
   },
 } as const
 
-export function SiteHeader({ user, onAuthChange }: SiteHeaderProps) {
+export function SiteHeader({ user, onAuthChange, authLoading = false }: SiteHeaderProps) {
   const { language } = useI18n()
   const copy = headerCopy[language]
 
@@ -67,6 +68,7 @@ export function SiteHeader({ user, onAuthChange }: SiteHeaderProps) {
             onAuthChange={onAuthChange}
             loginLabel={copy.loginLabel}
             logoutLabel={copy.logoutLabel}
+            loading={authLoading}
           />
         </div>
       </div>

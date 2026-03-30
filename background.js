@@ -25,7 +25,7 @@ import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
 // [DISABLED] import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
 import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS, buildFallbackText } from './lib/ai/share.js';
 import { buildContextMenus, handleContextMenuClick, openPromptInDefaultAI } from './lib/context-menu.js';
-import { initSupabase, initSupabaseFromStorage, isAuthenticated as isSupabaseAuthenticated, from as supabaseFrom, signOut } from './lib/supabase/client.js';
+import { initSupabase, initSupabaseFromStorage, ensureAuthenticatedSession, from as supabaseFrom, signOut } from './lib/supabase/client.js';
 
 
 // Eagerly preload all prompt files into memory cache at service worker startup
@@ -393,10 +393,9 @@ async function callProvider(provider, prompt) {
 }
 
 async function requireHubAuth() {
-  const accessToken = await LocalStorage.get('accessToken');
-  if (!accessToken) {
-    throw new Error('NOT_LOGGED_IN');
-  }
+  await ensureAuthenticatedSession();
+  const { accessToken } = await chrome.storage.local.get(['accessToken']);
+  if (!accessToken) throw new Error('NOT_LOGGED_IN');
   return accessToken;
 }
 
@@ -1147,16 +1146,20 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'CHECK_HUB_LOGIN': {
-        const accessToken = await LocalStorage.get('accessToken');
-        if (!accessToken) {
-          sendResponse({ success: true, isLoggedIn: false });
-          break;
-        }
-        
         try {
-          const { loggedIn, user } = await HubClient.checkLogin();
-          sendResponse({ success: true, isLoggedIn: loggedIn, user });
+          const user = await ensureAuthenticatedSession();
+          await chrome.storage.local.set({
+            isLoggedIn: true,
+            hubUser: user ? {
+              id: user.id,
+              email: user.email,
+              name: user.user_metadata?.name || user.name,
+              avatar: user.user_metadata?.avatar_url || user.avatar || user.avatar_url || ''
+            } : null
+          });
+          sendResponse({ success: true, isLoggedIn: true, user });
         } catch (e) {
+          await chrome.storage.local.set({ isLoggedIn: false, hubUser: null });
           sendResponse({ success: true, isLoggedIn: false });
         }
         break;

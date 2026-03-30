@@ -7,6 +7,7 @@ import { useI18n } from '../lib/i18n'
 interface LandingPageProps {
   user: any
   onAuthChange: (user: any) => void
+  authLoading?: boolean
 }
 
 const platforms = ['ChatGPT', 'Claude', 'Gemini', 'DeepSeek', 'Kimi', 'NotebookLM']
@@ -150,7 +151,7 @@ const landingCopy = {
   },
 } as const
 
-export function LandingPage({ user, onAuthChange }: LandingPageProps) {
+export function LandingPage({ user, onAuthChange, authLoading = false }: LandingPageProps) {
   const { language } = useI18n()
   const copy = landingCopy[language]
 
@@ -160,7 +161,7 @@ export function LandingPage({ user, onAuthChange }: LandingPageProps) {
 
   return (
     <div className="landing-shell">
-      <SiteHeader user={user} onAuthChange={onAuthChange} />
+      <SiteHeader user={user} onAuthChange={onAuthChange} authLoading={authLoading} />
 
       <main className="landing-main">
         <section className="landing-hero">
