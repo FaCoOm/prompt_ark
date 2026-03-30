@@ -51,6 +51,10 @@ async function syncAuthToExtension(session: Session | null, repeatCount = 1) {
   }
 }
 
+export async function syncSignedOutToExtension(repeatCount = 3) {
+  await syncAuthToExtension(null, repeatCount)
+}
+
 // Listen to auth state changes (including TOKEN_REFRESHED)
 let _authSyncInitialized = false;
 let _authSyncRequestListenerInstalled = false;

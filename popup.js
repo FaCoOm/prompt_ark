@@ -47,6 +47,7 @@ class PopupManager {
     await this.loadPrompts();
     await this.loadSettings();
     await this.loadGithubToken();
+    await this.syncHubAuthState();
     this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
@@ -107,6 +108,14 @@ class PopupManager {
     });
   }
 
+  async syncHubAuthState() {
+    try {
+      await chrome.runtime.sendMessage({ type: 'CHECK_HUB_LOGIN' });
+    } catch (e) {
+      console.warn('[Popup] Failed to sync Hub auth state:', e);
+    }
+  }
+
   localize() {
     i18n.translatePage();
     this.updateControlStates();
@@ -119,22 +128,19 @@ class PopupManager {
   // --- Hub User Info (登录显示头像和名字) ---
   async renderHubUserInfo() {
     const container = document.getElementById('hubUserInfo');
-    const avatarImg = document.getElementById('hubUserAvatar');
     const nameSpan = document.getElementById('hubUserName');
-    if (!container || !avatarImg || !nameSpan) return;
+    if (!container || !nameSpan) return;
 
     try {
       const data = await chrome.storage.local.get(['isLoggedIn', 'hubUser']);
       const { isLoggedIn, hubUser } = data || {};
+      const oldImg = container.querySelector('.hub-user-avatar');
+      if (oldImg) oldImg.remove();
+      const oldInitials = container.querySelector('.hub-user-initials');
+      if (oldInitials) oldInitials.remove();
 
       if (isLoggedIn && hubUser) {
         if (hubUser.avatar) {
-          // 移除旧元素，重新创建 img 以支持 onerror
-          const oldImg = container.querySelector('.hub-user-avatar');
-          if (oldImg) oldImg.remove();
-          const oldInitials = container.querySelector('.hub-user-initials');
-          if (oldInitials) oldInitials.remove();
-          
           const img = document.createElement('img');
           img.className = 'hub-user-avatar';
           img.alt = 'Avatar';
@@ -147,13 +153,24 @@ class PopupManager {
             container.insertBefore(initials, nameSpan);
           };
           container.insertBefore(img, nameSpan);
+        } else {
+          const initials = document.createElement('span');
+          initials.className = 'hub-user-initials';
+          initials.textContent = (hubUser.name || hubUser.email || '?')[0].toUpperCase();
+          container.insertBefore(initials, nameSpan);
         }
         nameSpan.textContent = hubUser.name || hubUser.email || '';
         container.classList.remove('hidden');
       } else {
+        nameSpan.textContent = '';
         container.classList.add('hidden');
       }
     } catch (e) {
+      const oldImg = container.querySelector('.hub-user-avatar');
+      if (oldImg) oldImg.remove();
+      const oldInitials = container.querySelector('.hub-user-initials');
+      if (oldInitials) oldInitials.remove();
+      nameSpan.textContent = '';
       container.classList.add('hidden');
     }
   }

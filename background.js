@@ -1160,16 +1160,20 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'CHECK_HUB_LOGIN': {
-        const accessToken = await LocalStorage.get('accessToken');
-        if (!accessToken) {
-          sendResponse({ success: true, isLoggedIn: false });
-          break;
-        }
-        
         try {
-          const { loggedIn, user } = await HubClient.checkLogin();
-          sendResponse({ success: true, isLoggedIn: loggedIn, user });
+          const user = await ensureAuthenticatedSession();
+          await chrome.storage.local.set({
+            isLoggedIn: true,
+            hubUser: user ? {
+              id: user.id,
+              email: user.email,
+              name: user.user_metadata?.name || user.name,
+              avatar: user.user_metadata?.avatar_url || user.avatar || user.avatar_url || ''
+            } : null
+          });
+          sendResponse({ success: true, isLoggedIn: true, user });
         } catch (e) {
+          await chrome.storage.local.set({ isLoggedIn: false, hubUser: null });
           sendResponse({ success: true, isLoggedIn: false });
         }
         break;
