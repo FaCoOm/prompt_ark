@@ -1147,15 +1147,15 @@ class AIPromptManager {
           }
 
           if (contentInjected) {
-            this.showNotification('✅ 内容已自动填入，请检查后发布', 'success');
+            this.showNotification(this.msg('insertSuccess', '✅ 内容已自动填入，请检查后发布'), 'success');
           } else {
-            this.showNotification('📋 编辑器未就绪，内容已复制到剪贴板', 'info');
+            this.showNotification(this.msg('contentEditorNotReady', '📋 编辑器未就绪，内容已复制到剪贴板'), 'info');
           }
           sendResponse({ success: contentInjected });
         };
 
         doInject().catch(() => {
-          this.showNotification('📋 编辑器未就绪，内容已复制到剪贴板', 'info');
+          this.showNotification(this.msg('contentEditorNotReady', '📋 编辑器未就绪，内容已复制到剪贴板'), 'info');
           sendResponse({ success: false });
         });
         break;

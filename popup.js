@@ -1317,7 +1317,7 @@ ${p.sourceContext ? `
     document.getElementById('youtubeStatus').classList.add('hidden');
     document.getElementById('youtubeUrlInput').value = '';
     document.getElementById('youtubeGenerateBtn').disabled = false;
-    document.getElementById('youtubeGenerateBtn').textContent = '生成';
+    document.getElementById('youtubeGenerateBtn').textContent = i18n.t('youtubeGenerate');
     // Reset mode selector to default
     document.querySelectorAll('.youtube-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'both'));
     // Reset language selector
@@ -1330,9 +1330,8 @@ ${p.sourceContext ? `
 
   async generateYoutubePrompt() {
     const url = document.getElementById('youtubeUrlInput').value.trim();
-    if (!url) { this.showToast('请输入视频链接', 3000); return; }
+    if (!url) { this.showToast(i18n.t('youtubeUrlRequired'), 3000); return; }
 
-    // Detect platform inline for UI feedback
     const platformLabels = {
       'youtube': '📺 YouTube', 'youtube-shorts': '📱 YouTube Shorts',
       'tiktok': '🎵 TikTok', 'douyin': '🎵 抖音', 'kuaishou': '🔥 快手'
@@ -1349,7 +1348,7 @@ ${p.sourceContext ? `
     } catch { /* invalid URL, let backend handle error */ }
 
     if (!detectedPlatform) {
-      this.showToast('不支持的链接，请输入 YouTube / TikTok / 抖音 / 快手 链接', 4000);
+      this.showToast(i18n.t('youtubeUnsupportedUrl'), 4000);
       return;
     }
 
@@ -1358,14 +1357,13 @@ ${p.sourceContext ? `
     const resultEl = document.getElementById('youtubeResult');
 
     btn.disabled = true;
-    btn.textContent = '⏳ 生成中...';
+    btn.textContent = i18n.t('youtubeGenerating');
     const label = platformLabels[detectedPlatform] || detectedPlatform;
-    statusEl.textContent = `${label} — 正在获取元数据并分析分镜...`;
+    statusEl.textContent = `${label} — ${i18n.t('youtubeFetchingMetadata')}`;
     statusEl.classList.remove('hidden', 'youtube-status-error');
     resultEl.classList.add('hidden');
 
     try {
-      // Use Port-based communication to keep Service Worker alive during long operations
       const result = await new Promise((resolve, reject) => {
         const port = chrome.runtime.connect({ name: 'video-prompt' });
         port.onMessage.addListener((msg) => {
@@ -1401,7 +1399,7 @@ ${p.sourceContext ? `
       statusEl.classList.add('youtube-status-error');
     } finally {
       btn.disabled = false;
-      btn.textContent = '生成';
+      btn.textContent = i18n.t('youtubeGenerate');
     }
   }
 
@@ -1503,7 +1501,7 @@ ${p.sourceContext ? `
         freshBtn.addEventListener('click', () => {
           const styleBlock = vocabTerms.join(', ');
           navigator.clipboard.writeText(styleBlock).then(() => {
-            this.showToast('✅ 已复制风格块: ' + styleBlock.slice(0, 60) + '...');
+            this.showToast(i18n.t('youtubeStyleBlockCopied') + styleBlock.slice(0, 60) + '...');
           });
         });
       }

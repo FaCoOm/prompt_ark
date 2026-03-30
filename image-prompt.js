@@ -1,5 +1,6 @@
 // image-prompt.js - Standalone Image Prompt Analysis Page
 import { generateImagePrompt } from "./lib/ai/image-prompt.js";
+import { i18n } from "./i18n-manager.js";
 
 class ImagePromptPage {
     constructor() {
@@ -16,8 +17,16 @@ class ImagePromptPage {
         this.imageUrl = params.get("url") || "";
         this.imageModelId = params.get("model") || "";
 
+        // Initialize i18n with language from URL param or default to zh_CN
+        const lang = params.get("lang") || "zh_CN";
+        await i18n.init();
+        if (lang === "en") {
+            await i18n.setLanguage("en");
+        }
+        i18n.translatePage();
+
         if (!this.imageUrl) {
-            this.showError("No image URL provided");
+            this.showError(i18n.t("imagePromptNoImageUrl"));
             return;
         }
 
@@ -41,7 +50,7 @@ class ImagePromptPage {
         };
 
         img.onerror = () => {
-            this.showError("Failed to load image");
+            this.showError(i18n.t("imagePromptLoadFailed"));
         };
     }
 
@@ -57,7 +66,7 @@ class ImagePromptPage {
             this.displayResult(result);
         } catch (error) {
             console.error("[ImagePrompt] Analysis failed:", error);
-            this.showError(error.message || "Failed to analyze image");
+            this.showError(error.message || i18n.t("imagePromptAnalyzeFailed"));
         }
     }
 
@@ -81,17 +90,17 @@ class ImagePromptPage {
 
         // Fill in analysis fields
         document.getElementById("subjectValue").textContent =
-            result.subject || "Not specified";
+            result.subject || "-";
         document.getElementById("styleValue").textContent =
-            result.style || "Not specified";
+            result.style || "-";
         document.getElementById("lightingValue").textContent =
-            result.lighting || "Not specified";
+            result.lighting || "-";
         document.getElementById("colorSchemeValue").textContent =
-            result.color_scheme || "Not specified";
+            result.color_scheme || "-";
         document.getElementById("compositionValue").textContent =
-            result.composition || "Not specified";
+            result.composition || "-";
         document.getElementById("detailsValue").textContent =
-            result.details || "Not specified";
+            result.details || "-";
 
         // Fill in generated prompt
         document.getElementById("promptOutput").textContent =
@@ -108,10 +117,10 @@ class ImagePromptPage {
             navigator.clipboard
                 .writeText(promptText)
                 .then(() => {
-                    this.showToast("Prompt copied to clipboard!", "success");
+                    this.showToast(i18n.t("imagePromptCopiedSuccess"), "success");
                 })
                 .catch(() => {
-                    this.showToast("Failed to copy", "error");
+                    this.showToast(i18n.t("imagePromptCopyFailed"), "error");
                 });
         });
 
@@ -135,19 +144,11 @@ class ImagePromptPage {
 
     async saveToPromptArk() {
         if (!this.analysisResult?.prompt) {
-            this.showToast("No prompt to save", "error");
+            this.showToast(i18n.t("imagePromptNoPrompt"), "error");
             return;
         }
 
         try {
-            // Create a new prompt object (SAVE_PROMPT will generate ID and other fields)
-            // const newPrompt = {
-            //   title: `Image Prompt: ${this.analysisResult.subject?.substring(0, 30) || 'Untitled'}`,
-            //   content: this.analysisResult.prompt,
-            //   category: 'Image-to-Prompt',
-            //   tags: ['image-prompt', this.analysisResult.style, this.analysisResult.lighting].filter(Boolean),
-            //   shortcut: ''
-            // };
             // Create a new prompt object
             const newPrompt = {
                 id:
@@ -175,12 +176,12 @@ class ImagePromptPage {
             });
 
             if (response?.success) {
-                this.showToast("Saved to Prompt Ark!", "success");
+                this.showToast(i18n.t("imagePromptSavedSuccess"), "success");
 
                 // Change button text temporarily
                 const saveBtn = document.getElementById("saveBtn");
                 const originalText = saveBtn.textContent;
-                saveBtn.textContent = "✅ Saved";
+                saveBtn.textContent = "✅";
                 saveBtn.disabled = true;
 
                 setTimeout(() => {
@@ -188,11 +189,11 @@ class ImagePromptPage {
                     saveBtn.disabled = false;
                 }, 2000);
             } else {
-                throw new Error(response?.error || "Failed to save");
+                throw new Error(response?.error || i18n.t("imagePromptSaveFailed"));
             }
         } catch (error) {
             console.error("[ImagePrompt] Save failed:", error);
-            this.showToast("Failed to save: " + error.message, "error");
+            this.showToast(i18n.t("imagePromptSaveFailed") + error.message, "error");
         }
     }
 
