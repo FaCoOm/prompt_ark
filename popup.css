@@ -246,16 +246,6 @@ body::before {
   display: block;
 }
 
-#packBtn .pack-btn-badge {
-  fill: currentColor;
-  stroke: none;
-  opacity: 0.95;
-}
-
-#packBtn .pack-btn-check {
-  stroke: var(--bg-base);
-}
-
 #packBtn:hover {
   color: var(--text-primary);
 }
