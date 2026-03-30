@@ -246,12 +246,10 @@ body::before {
   flex: 0 0 32px;
 }
 
-.footer-btn-icon {
+.footer-emoji-icon {
   display: block;
-}
-
-#packBtn .pack-btn-icon {
-  transform: translateX(0.25px);
+  font-size: 16px;
+  line-height: 1;
 }
 
 #packBtn:hover {
