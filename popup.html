@@ -306,7 +306,7 @@
             <input type="hidden" id="providerEditId">
             <div class="form-row">
               <label data-i18n="providerName">名称</label>
-              <input type="text" id="providerNameInput" class="settings-input" placeholder="我的 AI 提供商">
+              <input type="text" id="providerNameInput" class="settings-input" data-i18n-placeholder="providerNamePlaceholder" placeholder="我的 AI 提供商">
             </div>
             <div class="form-row">
               <label data-i18n="providerType">类型</label>
@@ -318,16 +318,16 @@
             </div>
             <div id="providerApiUrlRow" class="form-row hidden">
               <label>API URL</label>
-              <input type="url" id="providerApiUrlInput" class="settings-input" placeholder="https://api.openai.com/v1">
+              <input type="url" id="providerApiUrlInput" class="settings-input" data-i18n-placeholder="providerApiUrlPlaceholder" placeholder="https://api.openai.com/v1">
             </div>
             <div class="form-row">
               <label>API Key</label>
-              <input type="password" id="providerApiKeyInput" class="settings-input" placeholder="sk-... / AIza...">
+              <input type="password" id="providerApiKeyInput" class="settings-input" data-i18n-placeholder="providerApiKeyPlaceholder" placeholder="sk-... / AIza...">
             </div>
             <div class="form-row">
               <label data-i18n="providerModel">模型</label>
               <input type="text" id="providerModelInput" class="settings-input"
-                placeholder="gemini-2.0-flash / gpt-4o-mini">
+                data-i18n-placeholder="providerModelPlaceholder" placeholder="gemini-2.0-flash / gpt-4o-mini">
             </div>
             <div class="provider-form-actions">
               <button id="cancelProviderBtn" class="btn btn-secondary btn-small" data-i18n="cancel">取消</button>
@@ -368,11 +368,11 @@
         <div class="settings-card sync-config-panel hidden" id="webdavContainer">
           <div class="settings-group-vertical">
             <label data-i18n="webdavUrl">WebDAV 服务器地址</label>
-            <input type="text" id="webdavUrlInput" class="settings-input" placeholder="https://dav.jianguoyun.com/dav/">
+            <input type="text" id="webdavUrlInput" class="settings-input" data-i18n-placeholder="webdavUrlPlaceholder" placeholder="https://dav.jianguoyun.com/dav/">
             <label data-i18n="webdavUser">账号邮箱 (User)</label>
-            <input type="text" id="webdavUserInput" class="settings-input" placeholder="your_email@example.com">
+            <input type="text" id="webdavUserInput" class="settings-input" data-i18n-placeholder="webdavUserPlaceholder" placeholder="your_email@example.com">
             <label data-i18n="webdavPassword">应用密码 (App Password)</label>
-            <input type="password" id="webdavPasswordInput" class="settings-input" placeholder="********">
+            <input type="password" id="webdavPasswordInput" class="settings-input" data-i18n-placeholder="webdavPasswordPlaceholder" placeholder="********">
             <div class="settings-actions">
               <button id="forceSyncWebdavBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncWebdav">立刻同步
                 WebDAV</button>
@@ -385,13 +385,13 @@
           <div class="settings-group-vertical">
             <label data-i18n="obsidianWebdavUrl">WebDAV 服务器地址</label>
             <input type="text" id="obsidianWebdavUrlInput" class="settings-input"
-              placeholder="https://dav.jianguoyun.com/dav/">
+              data-i18n-placeholder="obsidianWebdavUrlPlaceholder" placeholder="https://dav.jianguoyun.com/dav/">
             <label data-i18n="obsidianWebdavUser">账号 (User)</label>
-            <input type="text" id="obsidianWebdavUserInput" class="settings-input" placeholder="your_email@example.com">
+            <input type="text" id="obsidianWebdavUserInput" class="settings-input" data-i18n-placeholder="obsidianWebdavUserPlaceholder" placeholder="your_email@example.com">
             <label data-i18n="obsidianWebdavPassword">应用密码 (App Password)</label>
-            <input type="password" id="obsidianWebdavPasswordInput" class="settings-input" placeholder="********">
+            <input type="password" id="obsidianWebdavPasswordInput" class="settings-input" data-i18n-placeholder="obsidianWebdavPasswordPlaceholder" placeholder="********">
             <label data-i18n="obsidianFolder">Vault 子文件夹</label>
-            <input type="text" id="obsidianFolderInput" class="settings-input" placeholder="prompts">
+            <input type="text" id="obsidianFolderInput" class="settings-input" data-i18n-placeholder="obsidianFolderPlaceholder" placeholder="prompts">
             <div class="settings-actions">
               <button id="forceSyncObsidianBtn" class="btn btn-secondary btn-small" data-i18n="forceSyncObsidian">立刻同步
                 Obsidian</button>
@@ -490,7 +490,7 @@
             <span data-i18n="shortcut">快捷命令</span>
             <span class="hint" data-i18n="shortcutFieldHint">输入 /命令 即可快速插入</span>
           </label>
-          <input type="text" id="shortcutInput" placeholder="例如 code-review">
+          <input type="text" id="shortcutInput" data-i18n-placeholder="shortcutPlaceholder" placeholder="例如 code-review">
         </div>
 
         <!-- [DISABLED] Skill Mode Section
@@ -854,7 +854,7 @@
   <div id="youtubeModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 data-i18n="videoToPromptTitle">🎬 Video → Prompt</h2>
+        <h2 data-i18n="youtubeModalTitle">🎬 Video → Prompt</h2>
         <button class="modal-close" id="closeYoutubeModal">&times;</button>
       </div>
       <div class="youtube-modal-body">
@@ -866,23 +866,23 @@
           <button class="youtube-mode-btn" data-mode="content" data-i18n-title="inspirationCreationDesc">💡 <span data-i18n="inspirationCreation">灵感创作</span></button>
         </div>
         <div class="youtube-lang-row">
-          <label for="youtubeTargetLang" class="youtube-lang-label"><span data-i18n="outputLanguage">🌐 输出语言</span></label>
+          <label for="youtubeTargetLang" class="youtube-lang-label" data-i18n="youtubeOutputLanguage">🌐 输出语言</label>
           <select id="youtubeTargetLang" class="settings-input youtube-lang-select">
-            <option value="" data-i18n="followOriginalVideo">跟随原视频</option>
+            <option value="">跟随原视频</option>
             <option value="English">English</option>
             <option value="中文">中文</option>
             <option value="日本語">日本語</option>
             <option value="한국어">한국어</option>
             <option value="Español">Español</option>
-            <option value="custom" data-i18n="other">其他...</option>
+            <option value="custom">其他...</option>
           </select>
           <input type="text" id="youtubeCustomLang" class="settings-input youtube-lang-custom hidden"
-            data-i18n-placeholder="enterLanguageName" placeholder="输入语言名称" autocomplete="off">
+            data-i18n-placeholder="youtubeCustomLangPlaceholder" placeholder="输入语言名称" autocomplete="off">
         </div>
         <div class="youtube-input-group">
-          <input type="url" id="youtubeUrlInput" class="settings-input" data-i18n-placeholder="youtubeUrlPlaceholder"
-            placeholder="YouTube / TikTok / 抖音 / 快手 链接" autocomplete="off">
-          <button id="youtubeGenerateBtn" class="btn btn-primary" data-i18n="generate">生成</button>
+          <input type="url" id="youtubeUrlInput" class="settings-input" data-i18n-placeholder="youtubeUrlPlaceholder" placeholder="YouTube / TikTok / 抖音 / 快手 链接"
+            autocomplete="off">
+          <button id="youtubeGenerateBtn" class="btn btn-primary" data-i18n="youtubeGenerate">生成</button>
         </div>
         <div id="youtubeStatus" class="youtube-status hidden"></div>
 
@@ -896,7 +896,7 @@
           <!-- Visual Dictionary (New) -->
           <div id="youtubeVisualVocabulary" class="youtube-vocab hidden">
             <div class="youtube-vocab-header">
-              <div class="youtube-vocab-title"><span data-i18n="visualDictionary">📖 视觉词典</span> <span class="youtube-vocab-hint" data-i18n="visualDictionaryHint">(点击术语 → 高亮它在分镜中的用法)</span></div>
+              <div class="youtube-vocab-title" data-i18n="youtubeVisualDictionary">📖 视觉词典 <span class="youtube-vocab-hint" data-i18n="youtubeVisualDictionaryHint">(点击术语 → 高亮它在分镜中的用法)</span></div>
               <button id="youtubeVocabCopyAll" class="btn btn-secondary btn-sm" data-i18n-title="copyAllVocab">📋 <span data-i18n="copyStyleBlock">复制风格块</span></button>
             </div>
             <div class="youtube-vocab-tags" id="youtubeVocabTags"></div>
@@ -904,23 +904,23 @@
 
           <!-- Variable Replacement Playground (New) -->
           <div id="youtubeVariablePlayground" class="youtube-playground hidden">
-            <div class="youtube-playground-title"><span data-i18n="inspirationPlayground">🧪 灵感试验场</span> <span class="youtube-playground-hint" data-i18n="inspirationPlaygroundHint">(编辑后分镜实时更新)</span>
+            <div class="youtube-playground-title" data-i18n="youtubeInspirationPlayground">🧪 灵感试验场 <span class="youtube-playground-hint" data-i18n="youtubePlaygroundHint">(编辑后分镜实时更新)</span>
             </div>
             <div class="youtube-playground-inputs" id="youtubePlaygroundInputs"></div>
           </div>
 
           <!-- Video shots -->
-          <div class="youtube-storyboard-label"><span data-i18n="videoStoryboard">🎬 视频分镜 Prompts</span> <span
-              style="font-weight:400;color:var(--text-muted);font-size:10px" data-i18n="clickToCopyHint">点击复制 → 粘贴到任何AI视频平台</span></div>
+          <div class="youtube-storyboard-label" data-i18n="youtubeStoryboardLabel">🎬 视频分镜 Prompts <span
+              class="youtube-storyboard-hint" data-i18n="youtubeStoryboardHint" style="font-weight:400;color:var(--text-muted);font-size:10px">点击复制 → 粘贴到任何AI视频平台</span></div>
           <div class="youtube-storyboard" id="youtubeStoryboard"></div>
           <!-- Highlights -->
           <div class="youtube-highlights" id="youtubeHighlights"></div>
           <!-- Generated prompt preview -->
-          <label class="youtube-prompt-label" data-i18n="reusablePromptTemplate">📝 可复用 Prompt 模板</label>
+          <label class="youtube-prompt-label" data-i18n="youtubePromptTemplate">📝 可复用 Prompt 模板</label>
           <textarea id="youtubePromptPreview" class="youtube-prompt-preview" rows="6" readonly></textarea>
           <div class="youtube-result-actions">
-            <button id="youtubeSaveBtn" class="btn btn-primary" data-i18n="saveAsNewPrompt">💾 保存为新 Prompt</button>
-            <button id="youtubeEditSaveBtn" class="btn btn-secondary" data-i18n="editAndSave">✏️ 编辑后保存</button>
+            <button id="youtubeSaveBtn" class="btn btn-primary" data-i18n="youtubeSaveNewPrompt">💾 保存为新 Prompt</button>
+            <button id="youtubeEditSaveBtn" class="btn btn-secondary" data-i18n="youtubeEditSavePrompt">✏️ 编辑后保存</button>
           </div>
         </div>
       </div>
