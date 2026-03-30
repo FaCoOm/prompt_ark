@@ -25,7 +25,7 @@ import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
 // [DISABLED] import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
 import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS, buildFallbackText } from './lib/ai/share.js';
 import { buildContextMenus, handleContextMenuClick, openPromptInDefaultAI } from './lib/context-menu.js';
-import { initSupabase, initSupabaseFromStorage, isAuthenticated as isSupabaseAuthenticated, from as supabaseFrom, signOut } from './lib/supabase/client.js';
+import { initSupabase, initSupabaseFromStorage, ensureAuthenticatedSession, from as supabaseFrom, signOut } from './lib/supabase/client.js';
 
 
 // Eagerly preload all prompt files into memory cache at service worker startup
@@ -393,10 +393,9 @@ async function callProvider(provider, prompt) {
 }
 
 async function requireHubAuth() {
-  const accessToken = await LocalStorage.get('accessToken');
-  if (!accessToken) {
-    throw new Error('NOT_LOGGED_IN');
-  }
+  await ensureAuthenticatedSession();
+  const { accessToken } = await chrome.storage.local.get(['accessToken']);
+  if (!accessToken) throw new Error('NOT_LOGGED_IN');
   return accessToken;
 }
 

@@ -10,6 +10,7 @@ interface LegalPageProps {
   section: LegalSection
   user: any
   onAuthChange: (user: any) => void
+  authLoading?: boolean
 }
 
 const legalPageCopy = {
@@ -41,7 +42,7 @@ function setMetaDescription(content: string) {
   tag.setAttribute('content', content)
 }
 
-export function LegalPage({ section, user, onAuthChange }: LegalPageProps) {
+export function LegalPage({ section, user, onAuthChange, authLoading = false }: LegalPageProps) {
   const { language } = useI18n()
   const copy = legalPageCopy[language]
   const markdown = getLegalMarkdown(language, section)
@@ -55,7 +56,7 @@ export function LegalPage({ section, user, onAuthChange }: LegalPageProps) {
 
   return (
     <div className="landing-shell">
-      <SiteHeader user={user} onAuthChange={onAuthChange} />
+      <SiteHeader user={user} onAuthChange={onAuthChange} authLoading={authLoading} />
 
       <main className="legal-main">
         <a href="/" className="legal-back-link">
