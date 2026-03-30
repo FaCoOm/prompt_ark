@@ -163,19 +163,14 @@ class ImagePromptPage {
         }
 
         try {
-            // Create a new prompt object
             const newPrompt = {
                 id:
                     Date.now().toString(36) +
                     Math.random().toString(36).substr(2, 5),
-                title: `Image Prompt: ${this.analysisResult.subject?.substring(0, 30) || "Untitled"}`,
+                title: "",
                 content: this.analysisResult.prompt,
-                category: "Image-to-Prompt",
-                tags: [
-                    "image-prompt",
-                    this.analysisResult.style,
-                    this.analysisResult.lighting,
-                ].filter(Boolean),
+                category: "",
+                tags: ["image-prompt"],
                 shortcut: "",
                 usageCount: 0,
                 lastUsed: Date.now(),
