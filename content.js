@@ -1704,6 +1704,15 @@ class AIPromptManager {
   }
 
   async executePromptWorkflow(prompt, options = {}) {
+    const allVars = this.extractVariables(prompt.content);
+    const requiresSelection = allVars.some(v => v.name === '@selection');
+    const hasSelection = (options.selectionText || this._savedSelection);
+    if (requiresSelection && !hasSelection) {
+      const msg = this.msg('selectionRequired', '此 Prompt 需要选中文本才能使用');
+      this.showNotification('❌ ' + msg, 'error');
+      return { success: false, error: 'SELECTION_REQUIRED' };
+    }
+
     const { contextResolved, variables } = await this.preparePromptForUse(prompt, options);
     this.onSelectCallback = options.onSelect ?? null;
 

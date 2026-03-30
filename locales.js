@@ -24,6 +24,7 @@ export const translations = {
         insertSuccess: "Prompt 已填入",
         insertError: "插入失败，请确保您在支持的 AI 平台上",
         inputNotFound: "未找到输入框",
+        selectionRequired: "此 Prompt 需要选中文本才能使用",
         copySuccess: "已复制到剪贴板",
         importSuccess: "成功导入 {count} 个 Prompt",
         exportSuccess: "导出成功",
@@ -341,6 +342,7 @@ export const translations = {
         insertError:
             "Failed to insert. Make sure you are on a supported AI platform.",
         inputNotFound: "Input box not found",
+        selectionRequired: "This prompt requires selected text to use",
         copySuccess: "Copied to clipboard",
         importSuccess: "Successfully imported {count} prompts",
         exportSuccess: "Export successful",
