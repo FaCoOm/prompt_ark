@@ -854,11 +854,11 @@
   <div id="youtubeModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>🎬 Video → Prompt</h2>
+        <h2 data-i18n="videoToPromptTitle">🎬 Video → Prompt</h2>
         <button class="modal-close" id="closeYoutubeModal">&times;</button>
       </div>
       <div class="youtube-modal-body">
-        <p class="youtube-modal-hint">粘贴视频链接（YouTube / Shorts / TikTok / 抖音 / 快手），AI 自动生成可直接粘贴到 Sora / Kling / Runway /
+        <p class="youtube-modal-hint" data-i18n="youtubeModalHint">粘贴视频链接（YouTube / Shorts / TikTok / 抖音 / 快手），AI 自动生成可直接粘贴到 Sora / Kling / Runway /
           即梦 的分镜视频 Prompt。</p>
         <div class="youtube-mode-selector" id="youtubeModeSelector">
           <button class="youtube-mode-btn" data-mode="style" data-i18n-title="styleTransferDesc">🎨 <span data-i18n="styleTransfer">风格迁移</span></button>
@@ -866,23 +866,23 @@
           <button class="youtube-mode-btn" data-mode="content" data-i18n-title="inspirationCreationDesc">💡 <span data-i18n="inspirationCreation">灵感创作</span></button>
         </div>
         <div class="youtube-lang-row">
-          <label for="youtubeTargetLang" class="youtube-lang-label">🌐 输出语言</label>
+          <label for="youtubeTargetLang" class="youtube-lang-label"><span data-i18n="outputLanguage">🌐 输出语言</span></label>
           <select id="youtubeTargetLang" class="settings-input youtube-lang-select">
-            <option value="">跟随原视频</option>
+            <option value="" data-i18n="followOriginalVideo">跟随原视频</option>
             <option value="English">English</option>
             <option value="中文">中文</option>
             <option value="日本語">日本語</option>
             <option value="한국어">한국어</option>
             <option value="Español">Español</option>
-            <option value="custom">其他...</option>
+            <option value="custom" data-i18n="other">其他...</option>
           </select>
           <input type="text" id="youtubeCustomLang" class="settings-input youtube-lang-custom hidden"
-            placeholder="输入语言名称" autocomplete="off">
+            data-i18n-placeholder="enterLanguageName" placeholder="输入语言名称" autocomplete="off">
         </div>
         <div class="youtube-input-group">
-          <input type="url" id="youtubeUrlInput" class="settings-input" placeholder="YouTube / TikTok / 抖音 / 快手 链接"
-            autocomplete="off">
-          <button id="youtubeGenerateBtn" class="btn btn-primary">生成</button>
+          <input type="url" id="youtubeUrlInput" class="settings-input" data-i18n-placeholder="youtubeUrlPlaceholder"
+            placeholder="YouTube / TikTok / 抖音 / 快手 链接" autocomplete="off">
+          <button id="youtubeGenerateBtn" class="btn btn-primary" data-i18n="generate">生成</button>
         </div>
         <div id="youtubeStatus" class="youtube-status hidden"></div>
 
@@ -896,7 +896,7 @@
           <!-- Visual Dictionary (New) -->
           <div id="youtubeVisualVocabulary" class="youtube-vocab hidden">
             <div class="youtube-vocab-header">
-              <div class="youtube-vocab-title">📖 视觉词典 <span class="youtube-vocab-hint">(点击术语 → 高亮它在分镜中的用法)</span></div>
+              <div class="youtube-vocab-title"><span data-i18n="visualDictionary">📖 视觉词典</span> <span class="youtube-vocab-hint" data-i18n="visualDictionaryHint">(点击术语 → 高亮它在分镜中的用法)</span></div>
               <button id="youtubeVocabCopyAll" class="btn btn-secondary btn-sm" data-i18n-title="copyAllVocab">📋 <span data-i18n="copyStyleBlock">复制风格块</span></button>
             </div>
             <div class="youtube-vocab-tags" id="youtubeVocabTags"></div>
@@ -904,23 +904,23 @@
 
           <!-- Variable Replacement Playground (New) -->
           <div id="youtubeVariablePlayground" class="youtube-playground hidden">
-            <div class="youtube-playground-title">🧪 灵感试验场 <span class="youtube-playground-hint">(编辑后分镜实时更新)</span>
+            <div class="youtube-playground-title"><span data-i18n="inspirationPlayground">🧪 灵感试验场</span> <span class="youtube-playground-hint" data-i18n="inspirationPlaygroundHint">(编辑后分镜实时更新)</span>
             </div>
             <div class="youtube-playground-inputs" id="youtubePlaygroundInputs"></div>
           </div>
 
           <!-- Video shots -->
-          <div class="youtube-storyboard-label">🎬 视频分镜 Prompts <span
-              style="font-weight:400;color:var(--text-muted);font-size:10px">点击复制 → 粘贴到任何AI视频平台</span></div>
+          <div class="youtube-storyboard-label"><span data-i18n="videoStoryboard">🎬 视频分镜 Prompts</span> <span
+              style="font-weight:400;color:var(--text-muted);font-size:10px" data-i18n="clickToCopyHint">点击复制 → 粘贴到任何AI视频平台</span></div>
           <div class="youtube-storyboard" id="youtubeStoryboard"></div>
           <!-- Highlights -->
           <div class="youtube-highlights" id="youtubeHighlights"></div>
           <!-- Generated prompt preview -->
-          <label class="youtube-prompt-label">📝 可复用 Prompt 模板</label>
+          <label class="youtube-prompt-label" data-i18n="reusablePromptTemplate">📝 可复用 Prompt 模板</label>
           <textarea id="youtubePromptPreview" class="youtube-prompt-preview" rows="6" readonly></textarea>
           <div class="youtube-result-actions">
-            <button id="youtubeSaveBtn" class="btn btn-primary">💾 保存为新 Prompt</button>
-            <button id="youtubeEditSaveBtn" class="btn btn-secondary">✏️ 编辑后保存</button>
+            <button id="youtubeSaveBtn" class="btn btn-primary" data-i18n="saveAsNewPrompt">💾 保存为新 Prompt</button>
+            <button id="youtubeEditSaveBtn" class="btn btn-secondary" data-i18n="editAndSave">✏️ 编辑后保存</button>
           </div>
         </div>
       </div>

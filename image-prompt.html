@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Prompt Analysis - Prompt Ark</title>
+  <title data-i18n="imagePromptPageTitle">Image Prompt Analysis - Prompt Ark</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -389,8 +389,8 @@
     <!-- Header -->
     <header class="header">
       <img src="icons/icon48.png" alt="Prompt Ark" class="logo">
-      <h1 class="header-title">🖼️ Image Prompt Analysis</h1>
-      <span class="header-subtitle">Powered by Prompt Ark</span>
+      <h1 class="header-title"><span data-i18n="imagePromptHeader">🖼️ Image Prompt Analysis</span></h1>
+      <span class="header-subtitle" data-i18n="poweredBy">Powered by Prompt Ark</span>
     </header>
 
     <!-- Image Preview Section -->
@@ -402,46 +402,46 @@
     <!-- Loading State -->
     <div id="loadingState" class="loading-state">
       <div class="spinner"></div>
-      <div class="loading-text">Analyzing image...</div>
-      <div class="loading-subtext">AI is generating detailed prompt from your image</div>
+      <div class="loading-text" data-i18n="analyzingImage">Analyzing image...</div>
+      <div class="loading-subtext" data-i18n="analyzingImageSubtext">AI is generating detailed prompt from your image</div>
     </div>
 
     <!-- Error State -->
     <div id="errorState" class="error-state" style="display: none;">
       <div class="error-icon">⚠️</div>
-      <div class="error-title">Analysis Failed</div>
-      <div id="errorMessage" class="error-message">Something went wrong while analyzing the image.</div>
-      <button id="retryBtn" class="btn btn-primary">Retry</button>
+      <div class="error-title" data-i18n="analysisFailed">Analysis Failed</div>
+      <div id="errorMessage" class="error-message" data-i18n="analysisErrorMessage">Something went wrong while analyzing the image.</div>
+      <button id="retryBtn" class="btn btn-primary" data-i18n="retry">Retry</button>
     </div>
 
     <!-- Result State -->
     <div id="resultState" class="result-state">
       <!-- Analysis Results -->
       <section class="result-section">
-        <h2 class="section-title">📊 Analysis Results</h2>
+        <h2 class="section-title"><span data-i18n="analysisResults">📊 Analysis Results</span></h2>
         <div class="analysis-grid">
           <div class="analysis-item">
-            <div class="analysis-label">Subject</div>
+            <div class="analysis-label" data-i18n="subject">Subject</div>
             <div id="subjectValue" class="analysis-value">-</div>
           </div>
           <div class="analysis-item">
-            <div class="analysis-label">Style</div>
+            <div class="analysis-label" data-i18n="style">Style</div>
             <div id="styleValue" class="analysis-value">-</div>
           </div>
           <div class="analysis-item">
-            <div class="analysis-label">Lighting</div>
+            <div class="analysis-label" data-i18n="lighting">Lighting</div>
             <div id="lightingValue" class="analysis-value">-</div>
           </div>
           <div class="analysis-item">
-            <div class="analysis-label">Color Scheme</div>
+            <div class="analysis-label" data-i18n="colorScheme">Color Scheme</div>
             <div id="colorSchemeValue" class="analysis-value">-</div>
           </div>
           <div class="analysis-item">
-            <div class="analysis-label">Composition</div>
+            <div class="analysis-label" data-i18n="composition">Composition</div>
             <div id="compositionValue" class="analysis-value">-</div>
           </div>
           <div class="analysis-item">
-            <div class="analysis-label">Details</div>
+            <div class="analysis-label" data-i18n="details">Details</div>
             <div id="detailsValue" class="analysis-value">-</div>
           </div>
         </div>
@@ -449,23 +449,23 @@
 
       <!-- Generated Prompt -->
       <section class="result-section">
-        <h2 class="section-title">✨ Generated Prompt</h2>
+        <h2 class="section-title"><span data-i18n="generatedPrompt">✨ Generated Prompt</span></h2>
         <div id="promptOutput" class="prompt-output"></div>
         <div class="actions">
           <button id="copyBtn" class="btn btn-secondary">
-            📋 Copy Prompt
+            📋 <span data-i18n="copyPrompt">Copy Prompt</span>
           </button>
           <button id="saveBtn" class="btn btn-primary">
-            💾 Save to Prompt Ark
+            💾 <span data-i18n="saveToPromptArk">Save to Prompt Ark</span>
           </button>
           <button id="regenerateBtn" class="btn btn-secondary">
-            🔄 Regenerate
+            🔄 <span data-i18n="regenerate">Regenerate</span>
           </button>
           <a id="nanobananaBtn" class="btn btn-success" href="https://nanobanana.io" target="_blank" rel="noopener">
-            🎨 Open nanobanana
+            🎨 <span data-i18n="openNanobanana">Open nanobanana</span>
           </a>
           <button id="doubaoBtn" class="btn btn-success">
-            🚀 一键豆包做同款
+            🚀 <span data-i18n="doubaoOneClick">一键豆包做同款</span>
           </button>
         </div>
       </section>

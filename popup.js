@@ -1093,12 +1093,12 @@ ${p.sourceContext ? `
               mdPreview.innerHTML = this.renderMarkdown(contentInput.value);
             }
           }
-          this.showToast('Translated successfully');
+          this.showToast(i18n.t('translateSuccess'));
         } else {
-          this.showToast('❌ ' + (resp?.error || 'Translation failed'), 4000);
+          this.showToast('❌ ' + (resp?.error || i18n.t('translateFailed')), 4000);
         }
       } catch (err) {
-        this.showToast('❌ Translation error', 4000);
+        this.showToast('❌ ' + i18n.t('translateError'), 4000);
       } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -1499,17 +1499,17 @@ ${p.sourceContext ? `
     // Content/Both modes: show character + scene anchors (editable)
     if (resultMode !== 'style' && (data.character_anchor || data.scene_anchor || data.style_consistency)) {
       anchorsHtml = `<div class="youtube-anchors">
-        ${data.character_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">👤</span><span class="youtube-anchor-label">角色锚定</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="character_anchor">${this.escapeHtml(data.character_anchor)}</span></div>` : ''}
-        ${data.scene_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🏠</span><span class="youtube-anchor-label">场景锚定</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="scene_anchor">${this.escapeHtml(data.scene_anchor)}</span></div>` : ''}
-        ${data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">统一风格</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
+        ${data.character_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">👤</span><span class="youtube-anchor-label">${i18n.t('characterAnchor')}</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="character_anchor">${this.escapeHtml(data.character_anchor)}</span></div>` : ''}
+        ${data.scene_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🏠</span><span class="youtube-anchor-label">${i18n.t('sceneAnchor')}</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="scene_anchor">${this.escapeHtml(data.scene_anchor)}</span></div>` : ''}
+        ${data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">${i18n.t('styleConsistency')}</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
       </div>`;
     }
 
     // Style/Both modes: show style anchor as a prominent block (editable)
     if (resultMode !== 'content' && (data.style_anchor || data.style_consistency)) {
       anchorsHtml += `<div class="youtube-anchors">
-        ${data.style_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">风格 DNA</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_anchor">${this.escapeHtml(data.style_anchor)}</span></div>` : ''}
-        ${resultMode === 'style' && data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎬</span><span class="youtube-anchor-label">统一风格</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
+        ${data.style_anchor ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎨</span><span class="youtube-anchor-label">${i18n.t('styleDNA')}</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_anchor">${this.escapeHtml(data.style_anchor)}</span></div>` : ''}
+        ${resultMode === 'style' && data.style_consistency ? `<div class="youtube-anchor-row"><span class="youtube-anchor-icon">🎬</span><span class="youtube-anchor-label">${i18n.t('styleConsistency')}</span><span class="youtube-anchor-text" contenteditable="true" data-anchor-key="style_consistency">${this.escapeHtml(data.style_consistency)}</span></div>` : ''}
       </div>`;
     }
 
@@ -2270,7 +2270,7 @@ ${p.sourceContext ? `
       });
 
       if (!resp?.success || !resp?.data) {
-        throw new Error(resp?.error || 'Translation failed');
+        throw new Error(resp?.error || i18n.t('translateFailed'));
       }
 
       // Update in-memory prompt
@@ -2450,15 +2450,15 @@ ${p.sourceContext ? `
   }
 
   async deleteSkill(skillId) {
-    if (!confirm('Delete this skill?')) return;
+    if (!confirm(i18n.t('deleteSkillConfirm'))) return;
     try {
       const resp = await chrome.runtime.sendMessage({ type: 'DELETE_SKILL', skillId });
       if (resp.success) {
-        this.showToast('🗑️ Skill deleted');
+        this.showToast(i18n.t('skillDeleted'));
         await this.renderSkillList();
       }
     } catch (e) {
-      this.showToast('❌ Delete failed', 3000);
+      this.showToast(i18n.t('deleteFailed'), 3000);
     }
   }
 

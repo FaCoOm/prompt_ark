@@ -1468,11 +1468,11 @@ class AIPromptManager {
     if (existing) { existing.remove(); return; }
 
     const platforms = [
-      { id: 'zhihu', label: '知乎', icon: '📝' },
+      { id: 'zhihu', label: this.msg('contextMenuZhihu', '知乎'), icon: '📝' },
       { id: 'reddit', label: 'Reddit', icon: '🔗' },
-      { id: 'wechat', label: '公众号', icon: '💬' },
+      { id: 'wechat', label: this.msg('contextMenuWechat', '公众号'), icon: '💬' },
       { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
-      { id: 'xiaohongshu', label: '小红书', icon: '📕' },
+      { id: 'xiaohongshu', label: this.msg('contextMenuXiaohongshu', '小红书'), icon: '📕' },
       { id: 'twitter', label: 'Twitter/X', icon: '🐦' },
     ];
 
@@ -2168,6 +2168,9 @@ class AIPromptManager {
         contextMenuConvertStart: '正在转化为 Prompt...',
         contextMenuConvertSuccess: '成功保存智能 Prompt',
         contextMenuConvertError: '智能转化失败，已保存原文',
+        contextMenuZhihu: '知乎',
+        contextMenuWechat: '微信公众号',
+        contextMenuXiaohongshu: '小红书',
         noPageText: '未找到页面可读取的文本内容',
         smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
         smartConvertTooShort: `智能转换至少需要 ${SMART_CONVERT_MIN_LENGTH} 个字符`,
@@ -2193,6 +2196,9 @@ class AIPromptManager {
         contextMenuConvertStart: 'Converting to prompt...',
         contextMenuConvertSuccess: 'Smart prompt saved!',
         contextMenuConvertError: 'Smart Convert failed, saved as raw text',
+        contextMenuZhihu: 'Zhihu',
+        contextMenuWechat: 'WeChat Official Account',
+        contextMenuXiaohongshu: 'Xiaohongshu',
         noPageText: 'No readable text found on page',
         smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
         smartConvertTooShort: `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`,
