@@ -2243,26 +2243,12 @@ class AIPromptManager {
     return el.textContent || el.innerText || '';
   }
 
-  resolveSlashInputTarget(target) {
-    const el = target?.nodeType === Node.ELEMENT_NODE ? target : target?.parentElement;
-    if (!el) return null;
-
+  async handleSlashInput(e) {
+    const el = e.target;
+    if (!el) return;
     const tag = el.tagName?.toLowerCase();
     const isTextInput = tag === 'input' && (el.type === 'text' || el.type === 'search');
-    if (tag === 'textarea' || isTextInput || el.isContentEditable) {
-      return el;
-    }
-
-    if (typeof el.closest !== 'function') return null;
-    return el.closest('textarea, input[type="text"], input[type="search"], [contenteditable="true"]');
-  }
-
-  async handleSlashInput(e) {
-    const el = this.resolveSlashInputTarget(e.target);
-    if (!el) {
-      this.hideSlashDropdown();
-      return;
-    }
+    if (tag !== 'textarea' && !isTextInput && !(tag === 'div' && el.isContentEditable)) return;
 
     const text = this.getInputText(el);
     // Trigger on single slash command token at the end (e.g. "/" or "hello /sum")
@@ -2399,7 +2385,7 @@ class AIPromptManager {
 
   handleSlashKeydown(e) {
     if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const target = this.resolveSlashInputTarget(e.target) || e.target;
+      const target = e.target;
       setTimeout(() => {
         this.handleSlashInput({ target }).catch(() => { });
       }, 0);
@@ -2433,6 +2419,9 @@ class AIPromptManager {
     if (!this.slashDropdown) return;
     this.slashDropdown.querySelectorAll('.apm-slash-item').forEach((el, i) => {
       el.classList.toggle('active', i === this.slashActiveIndex);
+      if (i === this.slashActiveIndex) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
     });
   }
 
