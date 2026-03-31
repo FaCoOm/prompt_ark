@@ -2243,12 +2243,26 @@ class AIPromptManager {
     return el.textContent || el.innerText || '';
   }
 
-  async handleSlashInput(e) {
-    const el = e.target;
-    if (!el) return;
+  resolveSlashInputTarget(target) {
+    const el = target?.nodeType === Node.ELEMENT_NODE ? target : target?.parentElement;
+    if (!el) return null;
+
     const tag = el.tagName?.toLowerCase();
     const isTextInput = tag === 'input' && (el.type === 'text' || el.type === 'search');
-    if (tag !== 'textarea' && !isTextInput && !(tag === 'div' && el.isContentEditable)) return;
+    if (tag === 'textarea' || isTextInput || el.isContentEditable) {
+      return el;
+    }
+
+    if (typeof el.closest !== 'function') return null;
+    return el.closest('textarea, input[type="text"], input[type="search"], [contenteditable="true"]');
+  }
+
+  async handleSlashInput(e) {
+    const el = this.resolveSlashInputTarget(e.target);
+    if (!el) {
+      this.hideSlashDropdown();
+      return;
+    }
 
     const text = this.getInputText(el);
     // Trigger on single slash command token at the end (e.g. "/" or "hello /sum")
@@ -2385,7 +2399,7 @@ class AIPromptManager {
 
   handleSlashKeydown(e) {
     if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const target = e.target;
+      const target = this.resolveSlashInputTarget(e.target) || e.target;
       setTimeout(() => {
         this.handleSlashInput({ target }).catch(() => { });
       }, 0);
