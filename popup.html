@@ -531,12 +531,8 @@
         <div class="form-group">
           <label for="contentInput">
             <span data-i18n="content">Prompt 内容</span>
-            <span class="hint" data-i18n="contentHint">普通变量手写 {{变量名}}，上下文变量点 f(x) 插入</span>
+            <span class="hint" data-i18n="contentHint">普通变量手写 {{变量名}}，上下文变量点 @变量 插入</span>
             <span class="hint">Markdown ✓</span>
-            <span class="context-var-controls">
-              <button type="button" id="contextVarBtn" class="context-var-trigger" data-i18n-title="contextVarButtonTitle">f(x)</button>
-              <div id="contextVarPopover" class="context-var-popover hidden"></div>
-            </span>
             <button type="button" id="historyBtn" class="btn-history hidden" data-i18n-title="versionHistory">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10" />
@@ -544,8 +540,14 @@
               </svg>
             </button>
           </label>
-          <textarea id="contentInput" rows="8" required></textarea>
-          <div id="mdPreview" class="md-preview hidden"></div>
+          <div class="content-editor-shell">
+            <div class="content-editor-tools">
+              <button type="button" id="contextVarBtn" class="context-var-trigger" data-i18n="contextVarButton" data-i18n-title="contextVarButtonTitle">@变量</button>
+              <div id="contextVarPopover" class="context-var-popover hidden"></div>
+            </div>
+            <textarea id="contentInput" rows="8" required></textarea>
+            <div id="mdPreview" class="md-preview hidden"></div>
+          </div>
           <button type="button" id="previewToggle" class="btn-preview-toggle" data-i18n="preview">Preview</button>
           <button type="button" id="optimizeBtn" class="btn-optimize" data-i18n="optimize">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
