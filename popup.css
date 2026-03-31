@@ -1302,6 +1302,12 @@ body::before {
   margin-left: 8px;
 }
 
+.form-group .hint-icon {
+  color: var(--text-muted);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .content-editor-shell {
   position: relative;
 }
