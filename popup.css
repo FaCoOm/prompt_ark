@@ -1308,6 +1308,12 @@ body::before {
   vertical-align: middle;
 }
 
+.md-hint-icon {
+  color: var(--text-muted);
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
 .content-editor-shell {
   position: relative;
 }
