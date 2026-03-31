@@ -1928,6 +1928,16 @@ ${p.sourceContext ? `
         contentInput.classList.remove('hidden');
         document.getElementById('previewToggle').textContent = i18n.t('preview');
       }
+
+      const shell = document.querySelector('.content-editor-shell');
+      const shellRect = shell?.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      if (shellRect) {
+        const top = triggerRect.bottom - shellRect.top + 8;
+        const right = Math.max(0, shellRect.right - triggerRect.right);
+        popover.style.top = `${top}px`;
+        popover.style.right = `${right}px`;
+      }
     }
 
     popover.classList.toggle('hidden', !shouldShow);
