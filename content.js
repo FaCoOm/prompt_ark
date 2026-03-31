@@ -2419,6 +2419,9 @@ class AIPromptManager {
     if (!this.slashDropdown) return;
     this.slashDropdown.querySelectorAll('.apm-slash-item').forEach((el, i) => {
       el.classList.toggle('active', i === this.slashActiveIndex);
+      if (i === this.slashActiveIndex) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
     });
   }
 
