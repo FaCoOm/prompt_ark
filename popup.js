@@ -8,6 +8,7 @@ import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime, hi
 import { HistoryPanel } from './lib/popup/history-panel.js';
 import { ShareManager } from './lib/popup/share-manager.js';
 
+const CONTEXT_VAR_PATTERN = /\{\{(@page_text|@selection|@page_url|@page_title|@date)\}\}/g;
 
 class PopupManager {
   constructor() {
@@ -919,6 +920,9 @@ ${p.sourceContext ? `
       this.renderProviders();
       await chrome.runtime.sendMessage({ type: 'LANGUAGE_CHANGED' });
       this.renderPrompts();
+      if (!document.getElementById('editModal').classList.contains('hidden')) {
+        this.updateShortcutVisibility();
+      }
     });
 
     // New prompt
@@ -1826,6 +1830,7 @@ ${p.sourceContext ? `
     document.getElementById('contentInput').classList.remove('hidden');
     this._originalContent = null;
     this._optimizedContent = null;
+    this.updateShortcutVisibility();
   }
 
   hideEditModal() {
@@ -1840,6 +1845,14 @@ ${p.sourceContext ? `
     this.editingId = null;
     this.toggleContractBuilder(false);
     this.resetContractBuilder();
+  }
+
+  updateShortcutVisibility() {
+    const content = document.getElementById('contentInput')?.value || '';
+    const shortcutGroup = document.querySelector('#promptForm > .form-group:has(#shortcutInput)');
+    if (shortcutGroup) {
+      shortcutGroup.classList.toggle('hidden', CONTEXT_VAR_PATTERN.test(content));
+    }
   }
 
   // --- Prompt Optimization with Diff View ---
