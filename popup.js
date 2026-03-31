@@ -1849,8 +1849,9 @@ ${p.sourceContext ? `
 
   updateShortcutVisibility() {
     const content = document.getElementById('contentInput')?.value || '';
-    const shortcutGroup = document.querySelector('#promptForm > .form-group:has(#shortcutInput)');
+    const shortcutGroup = document.getElementById('shortcutFormGroup');
     if (shortcutGroup) {
+      CONTEXT_VAR_PATTERN.lastIndex = 0;
       shortcutGroup.classList.toggle('hidden', CONTEXT_VAR_PATTERN.test(content));
     }
   }
