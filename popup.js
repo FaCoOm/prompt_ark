@@ -9,6 +9,13 @@ import { HistoryPanel } from './lib/popup/history-panel.js';
 import { ShareManager } from './lib/popup/share-manager.js';
 
 const CONTEXT_VAR_PATTERN = /\{\{(@page_text|@selection|@page_url|@page_title|@date)\}\}/g;
+const CONTEXT_VAR_ITEMS = [
+  { token: '{{@page_title}}', labelKey: 'contextVarPageTitle', descKey: 'contextVarPageTitleDesc' },
+  { token: '{{@page_url}}', labelKey: 'contextVarPageUrl', descKey: 'contextVarPageUrlDesc' },
+  { token: '{{@selection}}', labelKey: 'contextVarSelection', descKey: 'contextVarSelectionDesc' },
+  { token: '{{@date}}', labelKey: 'contextVarDate', descKey: 'contextVarDateDesc' },
+  { token: '{{@page_text}}', labelKey: 'contextVarPageText', descKey: 'contextVarPageTextDesc' }
+];
 
 class PopupManager {
   constructor() {
@@ -128,6 +135,7 @@ class PopupManager {
     i18n.translatePage();
     this.updateControlStates();
     this.updateGithubTokenPanel();
+    this.renderContextVarPopover();
     if (this.prompts.length > 0) {
       this.renderCategories();
     }
@@ -1147,6 +1155,7 @@ ${p.sourceContext ? `
     const previewToggle = document.getElementById('previewToggle');
     const contentInput = document.getElementById('contentInput');
     const mdPreview = document.getElementById('mdPreview');
+    contentInput?.addEventListener('input', () => this.updateShortcutVisibility());
     previewToggle?.addEventListener('click', () => {
       const isPreviewVisible = !mdPreview.classList.contains('hidden');
       if (isPreviewVisible) {
@@ -1159,6 +1168,27 @@ ${p.sourceContext ? `
         contentInput.classList.add('hidden');
         previewToggle.textContent = i18n.t('edit');
       }
+    });
+
+    const contextVarBtn = document.getElementById('contextVarBtn');
+    contextVarBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleContextVarPopover();
+    });
+
+    document.getElementById('contextVarPopover')?.addEventListener('click', (e) => {
+      const item = e.target.closest('.context-var-item');
+      if (!item) return;
+      this.insertContextVariable(item.dataset.token);
+    });
+
+    document.addEventListener('click', (e) => {
+      const popover = document.getElementById('contextVarPopover');
+      const trigger = document.getElementById('contextVarBtn');
+      if (!popover || popover.classList.contains('hidden')) return;
+      if (popover.contains(e.target) || trigger?.contains(e.target)) return;
+      this.toggleContextVarPopover(false);
     });
 
 
@@ -1830,6 +1860,7 @@ ${p.sourceContext ? `
     document.getElementById('contentInput').classList.remove('hidden');
     this._originalContent = null;
     this._optimizedContent = null;
+    this.toggleContextVarPopover(false);
     this.updateShortcutVisibility();
   }
 
@@ -1843,6 +1874,7 @@ ${p.sourceContext ? `
     this._optimizedContent = null;
     this._optimizeProviderId = null;
     this.editingId = null;
+    this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
     this.resetContractBuilder();
   }
@@ -1854,6 +1886,68 @@ ${p.sourceContext ? `
       CONTEXT_VAR_PATTERN.lastIndex = 0;
       shortcutGroup.classList.toggle('hidden', CONTEXT_VAR_PATTERN.test(content));
     }
+  }
+
+  renderContextVarPopover() {
+    const popover = document.getElementById('contextVarPopover');
+    if (!popover) return;
+
+    popover.innerHTML = `
+      <div class="context-var-popover-header">
+        <div class="context-var-popover-title">${this.escapeHtml(i18n.t('contextVarPanelTitle'))}</div>
+        <div class="context-var-popover-hint">${this.escapeHtml(i18n.t('contextVarPanelHint'))}</div>
+      </div>
+      <div class="context-var-list">
+        ${CONTEXT_VAR_ITEMS.map(item => `
+          <button type="button" class="context-var-item" data-token="${this.escapeHtml(item.token)}">
+            <div class="context-var-item-top">
+              <span class="context-var-name">${this.escapeHtml(i18n.t(item.labelKey))}</span>
+              <code class="context-var-token">${this.escapeHtml(item.token)}</code>
+            </div>
+            <div class="context-var-desc">${this.escapeHtml(i18n.t(item.descKey))}</div>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  toggleContextVarPopover(force) {
+    const popover = document.getElementById('contextVarPopover');
+    const trigger = document.getElementById('contextVarBtn');
+    if (!popover || !trigger) return;
+
+    const shouldShow = typeof force === 'boolean'
+      ? force
+      : popover.classList.contains('hidden');
+
+    if (shouldShow) {
+      const mdPreview = document.getElementById('mdPreview');
+      const contentInput = document.getElementById('contentInput');
+      if (mdPreview && contentInput && !mdPreview.classList.contains('hidden')) {
+        mdPreview.classList.add('hidden');
+        contentInput.classList.remove('hidden');
+        document.getElementById('previewToggle').textContent = i18n.t('preview');
+      }
+    }
+
+    popover.classList.toggle('hidden', !shouldShow);
+    trigger.classList.toggle('active', shouldShow);
+    trigger.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+  }
+
+  insertContextVariable(token) {
+    const textarea = document.getElementById('contentInput');
+    if (!textarea || !token) return;
+
+    textarea.focus();
+
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    textarea.setRangeText(token, start, end, 'end');
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    this.toggleContextVarPopover(false);
+    this.showToast(i18n.t('contextVarInserted'));
   }
 
   // --- Prompt Optimization with Diff View ---

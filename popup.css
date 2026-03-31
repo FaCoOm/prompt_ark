@@ -1302,6 +1302,119 @@ body::before {
   margin-left: 8px;
 }
 
+.context-var-controls {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.context-var-trigger {
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.context-var-trigger:hover,
+.context-var-trigger.active {
+  border-color: rgba(240, 160, 80, 0.28);
+  background: var(--accent-soft);
+  color: #f5b06a;
+}
+
+.context-var-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  padding: 10px;
+  border: 1px solid var(--border-hover);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(240, 160, 80, 0.08), rgba(240, 160, 80, 0.02) 64px),
+    var(--bg-surface);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.context-var-popover.hidden {
+  display: none;
+}
+
+.context-var-popover-header {
+  padding: 2px 2px 10px;
+}
+
+.context-var-popover-title {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.context-var-popover-hint {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.context-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.context-var-item {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.context-var-item:hover {
+  border-color: rgba(240, 160, 80, 0.22);
+  background: rgba(240, 160, 80, 0.06);
+}
+
+.context-var-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.context-var-name {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.context-var-token {
+  color: var(--accent);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.context-var-desc {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .form-group input,
 .form-group textarea {
   width: 100%;
