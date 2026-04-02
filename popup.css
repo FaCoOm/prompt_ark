@@ -655,8 +655,8 @@ body::before {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 10px;
+  gap: 4px;
+  margin: 0 0 6px;
   padding: 0 18px;
   overflow-x: visible;
   border-bottom: none;
@@ -664,12 +664,12 @@ body::before {
 }
 
 .modality-filters {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .categories.category-sectioned {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   padding-top: 0;
   padding-bottom: 0;
   overflow-x: visible;
@@ -678,8 +678,8 @@ body::before {
 .category-filter-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
@@ -688,7 +688,7 @@ body::before {
 }
 
 .category-scope-row {
-  gap: 6px;
+  gap: 4px;
   padding: 0;
   border: none;
   border-radius: 0;
@@ -702,7 +702,7 @@ body::before {
 }
 
 .filter-chip-btn {
-  height: 28px;
+  height: 26px;
 }
 
 .category-empty-state {
@@ -2387,14 +2387,14 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin: 8px 0 10px;
+  margin: 8px 0 6px;
   padding: 0 18px;
 }
 
 .toolbar-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
@@ -2403,11 +2403,11 @@ body::before {
 }
 
 .smart-view-btn {
-  height: 28px;
-  padding: 0 10px;
+  height: 26px;
+  padding: 0 9px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
-  border-radius: 14px;
+  border-radius: 13px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -2434,10 +2434,10 @@ body::before {
 }
 
 .filter-chip-btn.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--bg-base);
   border-color: var(--accent);
-  box-shadow: 0 8px 18px rgba(240, 160, 80, 0.12);
+  box-shadow: 0 8px 18px rgba(240, 160, 80, 0.18);
 }
 
 .chip-icon {
