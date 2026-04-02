@@ -2431,6 +2431,7 @@ body::before {
   color: white;
   border-color: var(--accent);
   box-shadow: 0 8px 18px rgba(240, 160, 80, 0.18);
+  font-weight: 700;
 }
 
 .filter-chip-btn.active {
@@ -2438,6 +2439,7 @@ body::before {
   color: var(--bg-base);
   border-color: var(--accent);
   box-shadow: 0 8px 18px rgba(240, 160, 80, 0.18);
+  font-weight: 700;
 }
 
 .chip-icon {
