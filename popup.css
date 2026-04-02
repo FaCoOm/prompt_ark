@@ -702,7 +702,7 @@ body::before {
 }
 
 .filter-chip-btn {
-  min-height: 28px;
+  height: 28px;
 }
 
 .category-empty-state {
@@ -2403,7 +2403,8 @@ body::before {
 }
 
 .smart-view-btn {
-  padding: 5px 10px;
+  height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   border-radius: 14px;
@@ -2415,6 +2416,8 @@ body::before {
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
+  box-sizing: border-box;
+  width: auto;
 }
 
 .smart-view-btn:hover {
@@ -2428,6 +2431,13 @@ body::before {
   color: white;
   border-color: var(--accent);
   box-shadow: 0 8px 18px rgba(240, 160, 80, 0.18);
+}
+
+.filter-chip-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 8px 18px rgba(240, 160, 80, 0.12);
 }
 
 .chip-icon {
