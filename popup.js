@@ -2487,6 +2487,20 @@ ${p.sourceContext ? `
 
     menu.classList.remove('hidden');
 
+    // Smart position: open up if room above, else down
+    const btn = document.getElementById('optimizeProviderBtn');
+    const btnRect = btn.getBoundingClientRect();
+    const spaceAbove = btnRect.top;
+    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const menuHeight = Math.min(menu.scrollHeight, 280);
+
+    menu.classList.remove('open-up', 'open-down');
+    if (spaceAbove < menuHeight + 8 && spaceBelow > spaceAbove) {
+      menu.classList.add('open-down');
+    } else {
+      menu.classList.add('open-up');
+    }
+
     // Close on outside click
     const closeHandler = (e) => {
       if (!menu.contains(e.target) && e.target.id !== 'optimizeProviderBtn') {
