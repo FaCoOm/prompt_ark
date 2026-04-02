@@ -44,6 +44,8 @@ class PopupManager {
     this.categoryFormState = this.createCategoryFormState();
     this.pendingRevealPromptId = null;
     this.revealPromptTimer = null;
+    this.modalOutputModality = '';
+    this.modalForceOutputModality = '';
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
     this.isImportScanRunning = false;
@@ -2375,10 +2377,11 @@ ${p.sourceContext ? `
       id: null,
       title: d.title || '',
       content: d.prompt || '',
-      category: d.category || 'Creative',
-      category_type: d.category ? CATEGORY_TYPES.CUSTOM : '',
-      category_key: d.category || '',
+      category: '',
+      category_type: '',
+      category_key: '',
       output_modality: 'video',
+      force_output_modality: 'video',
       tags: d.tags || [],
       shortcut: '',
     });
@@ -2428,6 +2431,8 @@ ${p.sourceContext ? `
       // this._renderSnippets([]);
     }
 
+    this.modalOutputModality = prompt?.output_modality || '';
+    this.modalForceOutputModality = prompt?.force_output_modality || '';
     void this.setCategoryFormValue(prompt);
 
     modal.classList.remove('hidden');
@@ -2452,6 +2457,8 @@ ${p.sourceContext ? `
     this._optimizedContent = null;
     this._optimizeProviderId = null;
     this.editingId = null;
+    this.modalOutputModality = '';
+    this.modalForceOutputModality = '';
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
     this.resetContractBuilder();
@@ -2859,6 +2866,8 @@ ${p.sourceContext ? `
         .split(/[,\n，、]/)
         .map(tag => tag.trim())
         .filter(Boolean),
+      output_modality: this.modalOutputModality || '',
+      force_output_modality: this.modalForceOutputModality || '',
       shortcut: document.getElementById('shortcutInput').value.trim().replace(/^\//, '').replace(/[^a-zA-Z0-9_-]/g, ''),
       content: document.getElementById('contentInput').value.trim()
     };
