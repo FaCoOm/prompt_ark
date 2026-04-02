@@ -488,15 +488,30 @@
           <input type="hidden" id="categoryInput">
           <input type="hidden" id="categoryTypeInput">
           <input type="hidden" id="categoryKeyInput">
-          <input type="hidden" id="recommendedCategoryKeyInput">
           <div class="category-editor">
-            <select id="systemCategorySelect"></select>
-            <div class="category-editor-actions">
-              <button type="button" id="applyRecommendedCategoryBtn" class="btn btn-secondary btn-small hidden"></button>
-              <button type="button" id="toggleCustomCategoryBtn" class="btn btn-secondary btn-small"></button>
+            <div class="category-editor-row">
+              <div class="category-combobox">
+                <div class="category-input-shell">
+                  <input type="text" id="categorySearchInput" data-i18n-placeholder="categorySearchPlaceholder"
+                    placeholder="搜索或选择分类" autocomplete="off" spellcheck="false">
+                  <button type="button" id="categoryDropdownToggle" class="category-dropdown-toggle"
+                    aria-label="Toggle category dropdown">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+                <div id="categoryDropdown" class="category-dropdown hidden"></div>
+              </div>
+              <div class="category-source-selector" role="tablist" aria-label="Category source">
+                <button type="button" class="category-source-btn active" data-category-source="system"
+                  data-i18n="systemCategories">系统分类</button>
+                <button type="button" class="category-source-btn" data-category-source="mine"
+                  data-i18n="customCategories">我的分类</button>
+                <button type="button" class="category-source-btn" data-category-source="custom"
+                  data-i18n="customCategoryMode">自定义</button>
+              </div>
             </div>
-            <input type="text" id="customCategoryInput" class="hidden">
-            <div id="categoryStatus" class="category-status hidden"></div>
           </div>
         </div>
 

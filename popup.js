@@ -17,6 +17,11 @@ const CONTEXT_VAR_ITEMS = [
   { token: '{{@date}}', labelKey: 'contextVarDate', descKey: 'contextVarDateDesc' },
   { token: '{{@page_text}}', labelKey: 'contextVarPageText', descKey: 'contextVarPageTextDesc' }
 ];
+const CATEGORY_FORM_SOURCES = {
+  SYSTEM: 'system',
+  MINE: 'mine',
+  CUSTOM: 'custom',
+};
 
 class PopupManager {
   constructor() {
@@ -36,6 +41,7 @@ class PopupManager {
       [CATEGORY_TYPES.SYSTEM]: false,
       [CATEGORY_TYPES.CUSTOM]: false,
     };
+    this.categoryFormState = this.createCategoryFormState();
     this.pendingRevealPromptId = null;
     this.revealPromptTimer = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -148,6 +154,9 @@ class PopupManager {
     this.updateControlStates();
     this.updateGithubTokenPanel();
     this.renderContextVarPopover();
+    this.updateCategorySourceButtons();
+    this.updateCategoryInputMode();
+    this.renderCategoryDropdown();
     this.renderModalityFilters();
     if (this.prompts.length > 0) {
       void this.renderCategories();
@@ -739,96 +748,203 @@ class PopupManager {
     `;
   }
 
-  async populateSystemCategorySelect(selectedKey = '') {
-    const select = document.getElementById('systemCategorySelect');
-    if (!select) return;
-
-    const categories = await getSystemCategoryOptions(i18n.getLanguage());
-    select.innerHTML = [
-      `<option value="">${this.escapeHtml(i18n.t('categorySelectPlaceholder'))}</option>`,
-      ...categories.map(cat => `<option value="${this.escapeHtml(cat.id)}">${this.escapeHtml(cat.label)}</option>`)
-    ].join('');
-    select.value = selectedKey || '';
+  createCategoryFormState() {
+    return {
+      source: CATEGORY_FORM_SOURCES.SYSTEM,
+      query: '',
+      selectedKey: '',
+      selectedLabel: '',
+      open: false,
+      systemOptions: [],
+      customOptions: [],
+    };
   }
 
-  async setCategoryFormValue(prompt = null) {
-    const categoryInput = document.getElementById('categoryInput');
-    const categoryTypeInput = document.getElementById('categoryTypeInput');
-    const categoryKeyInput = document.getElementById('categoryKeyInput');
-    const recommendedCategoryKeyInput = document.getElementById('recommendedCategoryKeyInput');
-    const systemCategorySelect = document.getElementById('systemCategorySelect');
-    const customCategoryInput = document.getElementById('customCategoryInput');
-    const applyRecommendedBtn = document.getElementById('applyRecommendedCategoryBtn');
-    const categoryStatus = document.getElementById('categoryStatus');
+  async loadCategoryFormOptions() {
+    const systemOptions = await getSystemCategoryOptions(i18n.getLanguage());
+    this.categoryFormState.systemOptions = systemOptions.map((cat) => ({
+      source: CATEGORY_FORM_SOURCES.SYSTEM,
+      key: cat.id,
+      label: cat.label,
+    }));
+    this.categoryFormState.customOptions = getCustomCategoryOptions(this.prompts).map((cat) => ({
+      source: CATEGORY_FORM_SOURCES.MINE,
+      key: cat,
+      label: cat,
+    }));
+  }
 
-    const categoryType = prompt?.category_type || '';
-    const categoryKey = prompt?.category_key || '';
-    const displayCategory = prompt ? (await derivePromptCategory(prompt, i18n.getLanguage())) : '';
+  getCategoryFormOptions(source = this.categoryFormState.source) {
+    if (source === CATEGORY_FORM_SOURCES.SYSTEM) return this.categoryFormState.systemOptions;
+    if (source === CATEGORY_FORM_SOURCES.MINE) return this.categoryFormState.customOptions;
+    return [];
+  }
 
-    await this.populateSystemCategorySelect(categoryType === CATEGORY_TYPES.CUSTOM ? '' : categoryKey);
+  getCategoryFormFilterQuery() {
+    const query = String(this.categoryFormState.query || '').trim();
+    const selectedLabel = String(this.categoryFormState.selectedLabel || '').trim();
+    if (this.categoryFormState.selectedKey && query === selectedLabel) return '';
+    return query.toLowerCase();
+  }
 
-    categoryInput.value = displayCategory || '';
-    categoryTypeInput.value = categoryType;
-    categoryKeyInput.value = categoryKey;
-    recommendedCategoryKeyInput.value = prompt?.category_type === CATEGORY_TYPES.PENDING ? categoryKey : '';
+  getFilteredCategoryFormOptions(source = this.categoryFormState.source) {
+    const options = this.getCategoryFormOptions(source);
+    const query = this.getCategoryFormFilterQuery();
+    if (!query) return options;
 
-    if (customCategoryInput) {
-      const isCustom = categoryType === CATEGORY_TYPES.CUSTOM;
-      customCategoryInput.classList.toggle('hidden', !isCustom);
-      customCategoryInput.value = isCustom ? categoryKey : '';
+    return options.filter((option) => {
+      const label = String(option.label || '').toLowerCase();
+      const key = String(option.key || '').toLowerCase();
+      return label.includes(query) || key.includes(query);
+    });
+  }
+
+  updateCategorySourceButtons() {
+    document.querySelectorAll('[data-category-source]').forEach((button) => {
+      const isActive = button.dataset.categorySource === this.categoryFormState.source;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  updateCategoryInputMode() {
+    const input = document.getElementById('categorySearchInput');
+    const toggle = document.getElementById('categoryDropdownToggle');
+    if (!input || !toggle) return;
+
+    const isCustomMode = this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM;
+    input.placeholder = i18n.t(isCustomMode ? 'customCategoryPlaceholder' : 'categorySearchPlaceholder');
+    input.setAttribute('aria-autocomplete', isCustomMode ? 'none' : 'list');
+    toggle.disabled = isCustomMode;
+    toggle.classList.toggle('hidden', isCustomMode);
+  }
+
+  renderCategoryDropdown() {
+    const dropdown = document.getElementById('categoryDropdown');
+    const toggle = document.getElementById('categoryDropdownToggle');
+    if (!dropdown || !toggle) return;
+
+    if (!this.categoryFormState.open || this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM) {
+      dropdown.classList.add('hidden');
+      toggle.classList.remove('open');
+      return;
     }
 
-    if (systemCategorySelect && categoryType === CATEGORY_TYPES.CUSTOM) {
-      systemCategorySelect.value = '';
+    const options = this.getFilteredCategoryFormOptions();
+    dropdown.innerHTML = options.length
+      ? options.map((option) => `
+          <button type="button"
+                  class="category-option ${this.categoryFormState.selectedKey === option.key ? 'active' : ''}"
+                  data-category-option-key="${this.escapeHtml(option.key)}"
+                  data-category-option-label="${this.escapeHtml(option.label)}">
+            <span class="category-option-label">${this.escapeHtml(option.label)}</span>
+            <span class="category-option-kind">${this.escapeHtml(option.source === CATEGORY_FORM_SOURCES.SYSTEM ? i18n.t('systemCategories') : i18n.t('customCategories'))}</span>
+          </button>
+        `).join('')
+      : `<div class="category-dropdown-empty">${this.escapeHtml(i18n.t('categoryEmptyState'))}</div>`;
+
+    dropdown.classList.remove('hidden');
+    toggle.classList.add('open');
+  }
+
+  openCategoryDropdown() {
+    if (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM) return;
+    this.categoryFormState.open = true;
+    this.renderCategoryDropdown();
+  }
+
+  closeCategoryDropdown() {
+    this.categoryFormState.open = false;
+    this.renderCategoryDropdown();
+  }
+
+  setCategoryFormSource(source, options = {}) {
+    const input = document.getElementById('categorySearchInput');
+    if (!input) return;
+
+    const query = options.query !== undefined ? String(options.query || '') : '';
+    const selectedKey = options.selectedKey !== undefined ? String(options.selectedKey || '') : '';
+    const selectedLabel = options.selectedLabel !== undefined ? String(options.selectedLabel || '') : '';
+
+    this.categoryFormState.source = source;
+    this.categoryFormState.query = query;
+    this.categoryFormState.selectedKey = selectedKey;
+    this.categoryFormState.selectedLabel = selectedLabel;
+
+    input.value = query;
+    this.updateCategorySourceButtons();
+    this.updateCategoryInputMode();
+    this.syncCategoryFormState();
+
+    if (options.openDropdown) {
+      this.openCategoryDropdown();
+    } else {
+      this.closeCategoryDropdown();
     }
 
-    if (applyRecommendedBtn) {
-      applyRecommendedBtn.textContent = i18n.t('useRecommendedCategory');
-      applyRecommendedBtn.classList.toggle('hidden', categoryType !== CATEGORY_TYPES.PENDING);
-    }
-
-    if (categoryStatus) {
-      if (categoryType === CATEGORY_TYPES.PENDING && displayCategory) {
-        categoryStatus.textContent = `${displayCategory} · ${i18n.t('categoryPendingHint')}`;
-        categoryStatus.classList.remove('hidden');
+    if (options.focusInput) {
+      input.focus();
+      if (source === CATEGORY_FORM_SOURCES.CUSTOM) {
+        input.setSelectionRange(input.value.length, input.value.length);
       } else {
-        categoryStatus.classList.add('hidden');
-        categoryStatus.textContent = '';
+        input.select();
       }
     }
+  }
 
-    const toggleCustomBtn = document.getElementById('toggleCustomCategoryBtn');
-    if (toggleCustomBtn) {
-      toggleCustomBtn.textContent = i18n.t('customCategoryToggle');
-    }
+  selectCategoryFormOption(optionKey, optionLabel) {
+    this.categoryFormState.selectedKey = String(optionKey || '');
+    this.categoryFormState.selectedLabel = String(optionLabel || '');
+    this.categoryFormState.query = String(optionLabel || '');
+
+    const input = document.getElementById('categorySearchInput');
+    if (input) input.value = this.categoryFormState.query;
+
+    this.syncCategoryFormState();
+    this.closeCategoryDropdown();
   }
 
   syncCategoryFormState() {
     const categoryInput = document.getElementById('categoryInput');
     const categoryTypeInput = document.getElementById('categoryTypeInput');
     const categoryKeyInput = document.getElementById('categoryKeyInput');
-    const systemCategorySelect = document.getElementById('systemCategorySelect');
-    const customCategoryInput = document.getElementById('customCategoryInput');
+    const searchInput = document.getElementById('categorySearchInput');
+    if (!categoryInput || !categoryTypeInput || !categoryKeyInput || !searchInput) return;
 
-    const customValue = customCategoryInput?.classList.contains('hidden')
-      ? ''
-      : String(customCategoryInput?.value || '').trim();
-    const systemValue = String(systemCategorySelect?.value || '').trim();
+    const inputValue = String(searchInput.value || '').trim();
+    const { source, selectedKey, selectedLabel } = this.categoryFormState;
 
-    if (customValue) {
-      categoryTypeInput.value = CATEGORY_TYPES.CUSTOM;
-      categoryKeyInput.value = customValue;
-      categoryInput.value = customValue;
+    if (source === CATEGORY_FORM_SOURCES.CUSTOM) {
+      categoryTypeInput.value = inputValue ? CATEGORY_TYPES.CUSTOM : '';
+      categoryKeyInput.value = inputValue;
+      categoryInput.value = inputValue;
       return;
     }
 
-    if (systemValue) {
-      if (categoryTypeInput.value !== CATEGORY_TYPES.PENDING) {
-        categoryTypeInput.value = CATEGORY_TYPES.SYSTEM;
+    let resolvedKey = selectedKey;
+    let resolvedLabel = String(selectedLabel || '').trim();
+
+    if (!resolvedKey && inputValue) {
+      const exactMatch = this.getCategoryFormOptions(source).find((option) => {
+        const label = String(option.label || '').trim().toLowerCase();
+        const key = String(option.key || '').trim().toLowerCase();
+        const target = inputValue.toLowerCase();
+        return label === target || key === target;
+      });
+      if (exactMatch) {
+        resolvedKey = exactMatch.key;
+        resolvedLabel = exactMatch.label;
+        this.categoryFormState.selectedKey = exactMatch.key;
+        this.categoryFormState.selectedLabel = exactMatch.label;
       }
-      categoryKeyInput.value = systemValue;
-      const option = systemCategorySelect.options[systemCategorySelect.selectedIndex];
-      categoryInput.value = option?.textContent || '';
+    }
+
+    if (resolvedKey && inputValue && inputValue === resolvedLabel) {
+      categoryTypeInput.value = source === CATEGORY_FORM_SOURCES.SYSTEM
+        ? CATEGORY_TYPES.SYSTEM
+        : CATEGORY_TYPES.CUSTOM;
+      categoryKeyInput.value = resolvedKey;
+      categoryInput.value = inputValue;
       return;
     }
 
@@ -837,42 +953,41 @@ class PopupManager {
     categoryInput.value = '';
   }
 
-  setSystemCategoryMode() {
-    const customCategoryInput = document.getElementById('customCategoryInput');
-    if (customCategoryInput) {
-      customCategoryInput.value = '';
-      customCategoryInput.classList.add('hidden');
+  async setCategoryFormValue(prompt = null) {
+    this.categoryFormState = this.createCategoryFormState();
+    await this.loadCategoryFormOptions();
+
+    const categoryType = prompt?.category_type === CATEGORY_TYPES.CUSTOM
+      ? CATEGORY_TYPES.CUSTOM
+      : prompt?.category_type === CATEGORY_TYPES.PENDING
+        ? CATEGORY_TYPES.SYSTEM
+        : (prompt?.category_type || '');
+    const categoryKey = prompt?.category_key || '';
+    const displayCategory = prompt ? (await derivePromptCategory(prompt, i18n.getLanguage())) : '';
+
+    if (categoryType === CATEGORY_TYPES.CUSTOM && categoryKey) {
+      this.setCategoryFormSource(CATEGORY_FORM_SOURCES.MINE, {
+        query: categoryKey,
+        selectedKey: categoryKey,
+        selectedLabel: categoryKey,
+      });
+      return;
     }
-    document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.SYSTEM;
-    this.syncCategoryFormState();
-  }
 
-  toggleCustomCategoryMode() {
-    const customCategoryInput = document.getElementById('customCategoryInput');
-    const systemCategorySelect = document.getElementById('systemCategorySelect');
-    if (!customCategoryInput || !systemCategorySelect) return;
-
-    customCategoryInput.classList.toggle('hidden');
-    if (!customCategoryInput.classList.contains('hidden')) {
-      systemCategorySelect.value = '';
-      document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.CUSTOM;
-      customCategoryInput.focus();
-    } else {
-      customCategoryInput.value = '';
+    if (categoryType === CATEGORY_TYPES.SYSTEM && categoryKey) {
+      this.setCategoryFormSource(CATEGORY_FORM_SOURCES.SYSTEM, {
+        query: displayCategory,
+        selectedKey: categoryKey,
+        selectedLabel: displayCategory,
+      });
+      return;
     }
-    this.syncCategoryFormState();
-  }
 
-  applyRecommendedCategory() {
-    const recommendedKey = document.getElementById('recommendedCategoryKeyInput')?.value || '';
-    const systemCategorySelect = document.getElementById('systemCategorySelect');
-    if (!recommendedKey || !systemCategorySelect) return;
-
-    systemCategorySelect.value = recommendedKey;
-    document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.SYSTEM;
-    this.syncCategoryFormState();
-    document.getElementById('categoryStatus')?.classList.add('hidden');
-    document.getElementById('applyRecommendedCategoryBtn')?.classList.add('hidden');
+    this.setCategoryFormSource(CATEGORY_FORM_SOURCES.SYSTEM, {
+      query: '',
+      selectedKey: '',
+      selectedLabel: '',
+    });
   }
 
   getCategoryFormPayload() {
@@ -1324,20 +1439,102 @@ ${p.sourceContext ? `
       this.showToast(i18n.t('renameCategory') + ': ' + trimmed);
     });
 
-    document.getElementById('systemCategorySelect')?.addEventListener('change', () => {
-      this.setSystemCategoryMode();
+    document.querySelector('.category-source-selector')?.addEventListener('click', (e) => {
+      const button = e.target.closest('button[data-category-source]');
+      if (!button) return;
+
+      const source = button.dataset.categorySource;
+      if (source === this.categoryFormState.source) {
+        if (source === CATEGORY_FORM_SOURCES.CUSTOM) {
+          document.getElementById('categorySearchInput')?.focus();
+        } else {
+          this.openCategoryDropdown();
+          document.getElementById('categorySearchInput')?.focus();
+        }
+        return;
+      }
+
+      this.setCategoryFormSource(source, {
+        query: '',
+        selectedKey: '',
+        selectedLabel: '',
+        focusInput: true,
+        openDropdown: source !== CATEGORY_FORM_SOURCES.CUSTOM,
+      });
     });
 
-    document.getElementById('toggleCustomCategoryBtn')?.addEventListener('click', () => {
-      this.toggleCustomCategoryMode();
+    document.getElementById('categorySearchInput')?.addEventListener('focus', () => {
+      if (this.categoryFormState.source !== CATEGORY_FORM_SOURCES.CUSTOM) {
+        this.openCategoryDropdown();
+      }
     });
 
-    document.getElementById('customCategoryInput')?.addEventListener('input', () => {
+    document.getElementById('categorySearchInput')?.addEventListener('click', () => {
+      if (this.categoryFormState.source !== CATEGORY_FORM_SOURCES.CUSTOM) {
+        this.openCategoryDropdown();
+      }
+    });
+
+    document.getElementById('categorySearchInput')?.addEventListener('input', (e) => {
+      const value = String(e.target.value || '');
+      this.categoryFormState.query = value;
+
+      if (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM) {
+        this.categoryFormState.selectedKey = '';
+        this.categoryFormState.selectedLabel = value.trim();
+        this.syncCategoryFormState();
+        return;
+      }
+
+      if (value.trim() !== this.categoryFormState.selectedLabel) {
+        this.categoryFormState.selectedKey = '';
+        this.categoryFormState.selectedLabel = '';
+      }
       this.syncCategoryFormState();
+      this.openCategoryDropdown();
     });
 
-    document.getElementById('applyRecommendedCategoryBtn')?.addEventListener('click', () => {
-      this.applyRecommendedCategory();
+    document.getElementById('categorySearchInput')?.addEventListener('keydown', (e) => {
+      if (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM) return;
+
+      if (e.key === 'Escape') {
+        this.closeCategoryDropdown();
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.openCategoryDropdown();
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const firstOption = this.getFilteredCategoryFormOptions()[0];
+        if (!firstOption) return;
+        e.preventDefault();
+        this.selectCategoryFormOption(firstOption.key, firstOption.label);
+      }
+    });
+
+    document.getElementById('categoryDropdownToggle')?.addEventListener('click', () => {
+      if (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM) return;
+      if (this.categoryFormState.open) {
+        this.closeCategoryDropdown();
+      } else {
+        this.openCategoryDropdown();
+      }
+    });
+
+    document.getElementById('categoryDropdown')?.addEventListener('click', (e) => {
+      const option = e.target.closest('button[data-category-option-key]');
+      if (!option) return;
+      this.selectCategoryFormOption(option.dataset.categoryOptionKey, option.dataset.categoryOptionLabel);
+    });
+
+    document.addEventListener('click', (e) => {
+      const editor = document.querySelector('.category-editor');
+      if (!editor || editor.contains(e.target)) return;
+      this.closeCategoryDropdown();
     });
 
     // Prompt list actions (delegated)
@@ -1454,8 +1651,11 @@ ${p.sourceContext ? `
         if (resp && resp.success && resp.data) {
           if (resp.data.title) titleInput.value = resp.data.title;
           if (resp.data.category && categoryPayload.category_type === CATEGORY_TYPES.CUSTOM) {
-            document.getElementById('customCategoryInput').value = resp.data.category;
-            this.syncCategoryFormState();
+            this.setCategoryFormSource(CATEGORY_FORM_SOURCES.CUSTOM, {
+              query: resp.data.category,
+              selectedKey: '',
+              selectedLabel: '',
+            });
           }
           if (resp.data.tags && tagsInput) {
             tagsInput.value = Array.isArray(resp.data.tags)
@@ -2241,6 +2441,7 @@ ${p.sourceContext ? `
 
   hideEditModal() {
     document.getElementById('editModal').classList.add('hidden');
+    this.closeCategoryDropdown();
     document.getElementById('mdPreview').classList.add('hidden');
     document.getElementById('contentInput').classList.remove('hidden');
     document.getElementById('previewToggle').textContent = i18n.t('preview');
