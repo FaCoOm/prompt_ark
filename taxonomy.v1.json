@@ -1,0 +1,94 @@
+{
+  "version": "taxonomy.v1",
+  "scheme_id": "prompt-domains-v1",
+  "scheme_label": "Prompt Domains",
+
+  "modalities": [
+    { "id": "text", "label_zh": "文本", "label_en": "Text" },
+    { "id": "image", "label_zh": "图像", "label_en": "Image" },
+    { "id": "video", "label_zh": "视频", "label_en": "Video" }
+  ],
+
+  "domains": [
+    {
+      "authority_category_id": "general_productivity",
+      "label_zh": "通用与效率",
+      "label_en": "General & Productivity",
+      "alt_labels": ["通用助手", "效率", "整理", "计划"],
+      "sort_order": 10,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "writing_editing",
+      "label_zh": "写作与编辑",
+      "label_en": "Writing & Editing",
+      "alt_labels": ["写作", "改写", "润色", "翻译", "摘要"],
+      "sort_order": 20,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "marketing_brand",
+      "label_zh": "营销与品牌",
+      "label_en": "Marketing & Brand",
+      "alt_labels": ["营销", "品牌", "广告", "社媒", "增长"],
+      "sort_order": 30,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "sales_support",
+      "label_zh": "销售与客服",
+      "label_en": "Sales & Support",
+      "alt_labels": ["销售", "客服", "FAQ", "售前", "售后"],
+      "sort_order": 40,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "business_ops",
+      "label_zh": "商业与运营",
+      "label_en": "Business & Operations",
+      "alt_labels": ["运营", "商业", "项目管理", "SOP", "复盘"],
+      "sort_order": 50,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "research_learning",
+      "label_zh": "研究与学习",
+      "label_en": "Research & Learning",
+      "alt_labels": ["调研", "研究", "学习", "知识整理", "讲解"],
+      "sort_order": 60,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "coding_dev",
+      "label_zh": "编程与开发",
+      "label_en": "Coding & Development",
+      "alt_labels": ["编程", "开发", "代码", "调试", "测试"],
+      "sort_order": 70,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "data_analytics",
+      "label_zh": "数据与分析",
+      "label_en": "Data & Analytics",
+      "alt_labels": ["数据", "分析", "SQL", "报表", "指标"],
+      "sort_order": 80,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "design_visual",
+      "label_zh": "设计与视觉",
+      "label_en": "Design & Visual",
+      "alt_labels": ["设计", "视觉", "UI", "Logo", "海报"],
+      "sort_order": 90,
+      "is_active": true
+    },
+    {
+      "authority_category_id": "creative_media",
+      "label_zh": "创意与媒体",
+      "label_en": "Creative & Media",
+      "alt_labels": ["创意", "媒体", "插画", "分镜", "短视频"],
+      "sort_order": 100,
+      "is_active": true
+    }
+  ]
+}

@@ -433,6 +433,11 @@
       </div>
     </div>
 
+    <!-- 模态筛选 -->
+    <div class="categories modality-filters" id="modalityFilters">
+      <button class="category-tag active" data-modality="all">全部</button>
+    </div>
+
     <!-- 分类标签 -->
     <div class="categories" id="categories">
       <button class="category-tag active" data-category="all" data-i18n="categoryAll">全部</button>
@@ -476,8 +481,19 @@
 
         <div class="form-group">
           <label for="categoryInput" data-i18n="category">分类</label>
-          <input type="text" id="categoryInput" list="categoryList">
-          <datalist id="categoryList"></datalist>
+          <input type="hidden" id="categoryInput">
+          <input type="hidden" id="categoryTypeInput">
+          <input type="hidden" id="categoryKeyInput">
+          <input type="hidden" id="recommendedCategoryKeyInput">
+          <div class="category-editor">
+            <select id="systemCategorySelect"></select>
+            <div class="category-editor-actions">
+              <button type="button" id="applyRecommendedCategoryBtn" class="btn btn-secondary btn-small hidden"></button>
+              <button type="button" id="toggleCustomCategoryBtn" class="btn btn-secondary btn-small"></button>
+            </div>
+            <input type="text" id="customCategoryInput" class="hidden">
+            <div id="categoryStatus" class="category-status hidden"></div>
+          </div>
         </div>
 
         <div class="form-group">

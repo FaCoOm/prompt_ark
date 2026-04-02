@@ -7,6 +7,7 @@ import { ContentAnalyzer } from './lib/analyzer.js';
 import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime, highlightVariables } from './lib/popup/utils.js';
 import { HistoryPanel } from './lib/popup/history-panel.js';
 import { ShareManager } from './lib/popup/share-manager.js';
+import { CATEGORY_TYPES, getSystemCategoryOptions, getCustomCategoryOptions, derivePromptCategory } from './lib/taxonomy.js';
 
 const CONTEXT_VAR_PATTERN = /\{\{(@page_text|@selection|@page_url|@page_title|@date)\}\}/g;
 const CONTEXT_VAR_ITEMS = [
@@ -23,6 +24,7 @@ class PopupManager {
     this.providers = [];
     this.activeProviderId = null;
     this.currentCategory = 'all';
+    this.currentModality = 'all';
     this.editingId = null;
     this.activeViewMode = 'smart';
     this.currentPage = 1;
@@ -59,7 +61,8 @@ class PopupManager {
     await this.loadPrompts();
     await this.loadSettings();
     await this.loadGithubToken();
-    this.renderCategories();
+    this.renderModalityFilters();
+    await this.renderCategories();
     this.renderPrompts();
     this.bindEvents();
     await this.consumePendingPromptReveal();
@@ -105,7 +108,8 @@ class PopupManager {
             // New prompt (e.g. from Smart Convert / Add to Prompt Ark)
             this.prompts.unshift(msg.prompt);
           }
-          this.renderCategories();
+          this.renderModalityFilters();
+          void this.renderCategories();
           this.renderPrompts();
           if (msg.action === 'create' && msg.prompt?.id) {
             this.pendingRevealPromptId = String(msg.prompt.id);
@@ -114,7 +118,8 @@ class PopupManager {
         } else {
           // Full reload fallback (e.g. force-sync from remote)
           this.loadPrompts().then(() => {
-            this.renderCategories();
+            this.renderModalityFilters();
+            void this.renderCategories();
             this.renderPrompts();
             this.consumePendingPromptReveal();
           });
@@ -136,8 +141,9 @@ class PopupManager {
     this.updateControlStates();
     this.updateGithubTokenPanel();
     this.renderContextVarPopover();
+    this.renderModalityFilters();
     if (this.prompts.length > 0) {
-      this.renderCategories();
+      void this.renderCategories();
     }
   }
 
@@ -561,32 +567,224 @@ class PopupManager {
 
   // --- Category Rendering ---
 
-  renderCategories() {
-    const container = document.getElementById('categories');
-    const categories = this.getCategories();
+  renderModalityFilters() {
+    const container = document.getElementById('modalityFilters');
+    if (!container) return;
 
-    container.innerHTML = `
-      <button class="category-tag ${this.currentCategory === 'all' ? 'active' : ''}" data-category="all">${i18n.t('categoryAll')}</button>
-      ${categories.map(cat => `
-        <button class="category-tag ${this.currentCategory === cat ? 'active' : ''}" 
-                data-category="${this.escapeHtml(cat)}">
-          ${this.escapeHtml(cat)}
-        </button>
-      `).join('')}
-    `;
+    const options = [
+      { id: 'all', label: i18n.t('modalityAll') },
+      { id: 'text', label: i18n.t('modalityText') },
+      { id: 'image', label: i18n.t('modalityImage') },
+      { id: 'video', label: i18n.t('modalityVideo') },
+    ];
 
-    const datalist = document.getElementById('categoryList');
-    datalist.innerHTML = categories.map(cat =>
-      `<option value="${this.escapeHtml(cat)}">`
-    ).join('');
+    container.innerHTML = options.map((option) => `
+      <button class="category-tag ${this.currentModality === option.id ? 'active' : ''}" data-modality="${option.id}">
+        ${this.escapeHtml(option.label)}
+      </button>
+    `).join('');
   }
 
-  getCategories() {
-    const categories = new Set();
-    this.prompts.forEach(p => {
-      if (p.category) categories.add(p.category);
-    });
-    return Array.from(categories).sort();
+  getCategoryFilterToken(prompt) {
+    if (!prompt?.category_type || !prompt?.category_key) return '';
+    const type = prompt.category_type === CATEGORY_TYPES.PENDING
+      ? CATEGORY_TYPES.SYSTEM
+      : prompt.category_type;
+    return `${type}:${prompt.category_key}`;
+  }
+
+  async renderCategories() {
+    const container = document.getElementById('categories');
+    if (!container) return;
+
+    const systemCategories = await getSystemCategoryOptions(i18n.getLanguage());
+    const customCategories = getCustomCategoryOptions(this.prompts);
+
+    const systemButtons = systemCategories.map((cat) => {
+      const token = `${CATEGORY_TYPES.SYSTEM}:${cat.id}`;
+      return `
+        <button class="category-tag ${this.currentCategory === token ? 'active' : ''}"
+                data-category="${this.escapeHtml(token)}"
+                data-category-type="${CATEGORY_TYPES.SYSTEM}"
+                data-category-key="${this.escapeHtml(cat.id)}">
+          ${this.escapeHtml(cat.label)}
+        </button>
+      `;
+    }).join('');
+
+    const customButtons = customCategories.map((cat) => {
+      const token = `${CATEGORY_TYPES.CUSTOM}:${cat}`;
+      return `
+        <button class="category-tag ${this.currentCategory === token ? 'active' : ''}"
+                data-category="${this.escapeHtml(token)}"
+                data-category-type="${CATEGORY_TYPES.CUSTOM}"
+                data-category-key="${this.escapeHtml(cat)}">
+          ${this.escapeHtml(cat)}
+        </button>
+      `;
+    }).join('');
+
+    container.classList.add('category-sectioned');
+    container.innerHTML = `
+      <div class="category-filter-group">
+        <button class="category-tag ${this.currentCategory === 'all' ? 'active' : ''}" data-category="all">${i18n.t('categoryAll')}</button>
+      </div>
+      <div class="category-filter-group">
+        <span class="category-filter-label">${i18n.t('systemCategories')}</span>
+        ${systemButtons}
+      </div>
+      ${customButtons ? `
+        <div class="category-filter-group">
+          <span class="category-filter-label">${i18n.t('customCategories')}</span>
+          ${customButtons}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  async populateSystemCategorySelect(selectedKey = '') {
+    const select = document.getElementById('systemCategorySelect');
+    if (!select) return;
+
+    const categories = await getSystemCategoryOptions(i18n.getLanguage());
+    select.innerHTML = [
+      `<option value="">${this.escapeHtml(i18n.t('categorySelectPlaceholder'))}</option>`,
+      ...categories.map(cat => `<option value="${this.escapeHtml(cat.id)}">${this.escapeHtml(cat.label)}</option>`)
+    ].join('');
+    select.value = selectedKey || '';
+  }
+
+  async setCategoryFormValue(prompt = null) {
+    const categoryInput = document.getElementById('categoryInput');
+    const categoryTypeInput = document.getElementById('categoryTypeInput');
+    const categoryKeyInput = document.getElementById('categoryKeyInput');
+    const recommendedCategoryKeyInput = document.getElementById('recommendedCategoryKeyInput');
+    const systemCategorySelect = document.getElementById('systemCategorySelect');
+    const customCategoryInput = document.getElementById('customCategoryInput');
+    const applyRecommendedBtn = document.getElementById('applyRecommendedCategoryBtn');
+    const categoryStatus = document.getElementById('categoryStatus');
+
+    const categoryType = prompt?.category_type || '';
+    const categoryKey = prompt?.category_key || '';
+    const displayCategory = prompt ? (await derivePromptCategory(prompt, i18n.getLanguage())) : '';
+
+    await this.populateSystemCategorySelect(categoryType === CATEGORY_TYPES.CUSTOM ? '' : categoryKey);
+
+    categoryInput.value = displayCategory || '';
+    categoryTypeInput.value = categoryType;
+    categoryKeyInput.value = categoryKey;
+    recommendedCategoryKeyInput.value = prompt?.category_type === CATEGORY_TYPES.PENDING ? categoryKey : '';
+
+    if (customCategoryInput) {
+      const isCustom = categoryType === CATEGORY_TYPES.CUSTOM;
+      customCategoryInput.classList.toggle('hidden', !isCustom);
+      customCategoryInput.value = isCustom ? categoryKey : '';
+    }
+
+    if (systemCategorySelect && categoryType === CATEGORY_TYPES.CUSTOM) {
+      systemCategorySelect.value = '';
+    }
+
+    if (applyRecommendedBtn) {
+      applyRecommendedBtn.textContent = i18n.t('useRecommendedCategory');
+      applyRecommendedBtn.classList.toggle('hidden', categoryType !== CATEGORY_TYPES.PENDING);
+    }
+
+    if (categoryStatus) {
+      if (categoryType === CATEGORY_TYPES.PENDING && displayCategory) {
+        categoryStatus.textContent = `${displayCategory} · ${i18n.t('categoryPendingHint')}`;
+        categoryStatus.classList.remove('hidden');
+      } else {
+        categoryStatus.classList.add('hidden');
+        categoryStatus.textContent = '';
+      }
+    }
+
+    const toggleCustomBtn = document.getElementById('toggleCustomCategoryBtn');
+    if (toggleCustomBtn) {
+      toggleCustomBtn.textContent = i18n.t('customCategoryToggle');
+    }
+  }
+
+  syncCategoryFormState() {
+    const categoryInput = document.getElementById('categoryInput');
+    const categoryTypeInput = document.getElementById('categoryTypeInput');
+    const categoryKeyInput = document.getElementById('categoryKeyInput');
+    const systemCategorySelect = document.getElementById('systemCategorySelect');
+    const customCategoryInput = document.getElementById('customCategoryInput');
+
+    const customValue = customCategoryInput?.classList.contains('hidden')
+      ? ''
+      : String(customCategoryInput?.value || '').trim();
+    const systemValue = String(systemCategorySelect?.value || '').trim();
+
+    if (customValue) {
+      categoryTypeInput.value = CATEGORY_TYPES.CUSTOM;
+      categoryKeyInput.value = customValue;
+      categoryInput.value = customValue;
+      return;
+    }
+
+    if (systemValue) {
+      if (categoryTypeInput.value !== CATEGORY_TYPES.PENDING) {
+        categoryTypeInput.value = CATEGORY_TYPES.SYSTEM;
+      }
+      categoryKeyInput.value = systemValue;
+      const option = systemCategorySelect.options[systemCategorySelect.selectedIndex];
+      categoryInput.value = option?.textContent || '';
+      return;
+    }
+
+    categoryTypeInput.value = '';
+    categoryKeyInput.value = '';
+    categoryInput.value = '';
+  }
+
+  setSystemCategoryMode() {
+    const customCategoryInput = document.getElementById('customCategoryInput');
+    if (customCategoryInput) {
+      customCategoryInput.value = '';
+      customCategoryInput.classList.add('hidden');
+    }
+    document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.SYSTEM;
+    this.syncCategoryFormState();
+  }
+
+  toggleCustomCategoryMode() {
+    const customCategoryInput = document.getElementById('customCategoryInput');
+    const systemCategorySelect = document.getElementById('systemCategorySelect');
+    if (!customCategoryInput || !systemCategorySelect) return;
+
+    customCategoryInput.classList.toggle('hidden');
+    if (!customCategoryInput.classList.contains('hidden')) {
+      systemCategorySelect.value = '';
+      document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.CUSTOM;
+      customCategoryInput.focus();
+    } else {
+      customCategoryInput.value = '';
+    }
+    this.syncCategoryFormState();
+  }
+
+  applyRecommendedCategory() {
+    const recommendedKey = document.getElementById('recommendedCategoryKeyInput')?.value || '';
+    const systemCategorySelect = document.getElementById('systemCategorySelect');
+    if (!recommendedKey || !systemCategorySelect) return;
+
+    systemCategorySelect.value = recommendedKey;
+    document.getElementById('categoryTypeInput').value = CATEGORY_TYPES.SYSTEM;
+    this.syncCategoryFormState();
+    document.getElementById('categoryStatus')?.classList.add('hidden');
+    document.getElementById('applyRecommendedCategoryBtn')?.classList.add('hidden');
+  }
+
+  getCategoryFormPayload() {
+    this.syncCategoryFormState();
+    return {
+      category: document.getElementById('categoryInput').value.trim(),
+      category_type: document.getElementById('categoryTypeInput').value.trim(),
+      category_key: document.getElementById('categoryKeyInput').value.trim(),
+    };
   }
 
   async getStoredPendingPromptReveal() {
@@ -627,8 +825,10 @@ class PopupManager {
 
     this.activeViewMode = 'recentAdded';
     this.currentCategory = 'all';
+    this.currentModality = 'all';
     this.currentPage = 1;
-    this.renderCategories();
+    this.renderModalityFilters();
+    void this.renderCategories();
     this.renderPrompts();
 
     const selector = `.prompt-item[data-id="${String(revealId).replace(/"/g, '\\"')}"]`;
@@ -759,8 +959,12 @@ class PopupManager {
       filtered = filtered.filter(viewConfig.predicate);
     }
 
+    if (this.currentModality !== 'all') {
+      filtered = filtered.filter(p => (p.output_modality || 'text') === this.currentModality);
+    }
+
     if (this.currentCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === this.currentCategory);
+      filtered = filtered.filter(p => this.getCategoryFilterToken(p) === this.currentCategory);
     }
 
     if (searchQuery) {
@@ -847,7 +1051,8 @@ class PopupManager {
           </div>
           <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
           <div class="prompt-meta">
-            ${p.category ? `<span class="prompt-category">${this.escapeHtml(p.category)}</span>` : ''}
+            ${p.category ? `<span class="prompt-category ${p.category_type === CATEGORY_TYPES.PENDING ? 'pending' : ''}">${this.escapeHtml(p.category)}</span>` : ''}
+            ${p.category_type === CATEGORY_TYPES.PENDING ? `<span class="prompt-category-status">${this.escapeHtml(i18n.t('categoryPending'))}</span>` : ''}
             ${p.tags && p.tags.length > 0 ? p.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
             ${p.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(p.shortcut)}</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
@@ -927,6 +1132,8 @@ ${p.sourceContext ? `
       this.localize();
       this.renderProviders();
       await chrome.runtime.sendMessage({ type: 'LANGUAGE_CHANGED' });
+      await this.loadPrompts();
+      await this.renderCategories();
       this.renderPrompts();
       if (!document.getElementById('editModal').classList.contains('hidden')) {
         this.updateShortcutVisibility();
@@ -944,12 +1151,23 @@ ${p.sourceContext ? `
       this.renderPrompts();
     });
 
+    // Modality filter
+    document.getElementById('modalityFilters').addEventListener('click', (e) => {
+      const tag = e.target.closest('.category-tag[data-modality]');
+      if (!tag) return;
+      this.currentModality = tag.dataset.modality;
+      this.currentPage = 1;
+      this.renderModalityFilters();
+      this.renderPrompts();
+    });
+
     // Category filter
     document.getElementById('categories').addEventListener('click', (e) => {
-      if (e.target.classList.contains('category-tag')) {
-        this.currentCategory = e.target.dataset.category;
+      const tag = e.target.closest('.category-tag[data-category]');
+      if (tag) {
+        this.currentCategory = tag.dataset.category;
         this.currentPage = 1;
-        this.renderCategories();
+        void this.renderCategories();
         this.renderPrompts();
       }
     });
@@ -958,24 +1176,44 @@ ${p.sourceContext ? `
     document.getElementById('categories').addEventListener('contextmenu', async (e) => {
       const tag = e.target.closest('.category-tag');
       if (!tag || tag.dataset.category === 'all') return;
+      if (tag.dataset.categoryType !== CATEGORY_TYPES.CUSTOM) {
+        this.showToast(i18n.t('renameSystemCategoryDisabled'));
+        return;
+      }
       e.preventDefault();
-      const oldName = tag.dataset.category;
+      const oldName = tag.dataset.categoryKey;
       const newName = prompt(i18n.t('renameCategoryPrompt'), oldName);
       if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
       const trimmed = newName.trim();
       this.prompts.forEach(p => {
-        if (p.category === oldName) p.category = trimmed;
+        if (p.category_type === CATEGORY_TYPES.CUSTOM && p.category_key === oldName) {
+          p.category_key = trimmed;
+          p.category = trimmed;
+        }
       });
       await chrome.runtime.sendMessage({ type: 'BATCH_RENAME_CATEGORY', oldName, newName: trimmed });
-      if (this.currentCategory === oldName) this.currentCategory = trimmed;
-      this.renderCategories();
+      if (this.currentCategory === `${CATEGORY_TYPES.CUSTOM}:${oldName}`) {
+        this.currentCategory = `${CATEGORY_TYPES.CUSTOM}:${trimmed}`;
+      }
+      void this.renderCategories();
       this.renderPrompts();
       this.showToast(i18n.t('renameCategory') + ': ' + trimmed);
     });
 
-    // Category datalist: clear on click to show all options
-    document.getElementById('categoryInput')?.addEventListener('mousedown', function() {
-      if (this.value) this.value = '';
+    document.getElementById('systemCategorySelect')?.addEventListener('change', () => {
+      this.setSystemCategoryMode();
+    });
+
+    document.getElementById('toggleCustomCategoryBtn')?.addEventListener('click', () => {
+      this.toggleCustomCategoryMode();
+    });
+
+    document.getElementById('customCategoryInput')?.addEventListener('input', () => {
+      this.syncCategoryFormState();
+    });
+
+    document.getElementById('applyRecommendedCategoryBtn')?.addEventListener('click', () => {
+      this.applyRecommendedCategory();
     });
 
     // Prompt list actions (delegated)
@@ -1064,9 +1302,9 @@ ${p.sourceContext ? `
       const btn = e.currentTarget;
       const targetLang = document.getElementById('translateTargetLang').value;
       const titleInput = document.getElementById('titleInput');
-      const categoryInput = document.getElementById('categoryInput');
       const tagsInput = document.getElementById('tagsInput');
       const contentInput = document.getElementById('contentInput');
+      const categoryPayload = this.getCategoryFormPayload();
 
       if (!contentInput.value.trim()) {
         this.showToast(i18n.t('contentEmpty') || 'Content is empty', 3000);
@@ -1083,7 +1321,7 @@ ${p.sourceContext ? `
           targetLanguage: targetLang,
           promptData: {
             title: titleInput.value.trim(),
-            category: categoryInput.value.trim(),
+            category: categoryPayload.category,
             tags: tagsInput?.value.trim() || '',
             content: contentInput.value.trim()
           }
@@ -1091,7 +1329,10 @@ ${p.sourceContext ? `
 
         if (resp && resp.success && resp.data) {
           if (resp.data.title) titleInput.value = resp.data.title;
-          if (resp.data.category) categoryInput.value = resp.data.category;
+          if (resp.data.category && categoryPayload.category_type === CATEGORY_TYPES.CUSTOM) {
+            document.getElementById('customCategoryInput').value = resp.data.category;
+            this.syncCategoryFormState();
+          }
           if (resp.data.tags && tagsInput) {
             tagsInput.value = Array.isArray(resp.data.tags)
               ? resp.data.tags.join(', ')
@@ -1272,12 +1513,13 @@ ${p.sourceContext ? `
       btn.textContent = originalText;
       btn.disabled = false;
 
-      if (resp.success) {
-        this.showToast(i18n.t(resp.message) || resp.message || 'WebDAV Sync Successful');
-        await this.loadPrompts();
-        this.currentPage = 1;
-        this.renderCategories();
-        this.renderPrompts();
+        if (resp.success) {
+          this.showToast(i18n.t(resp.message) || resp.message || 'WebDAV Sync Successful');
+          await this.loadPrompts();
+          this.currentPage = 1;
+          this.renderModalityFilters();
+          void this.renderCategories();
+          this.renderPrompts();
       } else {
         const errorKey = resp.error || 'Unknown';
         const errorMsg = i18n.t(errorKey) || errorKey;
@@ -1300,7 +1542,8 @@ ${p.sourceContext ? `
           this.showToast(i18n.t(resp.message) || resp.message || 'Obsidian Vault Sync Successful');
           await this.loadPrompts();
           this.currentPage = 1;
-          this.renderCategories();
+          this.renderModalityFilters();
+          void this.renderCategories();
           this.renderPrompts();
         } else {
           const errorKey = resp.error || 'Unknown';
@@ -1778,6 +2021,9 @@ ${p.sourceContext ? `
         title: d.title || i18n.t('youtubeVideoPrompt'),
         content: sections.join('\n'),
         category: d.category || 'Creative',
+        category_type: d.category ? CATEGORY_TYPES.CUSTOM : '',
+        category_key: d.category || '',
+        output_modality: 'video',
         tags: allTags,
         videoData: d, // structured JSON for re-rendering in video modal
       }
@@ -1786,7 +2032,8 @@ ${p.sourceContext ? `
       this.showToast(i18n.t('videoAnalysisSaved'));
       this.hideYoutubeModal();
       await this.loadPrompts();
-      this.renderCategories();
+      this.renderModalityFilters();
+      void this.renderCategories();
       this.renderPrompts();
     } else {
       this.showToast(i18n.t('saveFailed'), 3000);
@@ -1803,6 +2050,9 @@ ${p.sourceContext ? `
       title: d.title || '',
       content: d.prompt || '',
       category: d.category || 'Creative',
+      category_type: d.category ? CATEGORY_TYPES.CUSTOM : '',
+      category_key: d.category || '',
+      output_modality: 'video',
       tags: d.tags || [],
       shortcut: '',
     });
@@ -1826,7 +2076,6 @@ ${p.sourceContext ? `
       title.textContent = i18n.t('editPrompt');
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
-      document.getElementById('categoryInput').value = prompt.category || '';
       document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
@@ -1852,6 +2101,8 @@ ${p.sourceContext ? `
       // document.getElementById('systemPromptInput').value = '';
       // this._renderSnippets([]);
     }
+
+    void this.setCategoryFormValue(prompt);
 
     modal.classList.remove('hidden');
     document.getElementById('titleInput').focus();
@@ -2256,9 +2507,12 @@ ${p.sourceContext ? `
 
   async savePrompt() {
     const isEditing = Boolean(this.editingId);
+    const categoryPayload = this.getCategoryFormPayload();
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
-      category: document.getElementById('categoryInput').value.trim(),
+      category: categoryPayload.category,
+      category_type: categoryPayload.category_type,
+      category_key: categoryPayload.category_key,
       tags: String(document.getElementById('tagsInput')?.value || '')
         .split(/[,\n，、]/)
         .map(tag => tag.trim())
@@ -2294,7 +2548,8 @@ ${p.sourceContext ? `
 
     if (response?.success) {
       await this.loadPrompts();
-      this.renderCategories();
+      this.renderModalityFilters();
+      void this.renderCategories();
       this.renderPrompts();
       this.hideEditModal();
       if (!isEditing && response.promptId) {
@@ -2392,7 +2647,10 @@ ${p.sourceContext ? `
       // Update in-memory prompt
       const d = resp.data;
       if (d.title) prompt.title = d.title;
-      if (d.category) prompt.category = d.category;
+      if (d.category && prompt.category_type === CATEGORY_TYPES.CUSTOM) {
+        prompt.category_key = d.category;
+        prompt.category = d.category;
+      }
       if (d.content) prompt.content = d.content;
       if (d.tags) {
         prompt.tags = Array.isArray(d.tags) ? d.tags : d.tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -2406,6 +2664,8 @@ ${p.sourceContext ? `
           title: prompt.title,
           content: prompt.content,
           category: prompt.category,
+          category_type: prompt.category_type,
+          category_key: prompt.category_key,
           tags: prompt.tags,
           shortcut: prompt.shortcut || '',
         }
@@ -2584,7 +2844,8 @@ ${p.sourceContext ? `
     // Optimistic: remove from memory and re-render immediately
     const removed = this.prompts.find(p => p.id === id);
     this.prompts = this.prompts.filter(p => p.id !== id);
-    this.renderCategories();
+    this.renderModalityFilters();
+    void this.renderCategories();
     this.renderPrompts();
 
     // Background: persist the deletion
@@ -2595,7 +2856,8 @@ ${p.sourceContext ? `
       console.error('Delete error:', e);
       // Rollback
       if (removed) this.prompts.push(removed);
-      this.renderCategories();
+      this.renderModalityFilters();
+      void this.renderCategories();
       this.renderPrompts();
       this.showToast(i18n.t('saveError'));
     }
@@ -3180,11 +3442,14 @@ ${p.sourceContext ? `
       title: p.act,
       content: p.prompt,
       category: p.category || '',
+      category_type: p.category_type || '',
+      category_key: p.category_key || '',
+      output_modality: p.output_modality || '',
+      classification_confidence: p.classification_confidence,
       tags: p.tags || [],
       titleAutoGenerated: activeTab === 'paste'
         ? (!p.category && (!p.tags || p.tags.length === 0))
         : (!p.tags || p.tags.length === 0),
-      categoryAutoGenerated: !p.category,
       shortcut: p.shortcut || '',
       favorite: p.favorite || false,
       variables: p.variables || [],
@@ -3204,7 +3469,8 @@ ${p.sourceContext ? `
         if (response.firstPromptId) {
           this.pendingRevealPromptId = String(response.firstPromptId);
         }
-        this.renderCategories();
+        this.renderModalityFilters();
+        void this.renderCategories();
         this.renderPrompts();
         await this.consumePendingPromptReveal();
         this.hideImportModal();
