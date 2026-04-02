@@ -667,7 +667,9 @@ body::before {
 
 .categories.category-sectioned {
   display: block;
-  padding-top: 6px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  overflow-x: visible;
 }
 
 .category-filter-group {
@@ -678,12 +680,51 @@ body::before {
   flex-wrap: wrap;
 }
 
-.category-filter-label {
+.category-filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.category-scope-row {
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-base);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.category-chip-row {
+  align-items: flex-start;
+}
+
+.category-scope-tag {
+  border-color: transparent;
+}
+
+.category-scope-tag:not(.active) {
+  background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  margin-right: 4px;
+}
+
+.category-scope-tag:hover:not(.active) {
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+.category-more-tag {
+  color: var(--accent);
+  border-style: dashed;
+}
+
+.category-more-tag:hover {
+  color: var(--accent);
+}
+
+.category-empty-state {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 30px;
 }
 
 .categories::-webkit-scrollbar {

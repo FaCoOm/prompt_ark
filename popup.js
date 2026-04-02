@@ -24,11 +24,18 @@ class PopupManager {
     this.providers = [];
     this.activeProviderId = null;
     this.currentCategory = 'all';
+    this.currentCategoryScope = 'all';
     this.currentModality = 'all';
     this.editingId = null;
     this.activeViewMode = 'smart';
     this.currentPage = 1;
     this.pageSize = 10;
+    this.categoryVisibleLimit = 6;
+    this.categoryExpanded = {
+      all: false,
+      [CATEGORY_TYPES.SYSTEM]: false,
+      [CATEGORY_TYPES.CUSTOM]: false,
+    };
     this.pendingRevealPromptId = null;
     this.revealPromptTimer = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -593,52 +600,137 @@ class PopupManager {
     return `${type}:${prompt.category_key}`;
   }
 
+  getCategoryScopeFromToken(token = '') {
+    if (token.startsWith(`${CATEGORY_TYPES.SYSTEM}:`)) return CATEGORY_TYPES.SYSTEM;
+    if (token.startsWith(`${CATEGORY_TYPES.CUSTOM}:`)) return CATEGORY_TYPES.CUSTOM;
+    return 'all';
+  }
+
+  getCategoryCounts() {
+    const counts = new Map();
+
+    this.prompts.forEach((prompt) => {
+      const token = this.getCategoryFilterToken(prompt);
+      if (!token) return;
+      counts.set(token, (counts.get(token) || 0) + 1);
+    });
+
+    return counts;
+  }
+
+  getVisibleCategoryOptions(options, activeToken) {
+    if (this.categoryExpanded[this.currentCategoryScope] || options.length <= this.categoryVisibleLimit) {
+      return options;
+    }
+
+    const initial = options.slice(0, this.categoryVisibleLimit);
+    if (!activeToken || activeToken === 'all' || initial.some(option => option.token === activeToken)) {
+      return initial;
+    }
+
+    const activeOption = options.find(option => option.token === activeToken);
+    if (!activeOption) return initial;
+
+    return [
+      ...options.slice(0, Math.max(this.categoryVisibleLimit - 1, 0)),
+      activeOption,
+    ];
+  }
+
   async renderCategories() {
     const container = document.getElementById('categories');
     if (!container) return;
 
-    const systemCategories = await getSystemCategoryOptions(i18n.getLanguage());
-    const customCategories = getCustomCategoryOptions(this.prompts);
+    const categoryCounts = this.getCategoryCounts();
+    const rawSystemCategories = await getSystemCategoryOptions(i18n.getLanguage());
+    const rawCustomCategories = getCustomCategoryOptions(this.prompts);
 
-    const systemButtons = systemCategories.map((cat) => {
-      const token = `${CATEGORY_TYPES.SYSTEM}:${cat.id}`;
-      return `
-        <button class="category-tag ${this.currentCategory === token ? 'active' : ''}"
-                data-category="${this.escapeHtml(token)}"
-                data-category-type="${CATEGORY_TYPES.SYSTEM}"
-                data-category-key="${this.escapeHtml(cat.id)}">
-          ${this.escapeHtml(cat.label)}
-        </button>
-      `;
-    }).join('');
+    const systemCategories = rawSystemCategories
+      .map((cat, index) => {
+        const token = `${CATEGORY_TYPES.SYSTEM}:${cat.id}`;
+        return {
+          token,
+          type: CATEGORY_TYPES.SYSTEM,
+          key: cat.id,
+          label: cat.label,
+          count: categoryCounts.get(token) || 0,
+          order: index,
+        };
+      })
+      .sort((a, b) => (b.count - a.count) || (a.order - b.order));
 
-    const customButtons = customCategories.map((cat) => {
-      const token = `${CATEGORY_TYPES.CUSTOM}:${cat}`;
-      return `
-        <button class="category-tag ${this.currentCategory === token ? 'active' : ''}"
-                data-category="${this.escapeHtml(token)}"
-                data-category-type="${CATEGORY_TYPES.CUSTOM}"
-                data-category-key="${this.escapeHtml(cat)}">
-          ${this.escapeHtml(cat)}
-        </button>
-      `;
-    }).join('');
+    const customCategories = rawCustomCategories
+      .map((cat, index) => {
+        const token = `${CATEGORY_TYPES.CUSTOM}:${cat}`;
+        return {
+          token,
+          type: CATEGORY_TYPES.CUSTOM,
+          key: cat,
+          label: cat,
+          count: categoryCounts.get(token) || 0,
+          order: index,
+        };
+      })
+      .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+
+    const availableTokens = new Set([
+      ...systemCategories.map(cat => cat.token),
+      ...customCategories.map(cat => cat.token),
+    ]);
+
+    if (this.currentCategory !== 'all' && !availableTokens.has(this.currentCategory)) {
+      this.currentCategory = 'all';
+    }
+
+    const scope = this.currentCategoryScope;
+    const scopedCategories = scope === CATEGORY_TYPES.SYSTEM
+      ? systemCategories
+      : scope === CATEGORY_TYPES.CUSTOM
+        ? customCategories
+        : [...systemCategories, ...customCategories];
+
+    const visibleCategories = this.getVisibleCategoryOptions(scopedCategories, this.currentCategory);
+    const showToggle = scopedCategories.length > this.categoryVisibleLimit;
+
+    const scopeButtons = [
+      { id: 'all', label: i18n.t('categoryScopeAll') },
+      { id: CATEGORY_TYPES.SYSTEM, label: i18n.t('categoryScopeSystem') },
+      { id: CATEGORY_TYPES.CUSTOM, label: i18n.t('categoryScopeCustom') },
+    ].map((option) => `
+      <button type="button"
+              class="category-tag category-scope-tag ${this.currentCategoryScope === option.id ? 'active' : ''}"
+              data-category-scope="${option.id}"
+              aria-pressed="${this.currentCategoryScope === option.id ? 'true' : 'false'}">
+        ${this.escapeHtml(option.label)}
+      </button>
+    `).join('');
+
+    const categoryButtons = visibleCategories.map((cat) => `
+      <button type="button"
+              class="category-tag ${this.currentCategory === cat.token ? 'active' : ''}"
+              data-category="${this.escapeHtml(cat.token)}"
+              data-category-type="${cat.type}"
+              data-category-key="${this.escapeHtml(cat.key)}"
+              title="${this.escapeHtml(`${cat.label} (${cat.count})`)}">
+        ${this.escapeHtml(cat.label)}
+      </button>
+    `).join('');
 
     container.classList.add('category-sectioned');
     container.innerHTML = `
-      <div class="category-filter-group">
-        <button class="category-tag ${this.currentCategory === 'all' ? 'active' : ''}" data-category="all">${i18n.t('categoryAll')}</button>
+      <div class="category-filter-group category-scope-row">
+        ${scopeButtons}
       </div>
-      <div class="category-filter-group">
-        <span class="category-filter-label">${i18n.t('systemCategories')}</span>
-        ${systemButtons}
+      <div class="category-filter-group category-chip-row">
+        ${categoryButtons || `<span class="category-empty-state">${this.escapeHtml(i18n.t('categoryEmptyState'))}</span>`}
+        ${showToggle ? `
+          <button type="button"
+                  class="category-tag category-more-tag"
+                  data-category-more="${this.categoryExpanded[this.currentCategoryScope] ? 'collapse' : 'expand'}">
+            ${this.escapeHtml(this.categoryExpanded[this.currentCategoryScope] ? i18n.t('categoryShowLess') : i18n.t('categoryShowMore'))}
+          </button>
+        ` : ''}
       </div>
-      ${customButtons ? `
-        <div class="category-filter-group">
-          <span class="category-filter-label">${i18n.t('customCategories')}</span>
-          ${customButtons}
-        </div>
-      ` : ''}
     `;
   }
 
@@ -825,6 +917,7 @@ class PopupManager {
 
     this.activeViewMode = 'recentAdded';
     this.currentCategory = 'all';
+    this.currentCategoryScope = 'all';
     this.currentModality = 'all';
     this.currentPage = 1;
     this.renderModalityFilters();
@@ -1163,6 +1256,28 @@ ${p.sourceContext ? `
 
     // Category filter
     document.getElementById('categories').addEventListener('click', (e) => {
+      const scopeTag = e.target.closest('.category-tag[data-category-scope]');
+      if (scopeTag) {
+        const nextScope = scopeTag.dataset.categoryScope || 'all';
+        this.currentCategoryScope = nextScope;
+        if (nextScope === 'all') {
+          this.currentCategory = 'all';
+        } else if (this.currentCategory !== 'all' && this.getCategoryScopeFromToken(this.currentCategory) !== nextScope) {
+          this.currentCategory = 'all';
+        }
+        this.currentPage = 1;
+        void this.renderCategories();
+        this.renderPrompts();
+        return;
+      }
+
+      const moreTag = e.target.closest('.category-tag[data-category-more]');
+      if (moreTag) {
+        this.categoryExpanded[this.currentCategoryScope] = moreTag.dataset.categoryMore === 'expand';
+        void this.renderCategories();
+        return;
+      }
+
       const tag = e.target.closest('.category-tag[data-category]');
       if (tag) {
         this.currentCategory = tag.dataset.category;
@@ -1174,7 +1289,7 @@ ${p.sourceContext ? `
 
     // Category right-click rename
     document.getElementById('categories').addEventListener('contextmenu', async (e) => {
-      const tag = e.target.closest('.category-tag');
+      const tag = e.target.closest('.category-tag[data-category]');
       if (!tag || tag.dataset.category === 'all') return;
       if (tag.dataset.categoryType !== CATEGORY_TYPES.CUSTOM) {
         this.showToast(i18n.t('renameSystemCategoryDisabled'));
