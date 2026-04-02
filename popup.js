@@ -586,8 +586,8 @@ class PopupManager {
     ];
 
     container.innerHTML = options.map((option) => `
-      <button class="category-tag ${this.currentModality === option.id ? 'active' : ''}" data-modality="${option.id}">
-        ${this.escapeHtml(option.label)}
+      <button class="smart-view-btn filter-chip-btn ${this.currentModality === option.id ? 'active' : ''}" data-modality="${option.id}">
+        <span class="chip-text">${this.escapeHtml(option.label)}</span>
       </button>
     `).join('');
   }
@@ -616,6 +616,11 @@ class PopupManager {
     });
 
     return counts;
+  }
+
+  promptMatchesCategoryScope(prompt, scope = this.currentCategoryScope) {
+    if (scope === 'all') return true;
+    return this.getCategoryScopeFromToken(this.getCategoryFilterToken(prompt)) === scope;
   }
 
   getVisibleCategoryOptions(options, activeToken) {
@@ -698,21 +703,21 @@ class PopupManager {
       { id: CATEGORY_TYPES.CUSTOM, label: i18n.t('categoryScopeCustom') },
     ].map((option) => `
       <button type="button"
-              class="category-tag category-scope-tag ${this.currentCategoryScope === option.id ? 'active' : ''}"
+              class="smart-view-btn filter-chip-btn category-scope-tag ${this.currentCategoryScope === option.id ? 'active' : ''}"
               data-category-scope="${option.id}"
               aria-pressed="${this.currentCategoryScope === option.id ? 'true' : 'false'}">
-        ${this.escapeHtml(option.label)}
+        <span class="chip-text">${this.escapeHtml(option.label)}</span>
       </button>
     `).join('');
 
     const categoryButtons = visibleCategories.map((cat) => `
       <button type="button"
-              class="category-tag ${this.currentCategory === cat.token ? 'active' : ''}"
+              class="smart-view-btn filter-chip-btn ${this.currentCategory === cat.token ? 'active' : ''}"
               data-category="${this.escapeHtml(cat.token)}"
               data-category-type="${cat.type}"
               data-category-key="${this.escapeHtml(cat.key)}"
               title="${this.escapeHtml(`${cat.label} (${cat.count})`)}">
-        ${this.escapeHtml(cat.label)}
+        <span class="chip-text">${this.escapeHtml(cat.label)}</span>
       </button>
     `).join('');
 
@@ -725,9 +730,9 @@ class PopupManager {
         ${categoryButtons || `<span class="category-empty-state">${this.escapeHtml(i18n.t('categoryEmptyState'))}</span>`}
         ${showToggle ? `
           <button type="button"
-                  class="category-tag category-more-tag"
+                  class="smart-view-btn filter-chip-btn category-more-tag"
                   data-category-more="${this.categoryExpanded[this.currentCategoryScope] ? 'collapse' : 'expand'}">
-            ${this.escapeHtml(this.categoryExpanded[this.currentCategoryScope] ? i18n.t('categoryShowLess') : i18n.t('categoryShowMore'))}
+            <span class="chip-text">${this.escapeHtml(this.categoryExpanded[this.currentCategoryScope] ? i18n.t('categoryShowLess') : i18n.t('categoryShowMore'))}</span>
           </button>
         ` : ''}
       </div>
@@ -1056,6 +1061,10 @@ class PopupManager {
       filtered = filtered.filter(p => (p.output_modality || 'text') === this.currentModality);
     }
 
+    if (this.currentCategoryScope !== 'all') {
+      filtered = filtered.filter(p => this.promptMatchesCategoryScope(p));
+    }
+
     if (this.currentCategory !== 'all') {
       filtered = filtered.filter(p => this.getCategoryFilterToken(p) === this.currentCategory);
     }
@@ -1246,7 +1255,7 @@ ${p.sourceContext ? `
 
     // Modality filter
     document.getElementById('modalityFilters').addEventListener('click', (e) => {
-      const tag = e.target.closest('.category-tag[data-modality]');
+      const tag = e.target.closest('button[data-modality]');
       if (!tag) return;
       this.currentModality = tag.dataset.modality;
       this.currentPage = 1;
@@ -1256,7 +1265,7 @@ ${p.sourceContext ? `
 
     // Category filter
     document.getElementById('categories').addEventListener('click', (e) => {
-      const scopeTag = e.target.closest('.category-tag[data-category-scope]');
+      const scopeTag = e.target.closest('button[data-category-scope]');
       if (scopeTag) {
         const nextScope = scopeTag.dataset.categoryScope || 'all';
         this.currentCategoryScope = nextScope;
@@ -1271,14 +1280,14 @@ ${p.sourceContext ? `
         return;
       }
 
-      const moreTag = e.target.closest('.category-tag[data-category-more]');
+      const moreTag = e.target.closest('button[data-category-more]');
       if (moreTag) {
         this.categoryExpanded[this.currentCategoryScope] = moreTag.dataset.categoryMore === 'expand';
         void this.renderCategories();
         return;
       }
 
-      const tag = e.target.closest('.category-tag[data-category]');
+      const tag = e.target.closest('button[data-category]');
       if (tag) {
         this.currentCategory = tag.dataset.category;
         this.currentPage = 1;
@@ -1289,7 +1298,7 @@ ${p.sourceContext ? `
 
     // Category right-click rename
     document.getElementById('categories').addEventListener('contextmenu', async (e) => {
-      const tag = e.target.closest('.category-tag[data-category]');
+      const tag = e.target.closest('button[data-category]');
       if (!tag || tag.dataset.category === 'all') return;
       if (tag.dataset.categoryType !== CATEGORY_TYPES.CUSTOM) {
         this.showToast(i18n.t('renameSystemCategoryDisabled'));

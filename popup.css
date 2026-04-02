@@ -688,40 +688,21 @@ body::before {
 }
 
 .category-scope-row {
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--bg-base);
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  flex-wrap: wrap;
+  overflow-x: visible;
 }
 
 .category-chip-row {
   align-items: flex-start;
 }
 
-.category-scope-tag {
-  border-color: transparent;
-}
-
-.category-scope-tag:not(.active) {
-  background: transparent;
-  color: var(--text-muted);
-}
-
-.category-scope-tag:hover:not(.active) {
-  border-color: transparent;
-  color: var(--text-primary);
-}
-
-.category-more-tag {
-  color: var(--accent);
-  border-style: dashed;
-}
-
-.category-more-tag:hover {
-  color: var(--accent);
+.filter-chip-btn {
+  min-height: 28px;
 }
 
 .category-empty-state {
