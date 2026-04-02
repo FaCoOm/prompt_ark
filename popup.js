@@ -2339,19 +2339,21 @@ ${p.sourceContext ? `
       });
     }
 
-    const resp = await chrome.runtime.sendMessage({
-      type: 'SAVE_PROMPT',
-      prompt: {
-        title: d.title || i18n.t('youtubeVideoPrompt'),
-        content: sections.join('\n'),
-        category: d.category || 'Creative',
-        category_type: d.category ? CATEGORY_TYPES.CUSTOM : '',
-        category_key: d.category || '',
-        output_modality: 'video',
-        tags: allTags,
-        videoData: d, // structured JSON for re-rendering in video modal
-      }
-    });
+	    const resp = await chrome.runtime.sendMessage({
+	      type: 'SAVE_PROMPT',
+	      prompt: {
+	        title: d.title || i18n.t('youtubeVideoPrompt'),
+	        content: sections.join('\n'),
+	        category: d.category || 'Creative',
+	        category_type: '',
+	        category_key: '',
+	        output_modality: 'video',
+	        output_modality_source: 'explicit',
+	        force_output_modality: 'video',
+	        tags: allTags,
+	        videoData: d, // structured JSON for re-rendering in video modal
+	      }
+	    });
     if (resp.success) {
       this.showToast(i18n.t('videoAnalysisSaved'));
       this.hideYoutubeModal();
@@ -2852,6 +2854,7 @@ ${p.sourceContext ? `
       category: categoryPayload.category,
       category_type: categoryPayload.category_type,
       category_key: categoryPayload.category_key,
+      category_source: this.categoryFormState.source,
       tags: String(document.getElementById('tagsInput')?.value || '')
         .split(/[,\n，、]/)
         .map(tag => tag.trim())
