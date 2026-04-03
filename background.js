@@ -308,7 +308,14 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // --- Async AI Enrichment (wrapper with DI) ---
 async function asyncEnrichPrompt(promptId, content) {
-  return _asyncEnrichPrompt(promptId, content, extractTitleAndCategory, getPrompts, buildContextMenus, await getCurrentLocale());
+  return _asyncEnrichPrompt(
+    promptId,
+    content,
+    extractTitleAndCategory,
+    getPrompts,
+    rebuildContextMenusForActiveTab,
+    await getCurrentLocale()
+  );
 }
 
 function shouldPreserveAutoTitle(existing, nextTitle) {
