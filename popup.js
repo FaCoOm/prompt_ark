@@ -1351,6 +1351,7 @@ class PopupManager {
               </button>
             </div>
           </div>
+          <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
           <div class="prompt-meta">
             ${this.renderPromptCategoryChip(p)}
             ${this.renderPromptSourceChip(p)}
@@ -1359,7 +1360,6 @@ class PopupManager {
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
           </div>
-          <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
 ${p.sourceContext ? `
           <div class="source-panel">
             <div class="source-toggle" data-source-toggle>
