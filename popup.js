@@ -38,6 +38,7 @@ class PopupManager {
     this.categoryVisibleLimit = 6;
     this.categoryExpanded = {
       all: false,
+      [CATEGORY_TYPES.PENDING]: false,
       [CATEGORY_TYPES.SYSTEM]: false,
       [CATEGORY_TYPES.CUSTOM]: false,
     };
@@ -603,15 +604,78 @@ class PopupManager {
     `).join('');
   }
 
+  getModalityMeta(modality = 'text') {
+    switch (modality) {
+      case 'image':
+        return { icon: '🖼️', label: i18n.t('modalityImage') };
+      case 'video':
+        return { icon: '🎬', label: i18n.t('modalityVideo') };
+      case 'text':
+      default:
+        return { icon: '📝', label: i18n.t('modalityText') };
+    }
+  }
+
+  getCategorySourceMeta(categoryType = '') {
+    switch (categoryType) {
+      case CATEGORY_TYPES.PENDING:
+        return {
+          className: 'pending',
+          icon: '⏳',
+          label: i18n.t('categoryPending'),
+        };
+      case CATEGORY_TYPES.CUSTOM:
+        return {
+          className: 'custom',
+          icon: '✍️',
+          label: i18n.t('categoryScopeCustom'),
+        };
+      case CATEGORY_TYPES.SYSTEM:
+      default:
+        return {
+          className: 'system',
+          icon: '🛡️',
+          label: i18n.t('categoryScopeSystem'),
+        };
+    }
+  }
+
+  renderPromptCategoryChip(prompt) {
+    if (!prompt?.category) return '';
+
+    const modality = this.getModalityMeta(prompt.output_modality || 'text');
+    const classes = ['prompt-category'];
+    if (prompt.category_type === CATEGORY_TYPES.PENDING) {
+      classes.push('pending');
+    }
+
+    return `
+      <span class="${classes.join(' ')}" title="${this.escapeHtml(modality.label)}">
+        <span class="prompt-category-icon" aria-hidden="true">${modality.icon}</span>
+        <span class="prompt-category-label">${this.escapeHtml(prompt.category)}</span>
+      </span>
+    `;
+  }
+
+  renderPromptSourceChip(prompt) {
+    if (!prompt?.category_type) return '';
+
+    const source = this.getCategorySourceMeta(prompt.category_type);
+    return `
+      <span class="prompt-category-source ${source.className}">
+        <span class="prompt-category-source-icon" aria-hidden="true">${source.icon}</span>
+        <span class="prompt-category-source-label">${this.escapeHtml(source.label)}</span>
+      </span>
+    `;
+  }
+
   getCategoryFilterToken(prompt) {
     if (!prompt?.category_type || !prompt?.category_key) return '';
-    const type = prompt.category_type === CATEGORY_TYPES.PENDING
-      ? CATEGORY_TYPES.SYSTEM
-      : prompt.category_type;
-    return `${type}:${prompt.category_key}`;
+    return `${prompt.category_type}:${prompt.category_key}`;
   }
 
   getCategoryScopeFromToken(token = '') {
+    if (token.startsWith(`${CATEGORY_TYPES.PENDING}:`)) return CATEGORY_TYPES.PENDING;
     if (token.startsWith(`${CATEGORY_TYPES.SYSTEM}:`)) return CATEGORY_TYPES.SYSTEM;
     if (token.startsWith(`${CATEGORY_TYPES.CUSTOM}:`)) return CATEGORY_TYPES.CUSTOM;
     return 'all';
@@ -675,6 +739,21 @@ class PopupManager {
       })
       .sort((a, b) => (b.count - a.count) || (a.order - b.order));
 
+    const pendingCategories = rawSystemCategories
+      .map((cat, index) => {
+        const token = `${CATEGORY_TYPES.PENDING}:${cat.id}`;
+        return {
+          token,
+          type: CATEGORY_TYPES.PENDING,
+          key: cat.id,
+          label: cat.label,
+          count: categoryCounts.get(token) || 0,
+          order: index,
+        };
+      })
+      .filter(cat => cat.count > 0)
+      .sort((a, b) => (b.count - a.count) || (a.order - b.order));
+
     const customCategories = rawCustomCategories
       .map((cat, index) => {
         const token = `${CATEGORY_TYPES.CUSTOM}:${cat}`;
@@ -690,6 +769,7 @@ class PopupManager {
       .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
     const availableTokens = new Set([
+      ...pendingCategories.map(cat => cat.token),
       ...systemCategories.map(cat => cat.token),
       ...customCategories.map(cat => cat.token),
     ]);
@@ -701,6 +781,8 @@ class PopupManager {
     const scope = this.currentCategoryScope;
     const scopedCategories = scope === CATEGORY_TYPES.SYSTEM
       ? systemCategories
+      : scope === CATEGORY_TYPES.PENDING
+        ? pendingCategories
       : scope === CATEGORY_TYPES.CUSTOM
         ? customCategories
         : [...systemCategories, ...customCategories];
@@ -710,6 +792,7 @@ class PopupManager {
 
     const scopeButtons = [
       { id: 'all', label: i18n.t('categoryScopeAll') },
+      { id: CATEGORY_TYPES.PENDING, label: i18n.t('categoryScopePending') },
       { id: CATEGORY_TYPES.SYSTEM, label: i18n.t('categoryScopeSystem') },
       { id: CATEGORY_TYPES.CUSTOM, label: i18n.t('categoryScopeCustom') },
     ].map((option) => `
@@ -1268,15 +1351,15 @@ class PopupManager {
               </button>
             </div>
           </div>
-          <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
           <div class="prompt-meta">
-            ${p.category ? `<span class="prompt-category ${p.category_type === CATEGORY_TYPES.PENDING ? 'pending' : ''}">${this.escapeHtml(p.category)}</span>` : ''}
-            ${p.category_type === CATEGORY_TYPES.PENDING ? `<span class="prompt-category-status">${this.escapeHtml(i18n.t('categoryPending'))}</span>` : ''}
+            ${this.renderPromptCategoryChip(p)}
+            ${this.renderPromptSourceChip(p)}
             ${p.tags && p.tags.length > 0 ? p.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
             ${p.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(p.shortcut)}</span>` : ''}
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
           </div>
+          <div class="prompt-preview md-content">${highlightVariables(this.renderMarkdown(p.content))}</div>
 ${p.sourceContext ? `
           <div class="source-panel">
             <div class="source-toggle" data-source-toggle>
