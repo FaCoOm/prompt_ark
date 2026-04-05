@@ -3111,12 +3111,18 @@ ${p.sourceContext ? `
 
     const isEditing = Boolean(this.editingId);
     const categoryPayload = this.getCategoryFormPayload();
+    const rawCategoryInput = String(document.getElementById('categorySearchInput')?.value || '').trim();
+    const manualCustomCategory = !applyAiRecommendation && (
+      (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM && !!rawCategoryInput) ||
+      (categoryPayload.category_type === CATEGORY_TYPES.CUSTOM && Boolean(this.modalPromptData?.manual_custom_category))
+    );
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
-      category: categoryPayload.category,
-      category_type: categoryPayload.category_type,
-      category_key: categoryPayload.category_key,
+      category: manualCustomCategory ? rawCategoryInput : categoryPayload.category,
+      category_type: manualCustomCategory ? CATEGORY_TYPES.CUSTOM : categoryPayload.category_type,
+      category_key: manualCustomCategory ? rawCategoryInput : categoryPayload.category_key,
       category_source: this.categoryFormState.source,
+      manual_custom_category: manualCustomCategory,
       tags: String(document.getElementById('tagsInput')?.value || '')
         .split(/[,\n，、]/)
         .map(tag => tag.trim())
