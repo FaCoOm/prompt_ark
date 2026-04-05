@@ -27,7 +27,7 @@ export const translations = {
         categoryEmptyState: "当前范围下暂无分类",
         useRecommendedCategory: "使用推荐分类",
         customCategoryToggle: "切换为自定义分类",
-        customCategoryMode: "自定义",
+        customCategoryMode: "新建",
         categorySearchPlaceholder: "搜索或选择分类",
         customCategoryPlaceholder: "输入自定义分类名",
         categoryPending: "待确认",
