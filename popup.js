@@ -47,6 +47,7 @@ class PopupManager {
     this.revealPromptTimer = null;
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
+    this.modalPromptData = null;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
     this.isImportScanRunning = false;
@@ -120,6 +121,10 @@ class PopupManager {
           if (idx >= 0) {
             // Update existing prompt (e.g. AI enrichment filled in title/category)
             this.prompts[idx] = { ...this.prompts[idx], ...msg.prompt };
+            if (this.editingId && String(this.editingId) === String(msg.prompt.id) && this.modalPromptData) {
+              this.modalPromptData = { ...this.modalPromptData, ...msg.prompt };
+              void this.renderCategoryReviewPanel(this.modalPromptData);
+            }
           } else {
             // New prompt (e.g. from Smart Convert / Add to Prompt Ark)
             this.prompts.unshift(msg.prompt);
@@ -669,6 +674,120 @@ class PopupManager {
     `;
   }
 
+  renderPromptReviewBanner(prompt) {
+    if (!prompt?.needs_category_review) return '';
+
+    return `
+      <div class="prompt-review-banner">
+        <div class="prompt-review-copy">
+          <div class="prompt-review-title">${this.escapeHtml(i18n.t('categoryReviewLocked'))}</div>
+          <div class="prompt-review-hint">${this.escapeHtml(i18n.t('categoryReviewHint'))}</div>
+        </div>
+        <button type="button" class="prompt-review-btn" data-open-category-review>
+          ${this.escapeHtml(i18n.t('categoryReviewOpen'))}
+        </button>
+      </div>
+    `;
+  }
+
+  async buildCategoryPreview(categoryType = '', categoryKey = '') {
+    if (!categoryType || !categoryKey) return null;
+
+    const preview = {
+      category_type: categoryType,
+      category_key: categoryKey,
+    };
+    preview.category = await derivePromptCategory(preview, i18n.getLanguage()) || categoryKey;
+    return preview;
+  }
+
+  async getAiCategoryPreview(prompt = null) {
+    const aiType = prompt?.ai_category_type || '';
+    const aiKey = prompt?.ai_category_key || '';
+    if (!aiType || !aiKey) return null;
+
+    const confidence = Number(prompt?.ai_category_confidence);
+    const displayType = Number.isFinite(confidence) && confidence >= 0.8
+      ? aiType
+      : CATEGORY_TYPES.PENDING;
+    return await this.buildCategoryPreview(displayType, aiKey);
+  }
+
+  renderCategoryReviewPreview(preview, emptyText) {
+    if (!preview) {
+      return `<span class="category-review-empty">${this.escapeHtml(emptyText)}</span>`;
+    }
+
+    return `
+      ${this.renderPromptCategoryChip(preview)}
+      ${this.renderPromptSourceChip(preview)}
+    `;
+  }
+
+  async applyAiRecommendationToCategoryForm(prompt = this.modalPromptData) {
+    const aiType = prompt?.ai_category_type || '';
+    const aiKey = prompt?.ai_category_key || '';
+    if (!aiType || !aiKey) return false;
+
+    if (aiType === CATEGORY_TYPES.CUSTOM) {
+      this.setCategoryFormSource(CATEGORY_FORM_SOURCES.CUSTOM, {
+        query: aiKey,
+        selectedKey: '',
+        selectedLabel: aiKey,
+      });
+      return true;
+    }
+
+    const displayCategory = await derivePromptCategory({
+      category_type: CATEGORY_TYPES.SYSTEM,
+      category_key: aiKey,
+    }, i18n.getLanguage()) || aiKey;
+
+    this.setCategoryFormSource(CATEGORY_FORM_SOURCES.SYSTEM, {
+      query: displayCategory,
+      selectedKey: aiKey,
+      selectedLabel: displayCategory,
+    });
+    return true;
+  }
+
+  async renderCategoryReviewPanel(prompt = this.modalPromptData) {
+    const panel = document.getElementById('categoryReviewPanel');
+    const statusEl = document.getElementById('categoryReviewStatus');
+    const currentPreviewEl = document.getElementById('currentCategoryReviewPreview');
+    const aiPreviewEl = document.getElementById('aiCategoryReviewPreview');
+    const applyBtn = document.getElementById('applyRecommendedCategoryBtn');
+
+    if (!panel || !statusEl || !currentPreviewEl || !aiPreviewEl || !applyBtn) return;
+
+    if (!prompt?.needs_category_review) {
+      panel.classList.add('hidden');
+      statusEl.textContent = '';
+      currentPreviewEl.innerHTML = '';
+      aiPreviewEl.innerHTML = '';
+      applyBtn.disabled = false;
+      return;
+    }
+
+    const currentPreview = await this.buildCategoryPreview(prompt.category_type, prompt.category_key);
+    const aiPreview = await this.getAiCategoryPreview(prompt);
+    const aiConfidence = Number(prompt?.ai_category_confidence);
+
+    panel.classList.remove('hidden');
+    statusEl.textContent = Number.isFinite(aiConfidence)
+      ? `${Math.round(aiConfidence * 100)}%`
+      : i18n.t('categoryReviewWaiting');
+    currentPreviewEl.innerHTML = this.renderCategoryReviewPreview(
+      currentPreview,
+      i18n.t('categoryReviewWaiting')
+    );
+    aiPreviewEl.innerHTML = this.renderCategoryReviewPreview(
+      aiPreview,
+      i18n.t('categoryReviewWaiting')
+    );
+    applyBtn.disabled = !aiPreview;
+  }
+
   getCategoryFilterToken(prompt) {
     if (!prompt?.category_type || !prompt?.category_key) return '';
     return `${prompt.category_type}:${prompt.category_key}`;
@@ -724,6 +843,7 @@ class PopupManager {
     const categoryCounts = this.getCategoryCounts();
     const rawSystemCategories = await getSystemCategoryOptions(i18n.getLanguage());
     const rawCustomCategories = getCustomCategoryOptions(this.prompts);
+    const systemCategoryKeySet = new Set(rawSystemCategories.map((cat) => cat.id));
 
     const systemCategories = rawSystemCategories
       .map((cat, index) => {
@@ -754,6 +874,26 @@ class PopupManager {
       .filter(cat => cat.count > 0)
       .sort((a, b) => (b.count - a.count) || (a.order - b.order));
 
+    const pendingCustomCategories = [...new Set(
+      this.prompts
+        .filter((prompt) =>
+          prompt.category_type === CATEGORY_TYPES.PENDING &&
+          prompt.category_key &&
+          !systemCategoryKeySet.has(prompt.category_key)
+        )
+        .map((prompt) => prompt.category_key)
+    )].map((cat, index) => ({
+      token: `${CATEGORY_TYPES.PENDING}:${cat}`,
+      type: CATEGORY_TYPES.PENDING,
+      key: cat,
+      label: cat,
+      count: categoryCounts.get(`${CATEGORY_TYPES.PENDING}:${cat}`) || 0,
+      order: rawSystemCategories.length + index,
+    }));
+
+    const allPendingCategories = [...pendingCategories, ...pendingCustomCategories]
+      .sort((a, b) => (b.count - a.count) || (a.order - b.order));
+
     const customCategories = rawCustomCategories
       .map((cat, index) => {
         const token = `${CATEGORY_TYPES.CUSTOM}:${cat}`;
@@ -769,7 +909,7 @@ class PopupManager {
       .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
     const availableTokens = new Set([
-      ...pendingCategories.map(cat => cat.token),
+      ...allPendingCategories.map(cat => cat.token),
       ...systemCategories.map(cat => cat.token),
       ...customCategories.map(cat => cat.token),
     ]);
@@ -782,8 +922,8 @@ class PopupManager {
     const scopedCategories = scope === CATEGORY_TYPES.SYSTEM
       ? systemCategories
       : scope === CATEGORY_TYPES.PENDING
-        ? pendingCategories
-      : scope === CATEGORY_TYPES.CUSTOM
+        ? allPendingCategories
+        : scope === CATEGORY_TYPES.CUSTOM
         ? customCategories
         : [...systemCategories, ...customCategories];
 
@@ -1302,7 +1442,9 @@ class PopupManager {
     const startIdx = (this.currentPage - 1) * this.pageSize;
     const pageItems = filtered.slice(startIdx, startIdx + this.pageSize);
 
-    container.innerHTML = pageItems.map(p => `
+    container.innerHTML = pageItems.map(p => {
+      const actionDisabled = p.needs_category_review ? 'disabled' : '';
+      return `
       <div class="prompt-item ${this.shareManager.isPackMode ? 'selectable' : ''}" data-id="${p.id}">
         <div class="prompt-main">
           <div class="prompt-header">
@@ -1311,40 +1453,40 @@ class PopupManager {
               ${this.renderPromptScoreBadge(p)}
             </div>
             <div class="prompt-actions">
-              <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}">
+              <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}" ${actionDisabled}>
                 ${p.favorite ? '⭐' : '☆'}
               </button>
-              <button class="action-btn share-btn" title="${i18n.t('share')}">
+              <button class="action-btn share-btn" title="${i18n.t('share')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                 </svg>
               </button>
               <!-- [DISABLED] <button class="action-btn p2s-btn" title="${i18n.t('promptToSkill')}">🧩</button> -->
-              <button class="action-btn insert-btn" title="${i18n.t('insert')}">
+              <button class="action-btn insert-btn" title="${i18n.t('insert')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 5v14M5 12h14"/>
                 </svg>
               </button>
-              <button class="action-btn edit-btn" title="${i18n.t('editPrompt')}">
+              <button class="action-btn edit-btn" title="${i18n.t('editPrompt')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <button class="action-btn copy-btn" title="${i18n.t('copySuccess')}">
+              <button class="action-btn copy-btn" title="${i18n.t('copySuccess')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
               </button>
-              <button class="action-btn translate-list-btn" title="${i18n.t('translate')}">
+              <button class="action-btn translate-list-btn" title="${i18n.t('translate')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
                 </svg>
               </button>
-              <button class="action-btn delete-btn" title="${i18n.t('deleteConfirm')}">
+              <button class="action-btn delete-btn" title="${i18n.t('deleteConfirm')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
@@ -1360,6 +1502,7 @@ class PopupManager {
             ${p.variables && p.variables.length > 0 ?
         `<span class="prompt-vars">${p.variables.length} ${i18n.t('variables')}</span>` : ''}
           </div>
+          ${this.renderPromptReviewBanner(p)}
 ${p.sourceContext ? `
           <div class="source-panel">
             <div class="source-toggle" data-source-toggle>
@@ -1380,7 +1523,8 @@ ${p.sourceContext ? `
 ` : ''}
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     // --- Pagination Controls ---
     if (totalPages > 1) {
@@ -1635,6 +1779,11 @@ ${p.sourceContext ? `
       if (!item) return;
       const id = item.dataset.id;
 
+      if (e.target.closest('[data-open-category-review]')) {
+        this.editPrompt(id);
+        return;
+      }
+
       // Source panel: toggle
       const sourceToggle = e.target.closest('[data-source-toggle]');
       if (sourceToggle) {
@@ -1701,6 +1850,12 @@ ${p.sourceContext ? `
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
       this.savePrompt();
+    });
+    document.getElementById('confirmCurrentCategoryBtn')?.addEventListener('click', () => {
+      this.savePrompt({ confirmCategoryReview: true });
+    });
+    document.getElementById('applyRecommendedCategoryBtn')?.addEventListener('click', () => {
+      this.savePrompt({ confirmCategoryReview: true, applyAiRecommendation: true });
     });
 
     // Translate Prompt
@@ -2483,6 +2638,7 @@ ${p.sourceContext ? `
 
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
+    this.modalPromptData = prompt ? { ...prompt } : null;
 
     if (prompt) {
       title.textContent = i18n.t('editPrompt');
@@ -2517,6 +2673,7 @@ ${p.sourceContext ? `
     this.modalOutputModality = prompt?.output_modality || '';
     this.modalForceOutputModality = prompt?.force_output_modality || '';
     void this.setCategoryFormValue(prompt);
+    void this.renderCategoryReviewPanel(this.modalPromptData);
 
     modal.classList.remove('hidden');
     document.getElementById('titleInput').focus();
@@ -2532,6 +2689,7 @@ ${p.sourceContext ? `
   hideEditModal() {
     document.getElementById('editModal').classList.add('hidden');
     this.closeCategoryDropdown();
+    document.getElementById('categoryReviewPanel')?.classList.add('hidden');
     document.getElementById('mdPreview').classList.add('hidden');
     document.getElementById('contentInput').classList.remove('hidden');
     document.getElementById('previewToggle').textContent = i18n.t('preview');
@@ -2542,6 +2700,7 @@ ${p.sourceContext ? `
     this.editingId = null;
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
+    this.modalPromptData = null;
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
     this.resetContractBuilder();
@@ -2936,7 +3095,20 @@ ${p.sourceContext ? `
     this.showToast(i18n.t('optimizeWith', { name }));
   }
 
-  async savePrompt() {
+  async savePrompt(options = {}) {
+    const {
+      confirmCategoryReview = false,
+      applyAiRecommendation = false,
+    } = options;
+
+    if (applyAiRecommendation) {
+      const applied = await this.applyAiRecommendationToCategoryForm(this.modalPromptData);
+      if (!applied) {
+        this.showToast(i18n.t('categoryReviewWaiting'));
+        return;
+      }
+    }
+
     const isEditing = Boolean(this.editingId);
     const categoryPayload = this.getCategoryFormPayload();
     const prompt = {
@@ -2952,7 +3124,11 @@ ${p.sourceContext ? `
       output_modality: this.modalOutputModality || '',
       force_output_modality: this.modalForceOutputModality || '',
       shortcut: document.getElementById('shortcutInput').value.trim().replace(/^\//, '').replace(/[^a-zA-Z0-9_-]/g, ''),
-      content: document.getElementById('contentInput').value.trim()
+      content: document.getElementById('contentInput').value.trim(),
+      confirm_category_review: Boolean(confirmCategoryReview),
+      ai_category_type: this.modalPromptData?.ai_category_type || '',
+      ai_category_key: this.modalPromptData?.ai_category_key || '',
+      ai_category_confidence: this.modalPromptData?.ai_category_confidence,
     };
 
     if (!prompt.content) {

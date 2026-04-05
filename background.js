@@ -491,6 +491,10 @@ async function handleMessage(message, sendResponse) {
           output_modality_source: message.prompt.output_modality_source,
           classification_confidence: message.prompt.classification_confidence,
           classification_source: message.prompt.classification_source,
+          ai_category_type: message.prompt.ai_category_type,
+          ai_category_key: message.prompt.ai_category_key,
+          ai_category_confidence: message.prompt.ai_category_confidence,
+          confirm_category_review: message.prompt.confirm_category_review,
         }, {
           locale: await getCurrentLocale(),
           forceOutputModality: message.prompt.force_output_modality,
@@ -505,6 +509,9 @@ async function handleMessage(message, sendResponse) {
           output_modality: metadata.output_modality,
           output_modality_locked: metadata.output_modality_locked,
           classification_confidence: metadata.classification_confidence,
+          ai_category_type: metadata.ai_category_type,
+          ai_category_key: metadata.ai_category_key,
+          ai_category_confidence: metadata.ai_category_confidence,
           tags: metadata.tags,
           shortcut: message.prompt.shortcut || '',
           variables: extractVariables(message.prompt.content),
@@ -536,6 +543,12 @@ async function handleMessage(message, sendResponse) {
       case 'UPDATE_PROMPT': {
         const prompts = await getPrompts();
         const existing = prompts.find(p => p.id === message.prompt.id);
+        const confirmCategoryReview = Boolean(message.prompt.confirm_category_review) || (
+          Boolean(existing?.needs_category_review) && (
+            String(message.prompt.category_type || '') !== String(existing?.category_type || '') ||
+            String(message.prompt.category_key || '') !== String(existing?.category_key || '')
+          )
+        );
         const metadata = await buildSavedPromptMetadata(message.prompt.content, {
           title: message.prompt.title,
           category: message.prompt.category,
@@ -548,6 +561,10 @@ async function handleMessage(message, sendResponse) {
           output_modality_source: message.prompt.output_modality_source,
           classification_confidence: message.prompt.classification_confidence ?? existing?.classification_confidence,
           classification_source: message.prompt.classification_source,
+          ai_category_type: message.prompt.ai_category_type ?? existing?.ai_category_type,
+          ai_category_key: message.prompt.ai_category_key ?? existing?.ai_category_key,
+          ai_category_confidence: message.prompt.ai_category_confidence ?? existing?.ai_category_confidence,
+          confirm_category_review: confirmCategoryReview,
         }, {
           locale: await getCurrentLocale(),
           existingPrompt: existing,
@@ -574,6 +591,9 @@ async function handleMessage(message, sendResponse) {
           output_modality: metadata.output_modality || existing?.output_modality,
           output_modality_locked: metadata.output_modality_locked,
           classification_confidence: metadata.classification_confidence ?? existing?.classification_confidence,
+          ai_category_type: metadata.ai_category_type || existing?.ai_category_type || '',
+          ai_category_key: metadata.ai_category_key || existing?.ai_category_key || '',
+          ai_category_confidence: metadata.ai_category_confidence ?? existing?.ai_category_confidence,
           tags: metadata.tags,
           shortcut: message.prompt.shortcut || '',
           variables: extractVariables(message.prompt.content),
@@ -621,6 +641,9 @@ async function handleMessage(message, sendResponse) {
             output_modality: p.output_modality,
             classification_confidence: p.classification_confidence,
             classification_source: p.classification_source,
+            ai_category_type: p.ai_category_type,
+            ai_category_key: p.ai_category_key,
+            ai_category_confidence: p.ai_category_confidence,
           });
 
           imported.push({
@@ -633,6 +656,9 @@ async function handleMessage(message, sendResponse) {
             output_modality: metadata.output_modality,
             output_modality_locked: metadata.output_modality_locked,
             classification_confidence: metadata.classification_confidence,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
             shortcut: p.shortcut || '',
             favorite: p.favorite || false,
@@ -730,6 +756,9 @@ async function handleMessage(message, sendResponse) {
           output_modality: metadata.output_modality,
           output_modality_locked: metadata.output_modality_locked,
           classification_confidence: metadata.classification_confidence,
+          ai_category_type: metadata.ai_category_type,
+          ai_category_key: metadata.ai_category_key,
+          ai_category_confidence: metadata.ai_category_confidence,
           tags: metadata.tags,
           shortcut: '',
           variables: extractVariables(selectedText),
@@ -802,6 +831,9 @@ async function handleMessage(message, sendResponse) {
             output_modality: metadata.output_modality,
             output_modality_locked: metadata.output_modality_locked,
             classification_confidence: metadata.classification_confidence,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
             shortcut: '',
             variables: extractVariables(result.prompt),
@@ -852,6 +884,9 @@ async function handleMessage(message, sendResponse) {
             output_modality: metadata.output_modality,
             output_modality_locked: metadata.output_modality_locked,
             classification_confidence: metadata.classification_confidence,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
             shortcut: '',
             variables: extractVariables(selectedText),

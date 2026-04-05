@@ -513,6 +513,24 @@
               </div>
             </div>
           </div>
+          <div id="categoryReviewPanel" class="category-review-panel hidden">
+            <div class="category-review-header">
+              <span data-i18n="aiCategoryReview">AI 分类</span>
+              <span id="categoryReviewStatus" class="category-review-status"></span>
+            </div>
+            <div class="category-review-section">
+              <div class="category-review-label" data-i18n="currentCategoryReview">当前分类</div>
+              <div id="currentCategoryReviewPreview" class="category-review-preview"></div>
+            </div>
+            <div class="category-review-section">
+              <div class="category-review-label" data-i18n="aiRecommendedCategory">AI 推荐</div>
+              <div id="aiCategoryReviewPreview" class="category-review-preview"></div>
+            </div>
+            <div class="category-review-actions">
+              <button type="button" id="confirmCurrentCategoryBtn" class="btn-secondary" data-i18n="confirmCurrentCategory">确认当前分类</button>
+              <button type="button" id="applyRecommendedCategoryBtn" class="btn-primary" data-i18n="useRecommendedCategory">使用推荐分类</button>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">

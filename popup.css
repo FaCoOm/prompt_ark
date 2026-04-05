@@ -833,6 +833,51 @@ body::before {
   flex-wrap: wrap;
 }
 
+.prompt-review-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prompt-review-copy {
+  min-width: 0;
+}
+
+.prompt-review-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #d97706;
+}
+
+.prompt-review-hint {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.prompt-review-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.prompt-review-btn:hover {
+  background: rgba(245, 158, 11, 0.2);
+}
+
 /* --- Source Context Panel --- */
 .source-panel {
   margin-top: 8px;
@@ -983,6 +1028,12 @@ body::before {
   line-height: 1;
 }
 
+.prompt-actions .action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .prompt-tag {
   display: inline-block;
   padding: 2px 6px;
@@ -1013,6 +1064,64 @@ body::before {
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 500;
+}
+
+.category-review-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.category-review-panel.hidden {
+  display: none;
+}
+
+.category-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.category-review-status {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.category-review-section + .category-review-section {
+  margin-top: 10px;
+}
+
+.category-review-label {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.category-review-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+  align-items: center;
+}
+
+.category-review-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.category-review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .prompt-actions {
