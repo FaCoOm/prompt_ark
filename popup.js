@@ -486,10 +486,10 @@ class PopupManager {
     document.getElementById('providerModelInput').value = provider?.model || '';
 
     // Show/hide form fields based on type
-    const isGeminiWeb = typeSelect.value === 'gemini-web';
+    const isWebProvider = typeSelect.value === 'gemini-web' || typeSelect.value === 'xiaomimo-web';
     apiUrlRow.classList.toggle('hidden', typeSelect.value !== 'openai');
-    document.getElementById('providerApiKeyInput').closest('.form-row').classList.toggle('hidden', isGeminiWeb);
-    document.getElementById('providerModelInput').closest('.form-row').classList.toggle('hidden', isGeminiWeb);
+    document.getElementById('providerApiKeyInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
+    document.getElementById('providerModelInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
 
     form.classList.remove('hidden');
     document.getElementById('providerNameInput').focus();
@@ -1197,10 +1197,10 @@ ${p.sourceContext ? `
     document.getElementById('cancelProviderBtn')?.addEventListener('click', () => this.hideProviderForm());
     document.getElementById('saveProviderBtn')?.addEventListener('click', () => this.saveProviderForm());
     document.getElementById('providerTypeSelect')?.addEventListener('change', (e) => {
-      const isGeminiWeb = e.target.value === 'gemini-web';
+      const isWebProvider = e.target.value === 'gemini-web' || e.target.value === 'xiaomimo-web';
       document.getElementById('providerApiUrlRow')?.classList.toggle('hidden', e.target.value !== 'openai');
-      document.getElementById('providerApiKeyInput')?.closest('.form-row')?.classList.toggle('hidden', isGeminiWeb);
-      document.getElementById('providerModelInput')?.closest('.form-row')?.classList.toggle('hidden', isGeminiWeb);
+      document.getElementById('providerApiKeyInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);
+      document.getElementById('providerModelInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);
     });
 
     // Provider list events (delegated)
@@ -2220,7 +2220,7 @@ ${p.sourceContext ? `
     }
 
     const activeId = this._optimizeProviderId || resp.activeProviderId;
-    const typeLabels = { 'gemini-web': 'Gemini', 'kimi-web': 'Kimi', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
+    const typeLabels = { 'gemini-web': 'Gemini', 'kimi-web': 'Kimi', 'xiaomimo-web': 'Xiaomi MiMo', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
     menu.innerHTML = cloudProviders.map(p => {
       const isActive = p.id === activeId;
       const modelInfo = p.model || p.type;
