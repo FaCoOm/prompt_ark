@@ -486,7 +486,7 @@ class PopupManager {
     document.getElementById('providerModelInput').value = provider?.model || '';
 
     // Show/hide form fields based on type
-    const isWebProvider = typeSelect.value === 'gemini-web' || typeSelect.value === 'xiaomimo-web' || typeSelect.value === 'qwen-web' || typeSelect.value === 'grok-web' || typeSelect.value === 'glm-intl-web';
+    const isWebProvider = typeSelect.value === 'gemini-web' || typeSelect.value === 'xiaomimo-web' || typeSelect.value === 'qwen-web' || typeSelect.value === 'grok-web' || typeSelect.value === 'glm-intl-web' || typeSelect.value === 'glm-web';
     apiUrlRow.classList.toggle('hidden', typeSelect.value !== 'openai');
     document.getElementById('providerApiKeyInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
     document.getElementById('providerModelInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
@@ -1197,7 +1197,7 @@ ${p.sourceContext ? `
     document.getElementById('cancelProviderBtn')?.addEventListener('click', () => this.hideProviderForm());
     document.getElementById('saveProviderBtn')?.addEventListener('click', () => this.saveProviderForm());
     document.getElementById('providerTypeSelect')?.addEventListener('change', (e) => {
-      const isWebProvider = e.target.value === 'gemini-web' || e.target.value === 'xiaomimo-web' || e.target.value === 'qwen-web' || e.target.value === 'grok-web' || e.target.value === 'glm-intl-web';
+      const isWebProvider = e.target.value === 'gemini-web' || e.target.value === 'xiaomimo-web' || e.target.value === 'qwen-web' || e.target.value === 'grok-web' || e.target.value === 'glm-intl-web' || e.target.value === 'glm-web';
       document.getElementById('providerApiUrlRow')?.classList.toggle('hidden', e.target.value !== 'openai');
       document.getElementById('providerApiKeyInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);
       document.getElementById('providerModelInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);
@@ -2220,7 +2220,7 @@ ${p.sourceContext ? `
     }
 
     const activeId = this._optimizeProviderId || resp.activeProviderId;
-    const typeLabels = { 'gemini-web': 'Gemini', 'kimi-web': 'Kimi', 'xiaomimo-web': 'Xiaomi MiMo', 'qwen-web': 'Qwen', 'grok-web': 'Grok', 'glm-intl-web': 'GLM Intl', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
+    const typeLabels = { 'gemini-web': 'Gemini', 'kimi-web': 'Kimi', 'xiaomimo-web': 'Xiaomi MiMo', 'qwen-web': 'Qwen', 'grok-web': 'Grok', 'glm-intl-web': 'GLM Intl', 'glm-web': 'GLM China', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
     menu.innerHTML = cloudProviders.map(p => {
       const isActive = p.id === activeId;
       const modelInfo = p.model || p.type;

@@ -5,6 +5,7 @@ import { callKimiWeb, isKimiWebAvailable } from './lib/kimi-web.js';
 import { callXiaomimoWeb, isXiaomimoWebAvailable } from './lib/xiaomimo-web.js';
 import { callQwenWeb, isQwenWebAvailable } from './lib/qwen-web.js';
 import { callGrokWeb, isGrokWebAvailable } from './lib/grok-web.js';
+import { callGlmWeb, isGlmWebAvailable } from './lib/glm-web.js';
 import { callGlmIntlWeb, isGlmIntlWebAvailable } from './lib/glm-intl-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
@@ -403,6 +404,8 @@ async function callProvider(provider, prompt) {
     return await callGrokWeb(prompt, provider.model);
   } else if (provider.type === 'glm-intl-web') {
     return await callGlmIntlWeb(prompt, provider.model);
+  } else if (provider.type === 'glm-web') {
+    return await callGlmWeb(prompt, provider.model);
   }
   return null;
 }
