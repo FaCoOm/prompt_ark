@@ -138,6 +138,7 @@ const SHORTCUT_ACTION_DEDUPE_MS = 350;
 class AIPromptManager {
   constructor() {
     this.platform = this.detectPlatform();
+    console.log(`[Prompt Ark] Content script loaded on ${window.location.hostname}, detected platform: ${this.platform}`);
     this.pickerVisible = false;
     this.prompts = [];
     this._savedSelection = null;
@@ -790,12 +791,13 @@ class AIPromptManager {
     }
 
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
+    // Define verified domains at method level so it can be accessed both inside and outside the event listener
+    const verifiedDomains = [
+      'https://promptark.oometa.ai',
+    ];
+    
     window.addEventListener('message', (event) => {
       // Security Check 1: Accept only from the verified production Hub origin
-      const verifiedDomains = [
-        'https://promptark.oometa.ai',
-      ];
-
       if (!verifiedDomains.includes(event.origin)) {
         return; // Ignore messages from untrusted origins
       }
@@ -1442,6 +1444,24 @@ class AIPromptManager {
         navigator.clipboard.writeText(message.text || '').catch(() => { });
         sendResponse({ success: true });
         break;
+      case 'GET_KIMI_TOKEN': {
+        // Read access_token from localStorage on kimi.com
+        try {
+          const accessToken = localStorage.getItem('access_token');
+          const refreshToken = localStorage.getItem('refresh_token');
+          console.log('[Prompt Ark] GET_KIMI_TOKEN called, access_token exists:', !!accessToken);
+          sendResponse({ 
+            success: true, 
+            accessToken, 
+            refreshToken,
+            baseUrl: window.location.origin 
+          });
+        } catch (e) {
+          console.error('[Prompt Ark] Failed to get Kimi token:', e);
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
       case 'SHOW_ARTICLE_SHARE_PICKER':
         this.runShortcutAction('share-article', () => this._showArticleSharePicker());
         sendResponse({ success: true });

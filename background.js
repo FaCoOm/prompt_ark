@@ -1,6 +1,7 @@
 // background.js - Service Worker
 console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loaded`);
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
+import { callKimiWeb, isKimiWebAvailable } from './lib/kimi-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
@@ -388,6 +389,8 @@ async function callProvider(provider, prompt) {
     return data.choices?.[0]?.message?.content;
   } else if (provider.type === 'gemini-web') {
     return await callGeminiWeb(prompt);
+  } else if (provider.type === 'kimi-web') {
+    return await callKimiWeb(prompt, provider.model);
   }
   return null;
 }
@@ -859,14 +862,17 @@ async function handleMessage(message, sendResponse) {
             sendResponse({ success: true, data });
           } catch (e) {
             console.error('[TRANSLATE_PROMPT] Error:', e);
-            const isLoginError = e.message === 'NOT_LOGGED_IN' || e.message?.includes('No valid response from Gemini Web');
+            const isLoginError = e.message === 'NOT_LOGGED_IN' || e.message?.includes('No valid response from Gemini Web') || e.message?.includes('Kimi Web returned empty response');
             if (isLoginError) {
-              chrome.tabs.create({ url: 'https://gemini.google.com/app', active: true });
+              // Determine which provider failed and open appropriate login page
+              const provider = await getActiveProvider();
+              const loginUrl = provider?.type === 'kimi-web' ? 'https://www.kimi.com/' : 'https://gemini.google.com/app';
+              chrome.tabs.create({ url: loginUrl, active: true });
             }
             sendResponse({
               success: false,
               error: isLoginError
-                ? '请先登录 Gemini，已自动打开登录页。登录后关闭该页并重新点击翻译。'
+                ? '请先登录对应的 AI 服务，已自动打开登录页。登录后关闭该页并重新点击翻译。'
                 : e.message,
               errorCode: isLoginError ? 'NOT_LOGGED_IN' : null,
             });

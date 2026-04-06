@@ -2220,7 +2220,7 @@ ${p.sourceContext ? `
     }
 
     const activeId = this._optimizeProviderId || resp.activeProviderId;
-    const typeLabels = { 'gemini-web': 'Gemini', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
+    const typeLabels = { 'gemini-web': 'Gemini', 'kimi-web': 'Kimi', 'gemini': 'Gemini API', 'openai': 'OpenAI' };
     menu.innerHTML = cloudProviders.map(p => {
       const isActive = p.id === activeId;
       const modelInfo = p.model || p.type;
