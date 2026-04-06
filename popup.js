@@ -720,6 +720,40 @@ class PopupManager {
     return preview;
   }
 
+  isPendingCustomCategory(prompt = null) {
+    if (!prompt?.category_key || prompt?.category_type !== CATEGORY_TYPES.PENDING) {
+      return false;
+    }
+
+    if (prompt.manual_custom_category) {
+      return true;
+    }
+
+    if (
+      prompt.ai_category_type === CATEGORY_TYPES.CUSTOM &&
+      String(prompt.ai_category_key || '').trim() === String(prompt.category_key || '').trim()
+    ) {
+      return true;
+    }
+
+    const systemKeys = new Set(
+      (this.categoryFormState.systemOptions || []).map((option) => String(option.key || '').trim())
+    );
+    const categoryKey = String(prompt.category_key || '').trim();
+    if (systemKeys.size > 0 && systemKeys.has(categoryKey)) {
+      return false;
+    }
+
+    const customKeys = new Set(
+      (this.categoryFormState.customOptions || []).map((option) => String(option.key || '').trim())
+    );
+    if (customKeys.size > 0 && customKeys.has(categoryKey)) {
+      return true;
+    }
+
+    return false;
+  }
+
   async getAiCategoryPreview(prompt = null) {
     const aiType = prompt?.ai_category_type || '';
     const aiKey = prompt?.ai_category_key || '';
@@ -748,7 +782,7 @@ class PopupManager {
     if (!categoryKey) return null;
 
     return {
-      type: prompt?.category_type === CATEGORY_TYPES.CUSTOM
+      type: (prompt?.category_type === CATEGORY_TYPES.CUSTOM || this.isPendingCustomCategory(prompt))
         ? CATEGORY_TYPES.CUSTOM
         : CATEGORY_TYPES.SYSTEM,
       key: categoryKey,
@@ -1278,7 +1312,7 @@ class PopupManager {
     this.categoryFormState = this.createCategoryFormState();
     await this.loadCategoryFormOptions();
 
-    const categoryType = prompt?.category_type === CATEGORY_TYPES.CUSTOM
+    const categoryType = prompt?.category_type === CATEGORY_TYPES.CUSTOM || this.isPendingCustomCategory(prompt)
       ? CATEGORY_TYPES.CUSTOM
       : prompt?.category_type === CATEGORY_TYPES.PENDING
         ? CATEGORY_TYPES.SYSTEM
