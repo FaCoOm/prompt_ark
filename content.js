@@ -1445,7 +1445,6 @@ class AIPromptManager {
         sendResponse({ success: true });
         break;
       case 'GET_KIMI_TOKEN': {
-        // Read access_token from localStorage on kimi.com
         try {
           const accessToken = localStorage.getItem('access_token');
           const refreshToken = localStorage.getItem('refresh_token');
@@ -1458,6 +1457,24 @@ class AIPromptManager {
           });
         } catch (e) {
           console.error('[Prompt Ark] Failed to get Kimi token:', e);
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+      case 'GET_QWEN_CN_XSRF': {
+        try {
+          let xsrfToken = '';
+          const metaTag = document.querySelector('meta[name="x-xsrf-token"]');
+          if (metaTag) {
+            xsrfToken = metaTag.getAttribute('content') || '';
+          }
+          if (!xsrfToken) {
+            const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+            if (match) xsrfToken = match[1];
+          }
+          sendResponse({ success: true, xsrfToken });
+        } catch (e) {
+          console.error('[Prompt Ark] Failed to get Qwen CN XSRF:', e);
           sendResponse({ success: false, error: e.message });
         }
         break;

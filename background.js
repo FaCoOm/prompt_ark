@@ -4,6 +4,8 @@ import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { callKimiWeb, isKimiWebAvailable } from './lib/kimi-web.js';
 import { callXiaomimoWeb, isXiaomimoWebAvailable } from './lib/xiaomimo-web.js';
 import { callQwenWeb, isQwenWebAvailable } from './lib/qwen-web.js';
+import { callGrokWeb, isGrokWebAvailable } from './lib/grok-web.js';
+import { callGlmIntlWeb, isGlmIntlWebAvailable } from './lib/glm-intl-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
@@ -397,6 +399,10 @@ async function callProvider(provider, prompt) {
     return await callXiaomimoWeb(prompt, provider.model);
   } else if (provider.type === 'qwen-web') {
     return await callQwenWeb(prompt, provider.model);
+  } else if (provider.type === 'grok-web') {
+    return await callGrokWeb(prompt, provider.model);
+  } else if (provider.type === 'glm-intl-web') {
+    return await callGlmIntlWeb(prompt, provider.model);
   }
   return null;
 }
@@ -872,7 +878,11 @@ async function handleMessage(message, sendResponse) {
             if (isLoginError) {
               // Determine which provider failed and open appropriate login page
               const provider = await getActiveProvider();
-              const loginUrl = provider?.type === 'kimi-web' ? 'https://www.kimi.com/' : 'https://gemini.google.com/app';
+              let loginUrl = 'https://gemini.google.com/app';
+              if (provider?.type === 'kimi-web') loginUrl = 'https://www.kimi.com/';
+              else if (provider?.type === 'qwen-web') loginUrl = 'https://chat.qwen.ai/';
+              else if (provider?.type === 'xiaomimo-web') loginUrl = 'https://aistudio.xiaomimimo.com/';
+              else if (provider?.type === 'grok-web') loginUrl = 'https://grok.com/';
               chrome.tabs.create({ url: loginUrl, active: true });
             }
             sendResponse({
