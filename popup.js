@@ -680,6 +680,20 @@ class PopupManager {
   }
 
   renderPromptReviewBanner(prompt) {
+    if (prompt?.ai_enriching) {
+      return `
+        <div class="prompt-review-banner ai-enriching">
+          <div class="prompt-review-copy">
+            <div class="prompt-review-title">
+              <span class="prompt-review-spinner" aria-hidden="true"></span>
+              ${this.escapeHtml(i18n.t('aiEnrichingLocked'))}
+            </div>
+            <div class="prompt-review-hint">${this.escapeHtml(i18n.t('aiEnrichingHint'))}</div>
+          </div>
+        </div>
+      `;
+    }
+
     if (!prompt?.needs_category_review) return '';
 
     return `
@@ -1566,7 +1580,7 @@ class PopupManager {
     const pageItems = filtered.slice(startIdx, startIdx + this.pageSize);
 
     container.innerHTML = pageItems.map(p => {
-      const actionDisabled = p.needs_category_review ? 'disabled' : '';
+      const actionDisabled = (p.needs_category_review || p.ai_enriching) ? 'disabled' : '';
       return `
       <div class="prompt-item ${this.shareManager.isPackMode ? 'selectable' : ''}" data-id="${p.id}">
         <div class="prompt-main">

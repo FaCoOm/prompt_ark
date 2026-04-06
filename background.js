@@ -318,6 +318,16 @@ async function asyncEnrichPrompt(promptId, content) {
   );
 }
 
+function markPromptEnriching(prompt) {
+  const willEnrich = shouldEnrichPromptMetadata(prompt);
+  if (willEnrich) {
+    prompt.ai_enriching = true;
+  } else {
+    delete prompt.ai_enriching;
+  }
+  return willEnrich;
+}
+
 function shouldPreserveAutoTitle(existing, nextTitle) {
   const normalizedTitle = String(nextTitle || '').trim();
   if (!normalizedTitle) return true;
@@ -529,6 +539,7 @@ async function handleMessage(message, sendResponse) {
         };
         // Preserve structured video data for re-rendering in video modal
         if (message.prompt.videoData) newPrompt.videoData = message.prompt.videoData;
+        const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
         await PromptStorage.save(newPrompt);
         await markPendingPromptReveal(newId);
         sendResponse({ success: true, promptId: newId });
@@ -536,7 +547,7 @@ async function handleMessage(message, sendResponse) {
 
         // Async AI enrichment — MUST be awaited (not fire-and-forget)
         // to keep MV3 Service Worker alive until completion
-        if (shouldEnrichPromptMetadata(newPrompt)) {
+        if (shouldEnrichNewPrompt) {
           await asyncEnrichPrompt(newId, message.prompt.content);
         }
         break;
@@ -609,12 +620,13 @@ async function handleMessage(message, sendResponse) {
           updatedAt: Date.now()
         };
 
+        const shouldEnrichUpdatedPrompt = markPromptEnriching(updatedPrompt);
         await PromptStorage.update(updatedPrompt);
         sendResponse({ success: true, prompt: await getDisplayPrompt(updatedPrompt) });
         broadcastPromptsUpdated({ action: 'update', promptId: updatedPrompt.id, prompt: await getDisplayPrompt(updatedPrompt) });
 
         // Async AI enrichment — awaited to keep MV3 worker alive
-        if (shouldEnrichPromptMetadata(updatedPrompt)) {
+        if (shouldEnrichUpdatedPrompt) {
           await asyncEnrichPrompt(message.prompt.id, message.prompt.content);
         }
         break;
@@ -651,7 +663,7 @@ async function handleMessage(message, sendResponse) {
             ai_category_confidence: p.ai_category_confidence,
           });
 
-          imported.push({
+          const importedPrompt = {
             id: crypto.randomUUID(),
             title: metadata.title,
             content: p.content,
@@ -674,7 +686,9 @@ async function handleMessage(message, sendResponse) {
             needs_output_modality_review: metadata.needs_output_modality_review,
             skip_async_enrich: Boolean(p.skip_async_enrich),
             createdAt: Date.now()
-          });
+          };
+          markPromptEnriching(importedPrompt);
+          imported.push(importedPrompt);
         }
         // Append to existing (not overwrite!)
         await PromptStorage.bulkSet([...existing, ...imported]);
@@ -687,7 +701,7 @@ async function handleMessage(message, sendResponse) {
 
         // Async AI enrichment for imported prompts missing metadata
         for (const p of imported) {
-          if (shouldEnrichPromptMetadata(p)) {
+          if (p.ai_enriching) {
             await asyncEnrichPrompt(p.id, p.content);
           }
         }
@@ -786,13 +800,14 @@ async function handleMessage(message, sendResponse) {
           needs_output_modality_review: metadata.needs_output_modality_review,
           createdAt: now
         };
+        const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
         await PromptStorage.save(newPrompt);
         await rebuildContextMenusForActiveTab();
         await markPendingPromptReveal(newId);
         broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: await getDisplayPrompt(newPrompt) });
         sendResponse({ success: true });
         // Async AI enrichment (non-blocking)
-        if (shouldEnrichPromptMetadata(newPrompt)) {
+        if (shouldEnrichNewPrompt) {
           await asyncEnrichPrompt(newId, selectedText);
         }
         break;
@@ -863,12 +878,13 @@ async function handleMessage(message, sendResponse) {
             skip_async_enrich: true,
             createdAt: now
           };
+          const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
           await PromptStorage.save(newPrompt);
           await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(newId);
           broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: await getDisplayPrompt(newPrompt) });
           sendResponse({ success: true, title: newPrompt.title });
-          if (shouldEnrichPromptMetadata(newPrompt)) {
+          if (shouldEnrichNewPrompt) {
             await asyncEnrichPrompt(newId, newPrompt.content);
           }
         } catch (e) {
@@ -916,12 +932,13 @@ async function handleMessage(message, sendResponse) {
             needs_output_modality_review: metadata.needs_output_modality_review,
             createdAt: now
           };
+          const shouldEnrichFallbackPrompt = markPromptEnriching(fallbackPrompt);
           await PromptStorage.save(fallbackPrompt);
           await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(fallbackId);
           broadcastPromptsUpdated({ action: 'create', promptId: fallbackId, prompt: await getDisplayPrompt(fallbackPrompt) });
           sendResponse({ success: false, error: e.message, fallbackSaved: true, title: fallbackPrompt.title });
-          if (shouldEnrichPromptMetadata(fallbackPrompt)) {
+          if (shouldEnrichFallbackPrompt) {
             await asyncEnrichPrompt(fallbackId, fallbackPrompt.content);
           }
         }
