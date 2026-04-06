@@ -205,5 +205,80 @@
   },
   "MSG_SYNC_SUCCESS": {
     "message": "Sync Successful"
+  },
+  "hubPublishSuccessTitle": {
+    "message": "🎉 Published to Hub!"
+  },
+  "hubPublishSuccessMessage": {
+    "message": "Your prompt \"$TITLE\" is now live on Hub.",
+    "placeholders": {
+      "TITLE": {
+        "content": "$1",
+        "example": "My Prompt"
+      }
+    }
+  },
+  "hubPublishBatchSuccessTitle": {
+    "message": "🎉 Prompts Published!"
+  },
+  "hubPublishBatchSuccessMessageSingular": {
+    "message": "Your prompt is now live on Hub."
+  },
+  "hubPublishBatchSuccessMessagePlural": {
+    "message": "$COUNT prompts are now live on Hub.",
+    "placeholders": {
+      "COUNT": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hubShareCopiedTitle": {
+    "message": "🔗 Copied!"
+  },
+  "hubShareCopiedMessage": {
+    "message": "Check your clipboard"
+  },
+  "hubShareOpeningTitle": {
+    "message": "🔗 Opening..."
+  },
+  "hubShareOpeningMessage": {
+    "message": "Check the new tab to finish sharing."
+  },
+  "hubPublishFailedTitle": {
+    "message": "❌ Publish Failed"
+  },
+  "hubPublishFailedMessage": {
+    "message": "Failed to publish: $ERROR. Please try again.",
+    "placeholders": {
+      "ERROR": {
+        "content": "$1",
+        "example": "Unknown error"
+      }
+    }
+  },
+  "toastIconError": {
+    "message": "❌"
+  },
+  "toastIconSuccess": {
+    "message": "✨"
+  },
+  "toastIconProcessing": {
+    "message": "⏳"
+  },
+  "toastIconInfo": {
+    "message": "📋"
+  },
+  "contextUnavailable": {
+    "message": "Unable to read the current page context. Refresh and try again."
+  },
+  "quickAddSuccess": {
+    "message": "\"$TITLE\" added to Prompt Ark",
+    "placeholders": {
+      "TITLE": {
+        "content": "$1",
+        "example": "My Prompt"
+      }
+    }
   }
 }

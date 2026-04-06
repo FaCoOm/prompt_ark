@@ -127,8 +127,8 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🎉 Published to Hub!',
-        message: `Your prompt "${intent.promptData.title}" is now live on Hub.`
+        title: chrome.i18n.getMessage('hubPublishSuccessTitle') || '🎉 Published to Hub!',
+        message: chrome.i18n.getMessage('hubPublishSuccessMessage', [intent.promptData.title]) || `Your prompt "${intent.promptData.title}" is now live on Hub.`
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -143,10 +143,10 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🎉 Prompts Published!',
+        title: chrome.i18n.getMessage('hubPublishBatchSuccessTitle') || '🎉 Prompts Published!',
         message: count > 1
-          ? `${count} prompts are now live on Hub.`
-          : 'Your prompt is now live on Hub.'
+          ? (chrome.i18n.getMessage('hubPublishBatchSuccessMessagePlural', [String(count)]) || `${count} prompts are now live on Hub.`)
+          : (chrome.i18n.getMessage('hubPublishBatchSuccessMessageSingular') || 'Your prompt is now live on Hub.')
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -216,8 +216,12 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🔗 ' + (platform === 'copy' || platform === 'json' ? 'Copied!' : 'Opening ' + platform + '...'),
-        message: platform === 'copy' || platform === 'json' ? 'Check your clipboard' : 'Check the new tab to finish sharing.'
+        title: (platform === 'copy' || platform === 'json'
+          ? (chrome.i18n.getMessage('hubShareCopiedTitle') || '🔗 Copied!')
+          : (chrome.i18n.getMessage('hubShareOpeningTitle') || '🔗 Opening...')),
+        message: (platform === 'copy' || platform === 'json'
+          ? (chrome.i18n.getMessage('hubShareCopiedMessage') || 'Check your clipboard')
+          : (chrome.i18n.getMessage('hubShareOpeningMessage') || 'Check the new tab to finish sharing.'))
       });
     }
   } catch (e) {
@@ -225,8 +229,8 @@ async function handlePendingIntent() {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: '❌ Publish Failed',
-      message: `Failed to publish: ${e.message || 'Unknown error'}. Please try again.`
+      title: chrome.i18n.getMessage('hubPublishFailedTitle') || '❌ Publish Failed',
+      message: chrome.i18n.getMessage('hubPublishFailedMessage', [e.message || 'Unknown error']) || `Failed to publish: ${e.message || 'Unknown error'}. Please try again.`
     });
   } finally {
     _isPendingIntentRunning = false;

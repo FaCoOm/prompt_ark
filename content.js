@@ -97,7 +97,7 @@ class ImagePromptHandler {
     const btn = document.createElement("button");
     btn.className = "image-prompt-btn";
     btn.innerHTML = "✨";
-    btn.title = "Generate Image Prompt";
+    btn.title = this.msg('imagePromptButtonTitle', 'Generate Image Prompt');
     const rect = img.getBoundingClientRect();
     btn.style.cssText = `position:fixed;top:${rect.top + 8}px;left:${rect.right - 32}px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;z-index:2147483647;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.2s;pointer-events:auto;`;
     btn.addEventListener("mouseenter", () => (btn.style.opacity = "1"));
@@ -476,7 +476,7 @@ class AIPromptManager {
         const inputEl = this.findInputElement();
         if (inputEl) {
           console.log('[Prompt Ark] Doubao input found, injecting prompt...');
-          const promptWithPrefix = `帮我生成图片：${resp.prompt}`;
+          const promptWithPrefix = `${this.msg('doubaoImagePromptPrefix', '帮我生成图片：')}${resp.prompt}`;
           const success = await this.injectIntoElement(inputEl, promptWithPrefix, { replaceAll: true });
           if (success) {
             await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_DOUBAO_PROMPT' });
@@ -605,7 +605,7 @@ class AIPromptManager {
     }
 
     if (!sourceText || (!hasSelection && sourceText.length < 10)) {
-      this.showNotification('❌ ' + this.msg('noPageText', 'No readable text found on page'), 'error');
+      this.showNotification(this.msg('toastIconError', '❌') + ' ' + this.msg('noPageText', 'No readable text found on page'), 'error');
       return;
     }
 
@@ -1083,7 +1083,7 @@ class AIPromptManager {
       const isSearch = placeholder.includes('search') || placeholder.includes('research') || placeholder.includes('搜索');
 
       btn.innerHTML = isSearch ? '<span>🔍</span>' : '<span>✨</span>';
-      btn.title = isSearch ? 'Search Prompts' : 'Insert Prompt';
+      btn.title = isSearch ? this.msg('searchPrompts', 'Search Prompts') : this.msg('insertPrompt', 'Insert Prompt');
       if (isSearch) btn.classList.add('apm-type-search');
       else btn.classList.add('apm-type-chat');
 
@@ -2179,6 +2179,14 @@ class AIPromptManager {
         qaSummarizePrompt: '请总结以下内容',
         qaTranslateLabel: '翻译',
         qaTranslatePrompt: '请翻译以下内容',
+        toastIconError: '❌',
+        toastIconSuccess: '✨',
+        toastIconProcessing: '⏳',
+        toastIconInfo: '📋',
+        imagePromptButtonTitle: '生成图片提示词',
+        searchPrompts: '搜索 Prompt',
+        insertPrompt: '插入 Prompt',
+        doubaoImagePromptPrefix: '帮我生成图片：',
       },
       en: {
         insertSuccess: 'Prompt inserted',
@@ -2207,6 +2215,14 @@ class AIPromptManager {
         qaSummarizePrompt: 'Please summarize the following',
         qaTranslateLabel: 'Translate',
         qaTranslatePrompt: 'Please translate the following',
+        toastIconError: '❌',
+        toastIconSuccess: '✨',
+        toastIconProcessing: '⏳',
+        toastIconInfo: '📋',
+        imagePromptButtonTitle: 'Generate Image Prompt',
+        searchPrompts: 'Search Prompts',
+        insertPrompt: 'Insert Prompt',
+        doubaoImagePromptPrefix: 'Generate image: ',
       }
     };
 

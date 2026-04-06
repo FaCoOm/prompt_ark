@@ -422,6 +422,29 @@ export const translations = {
         contextMenuReddit: "Reddit",
         contextMenuLinkedIn: "LinkedIn",
         contextMenuTwitter: "Twitter/X",
+        // Toast Icons
+        toastIconError: "❌",
+        toastIconSuccess: "✨",
+        toastIconProcessing: "⏳",
+        toastIconInfo: "📋",
+        // Context Menu Toasts
+        contextUnavailable: "无法获取当前页面上下文，请刷新页面后重试",
+        quickAddSuccess: '"{t}" 已添加到 Prompt Ark',
+        loadingIndicator: "⏳",
+        // Image Prompt Doubao
+        imagePromptDoubaoBtn: "🚀 一键豆包做同款",
+        imagePromptNoPromptForDoubao: "没有可发送的 Prompt",
+        imagePromptDoubaoOpened: "豆包已打开，Prompt 将自动填入",
+        // Platform Names
+        platformNames: {
+            chatgpt: 'ChatGPT',
+            claude: 'Claude',
+            gemini: 'Gemini',
+            deepseek: 'DeepSeek',
+            kimi: 'Kimi',
+            doubao: '豆包',
+            qwen: '通义千问',
+        },
     },
     en: {
         appName: "Prompt Ark",
@@ -856,5 +879,28 @@ export const translations = {
         contextMenuReddit: "Reddit",
         contextMenuLinkedIn: "LinkedIn",
         contextMenuTwitter: "Twitter/X",
+        // Toast Icons
+        toastIconError: "❌",
+        toastIconSuccess: "✨",
+        toastIconProcessing: "⏳",
+        toastIconInfo: "📋",
+        // Context Menu Toasts
+        contextUnavailable: "Unable to read the current page context. Refresh and try again.",
+        quickAddSuccess: '"{t}" added to Prompt Ark',
+        loadingIndicator: "⏳",
+        // Image Prompt Doubao
+        imagePromptDoubaoBtn: "🚀 Open in Doubao",
+        imagePromptNoPromptForDoubao: "No prompt to send to Doubao",
+        imagePromptDoubaoOpened: "Doubao opened, prompt will be filled in",
+        // Platform Names
+        platformNames: {
+            chatgpt: 'ChatGPT',
+            claude: 'Claude',
+            gemini: 'Gemini',
+            deepseek: 'DeepSeek',
+            kimi: 'Kimi',
+            doubao: 'Doubao',
+            qwen: 'Qwen',
+        },
     },
 };

@@ -2015,7 +2015,7 @@ ${p.sourceContext ? `
       }
 
       const originalHtml = btn.innerHTML;
-      btn.innerHTML = '⏳...';
+      btn.innerHTML = i18n.t('loadingIndicator') || '⏳';
       btn.disabled = true;
 
       try {
@@ -2955,7 +2955,7 @@ ${p.sourceContext ? `
 
     const btn = document.getElementById('optimizeBtn');
     btn.disabled = true;
-    btn.textContent = '⏳...';
+    btn.textContent = i18n.t('loadingIndicator') || '⏳';
 
     try {
       const msg = { type: 'OPTIMIZE_PROMPT', content };
@@ -3400,7 +3400,7 @@ ${p.sourceContext ? `
     const card = document.querySelector(`.prompt-item[data-id="${promptId}"]`);
     const btn = card?.querySelector('.translate-list-btn');
     const originalHtml = btn?.innerHTML;
-    if (btn) { btn.innerHTML = '⏳'; btn.disabled = true; }
+    if (btn) { btn.innerHTML = i18n.t('loadingIndicator') || '⏳'; btn.disabled = true; }
 
     try {
       const resp = await chrome.runtime.sendMessage({
@@ -3580,7 +3580,7 @@ ${p.sourceContext ? `
 
   async pushSkillFromManager(skillId, btn) {
     const origText = btn.textContent;
-    btn.textContent = '⏳...';
+    btn.textContent = i18n.t('loadingIndicator') || '⏳';
     btn.disabled = true;
     try {
       const resp = await chrome.runtime.sendMessage({ type: 'PUSH_SKILL', skillId });
