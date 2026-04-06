@@ -48,6 +48,7 @@ class PopupManager {
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
+    this.categoryReviewMode = false;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
     this.isImportScanRunning = false;
@@ -124,6 +125,7 @@ class PopupManager {
             if (this.editingId && String(this.editingId) === String(msg.prompt.id) && this.modalPromptData) {
               this.modalPromptData = { ...this.modalPromptData, ...msg.prompt };
               void this.renderCategoryReviewPanel(this.modalPromptData);
+              this.updateCategoryReviewModeUI();
             }
           } else {
             // New prompt (e.g. from Smart Convert / Add to Prompt Ark)
@@ -730,9 +732,11 @@ class PopupManager {
     if (!aiType || !aiKey) return false;
 
     if (aiType === CATEGORY_TYPES.CUSTOM) {
-      this.setCategoryFormSource(CATEGORY_FORM_SOURCES.CUSTOM, {
+      const hasExistingCustomCategory = this.categoryFormState.customOptions
+        .some((option) => String(option.key || '') === String(aiKey));
+      this.setCategoryFormSource(hasExistingCustomCategory ? CATEGORY_FORM_SOURCES.MINE : CATEGORY_FORM_SOURCES.CUSTOM, {
         query: aiKey,
-        selectedKey: '',
+        selectedKey: hasExistingCustomCategory ? aiKey : '',
         selectedLabel: aiKey,
       });
       return true;
@@ -1191,9 +1195,12 @@ class PopupManager {
     const displayCategory = prompt ? (await derivePromptCategory(prompt, i18n.getLanguage())) : '';
 
     if (categoryType === CATEGORY_TYPES.CUSTOM && categoryKey) {
-      this.setCategoryFormSource(CATEGORY_FORM_SOURCES.MINE, {
+      const source = prompt?.manual_custom_category
+        ? CATEGORY_FORM_SOURCES.CUSTOM
+        : CATEGORY_FORM_SOURCES.MINE;
+      this.setCategoryFormSource(source, {
         query: categoryKey,
-        selectedKey: categoryKey,
+        selectedKey: source === CATEGORY_FORM_SOURCES.MINE ? categoryKey : '',
         selectedLabel: categoryKey,
       });
       return;
@@ -1213,6 +1220,36 @@ class PopupManager {
       selectedKey: '',
       selectedLabel: '',
     });
+  }
+
+  isCategoryReviewLocked() {
+    return Boolean(this.categoryReviewMode && this.modalPromptData?.needs_category_review);
+  }
+
+  updateCategoryReviewModeUI() {
+    const locked = this.isCategoryReviewLocked();
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
+      if (locked) {
+        modalTitle.textContent = i18n.t('confirmPromptCategory');
+      } else {
+        modalTitle.textContent = this.editingId ? i18n.t('editPrompt') : i18n.t('newPrompt');
+      }
+    }
+
+    ['titleInput', 'shortcutInput', 'contentInput'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.readOnly = locked;
+      el.setAttribute('aria-readonly', locked ? 'true' : 'false');
+    });
+
+    ['historyBtn', 'contextVarBtn', 'previewToggle', 'optimizeBtn', 'optimizeProviderBtn', 'enhanceBtn', 'translateTargetLang', 'translateBtn']
+      .forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = locked;
+      });
   }
 
   getCategoryFormPayload() {
@@ -1780,7 +1817,7 @@ ${p.sourceContext ? `
       const id = item.dataset.id;
 
       if (e.target.closest('[data-open-category-review]')) {
-        this.editPrompt(id);
+        this.editPrompt(id, { categoryReviewMode: true });
         return;
       }
 
@@ -2627,7 +2664,7 @@ ${p.sourceContext ? `
 
   // --- Edit Modal ---
 
-  showEditModal(prompt = null) {
+  showEditModal(prompt = null, options = {}) {
     // If this is a saved video prompt, re-open in the interactive video modal
     if (prompt?.videoData) {
       this._youtubeResult = prompt.videoData;
@@ -2639,6 +2676,7 @@ ${p.sourceContext ? `
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
     this.modalPromptData = prompt ? { ...prompt } : null;
+    this.categoryReviewMode = Boolean(options.categoryReviewMode);
 
     if (prompt) {
       title.textContent = i18n.t('editPrompt');
@@ -2672,11 +2710,18 @@ ${p.sourceContext ? `
 
     this.modalOutputModality = prompt?.output_modality || '';
     this.modalForceOutputModality = prompt?.force_output_modality || '';
-    void this.setCategoryFormValue(prompt);
+    void this.setCategoryFormValue(prompt).then(() => {
+      if (this.isCategoryReviewLocked()) {
+        document.getElementById('categorySearchInput')?.focus();
+      }
+    });
     void this.renderCategoryReviewPanel(this.modalPromptData);
 
     modal.classList.remove('hidden');
-    document.getElementById('titleInput').focus();
+    this.updateCategoryReviewModeUI();
+    if (!this.isCategoryReviewLocked()) {
+      document.getElementById('titleInput').focus();
+    }
     // Reset diff panel state on open
     document.getElementById('optimizeDiffPanel').classList.add('hidden');
     document.getElementById('contentInput').classList.remove('hidden');
@@ -2701,9 +2746,11 @@ ${p.sourceContext ? `
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
+    this.categoryReviewMode = false;
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
     this.resetContractBuilder();
+    this.updateCategoryReviewModeUI();
   }
 
   updateShortcutVisibility() {
@@ -3112,10 +3159,15 @@ ${p.sourceContext ? `
     const isEditing = Boolean(this.editingId);
     const categoryPayload = this.getCategoryFormPayload();
     const rawCategoryInput = String(document.getElementById('categorySearchInput')?.value || '').trim();
-    const manualCustomCategory = !applyAiRecommendation && (
-      (this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM && !!rawCategoryInput) ||
-      (categoryPayload.category_type === CATEGORY_TYPES.CUSTOM && Boolean(this.modalPromptData?.manual_custom_category))
-    );
+    const categoryReviewLocked = this.isCategoryReviewLocked();
+    if (categoryReviewLocked && (!categoryPayload.category_type || !categoryPayload.category_key)) {
+      this.showToast(i18n.t('categoryRequired'));
+      return;
+    }
+    const shouldConfirmCategoryReview = Boolean(confirmCategoryReview || categoryReviewLocked);
+    const manualCustomCategory = !applyAiRecommendation &&
+      this.categoryFormState.source === CATEGORY_FORM_SOURCES.CUSTOM &&
+      !!rawCategoryInput;
     const prompt = {
       title: document.getElementById('titleInput').value.trim(),
       category: manualCustomCategory ? rawCategoryInput : categoryPayload.category,
@@ -3131,7 +3183,7 @@ ${p.sourceContext ? `
       force_output_modality: this.modalForceOutputModality || '',
       shortcut: document.getElementById('shortcutInput').value.trim().replace(/^\//, '').replace(/[^a-zA-Z0-9_-]/g, ''),
       content: document.getElementById('contentInput').value.trim(),
-      confirm_category_review: Boolean(confirmCategoryReview),
+      confirm_category_review: shouldConfirmCategoryReview,
       ai_category_type: this.modalPromptData?.ai_category_type || '',
       ai_category_key: this.modalPromptData?.ai_category_key || '',
       ai_category_confidence: this.modalPromptData?.ai_category_confidence,
@@ -3178,9 +3230,10 @@ ${p.sourceContext ? `
     }
   }
 
-  editPrompt(id) {
+  editPrompt(id, options = {}) {
     const prompt = this.prompts.find(p => p.id === id);
-    if (prompt) this.showEditModal(prompt);
+    if (!prompt) return;
+    this.showEditModal(prompt, options);
   }
 
   // --- Inline Translate (Prompt List) ---
