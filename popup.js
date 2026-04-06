@@ -721,11 +721,17 @@ class PopupManager {
   }
 
   isPendingCustomCategory(prompt = null) {
-    if (!prompt?.category_key || prompt?.category_type !== CATEGORY_TYPES.PENDING) {
+    if (!prompt?.category_key || !prompt?.needs_category_review) {
       return false;
     }
 
     if (prompt.manual_custom_category) {
+      return true;
+    }
+
+    if (
+      prompt.category_type === CATEGORY_TYPES.CUSTOM
+    ) {
       return true;
     }
 
@@ -752,6 +758,12 @@ class PopupManager {
     }
 
     return false;
+  }
+
+  getPromptCategoryScopeType(prompt = null) {
+    if (!prompt?.category_key) return '';
+    if (prompt?.needs_category_review) return CATEGORY_TYPES.PENDING;
+    return String(prompt?.category_type || '').trim();
   }
 
   async getAiCategoryPreview(prompt = null) {
@@ -916,8 +928,9 @@ class PopupManager {
   }
 
   getCategoryFilterToken(prompt) {
-    if (!prompt?.category_type || !prompt?.category_key) return '';
-    return `${prompt.category_type}:${prompt.category_key}`;
+    const scopeType = this.getPromptCategoryScopeType(prompt);
+    if (!scopeType || !prompt?.category_key) return '';
+    return `${scopeType}:${prompt.category_key}`;
   }
 
   getCategoryScopeFromToken(token = '') {
@@ -1004,7 +1017,7 @@ class PopupManager {
     const pendingCustomCategories = [...new Set(
       this.prompts
         .filter((prompt) =>
-          prompt.category_type === CATEGORY_TYPES.PENDING &&
+          this.getPromptCategoryScopeType(prompt) === CATEGORY_TYPES.PENDING &&
           prompt.category_key &&
           !systemCategoryKeySet.has(prompt.category_key)
         )
@@ -1033,6 +1046,7 @@ class PopupManager {
           order: index,
         };
       })
+      .filter(cat => cat.count > 0)
       .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
     const availableTokens = new Set([
