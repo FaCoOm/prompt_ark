@@ -3,6 +3,7 @@ console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loade
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { callKimiWeb, isKimiWebAvailable } from './lib/kimi-web.js';
 import { callXiaomimoWeb, isXiaomimoWebAvailable } from './lib/xiaomimo-web.js';
+import { callQwenWeb, isQwenWebAvailable } from './lib/qwen-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
@@ -394,6 +395,8 @@ async function callProvider(provider, prompt) {
     return await callKimiWeb(prompt, provider.model);
   } else if (provider.type === 'xiaomimo-web') {
     return await callXiaomimoWeb(prompt, provider.model);
+  } else if (provider.type === 'qwen-web') {
+    return await callQwenWeb(prompt, provider.model);
   }
   return null;
 }
