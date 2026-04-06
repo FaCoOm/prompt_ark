@@ -1078,39 +1078,70 @@ body::before {
   display: none;
 }
 
-.category-review-header {
+.category-review-section + .category-review-section {
+  margin-top: 12px;
+}
+
+.category-review-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.category-review-status {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.category-review-section + .category-review-section {
-  margin-top: 10px;
+  margin-bottom: 6px;
 }
 
 .category-review-label {
-  margin-bottom: 6px;
   font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.category-review-apply-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.category-review-apply-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.category-review-apply-btn.active {
+  border-color: rgba(240, 160, 80, 0.4);
+  background: rgba(240, 160, 80, 0.16);
+  color: #ffd7a0;
+}
+
+.category-review-apply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .category-review-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  min-height: 28px;
+  min-height: 42px;
   align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all var(--transition);
+}
+
+.category-review-preview.selected {
+  border-color: rgba(240, 160, 80, 0.35);
+  background: rgba(240, 160, 80, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(240, 160, 80, 0.08);
 }
 
 .category-review-empty {
@@ -1118,10 +1149,39 @@ body::before {
   color: var(--text-muted);
 }
 
-.category-review-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
+.category-form-group {
+  position: relative;
+  z-index: 1;
+}
+
+[data-review-lock-region] {
+  transition: opacity var(--transition), filter var(--transition);
+}
+
+[data-review-lock-region].review-locked {
+  position: relative;
+  opacity: 0.48;
+  filter: saturate(0.55);
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-review-lock-region].review-locked::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, rgba(12, 14, 20, 0.12), rgba(12, 14, 20, 0.28)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.03) 8px,
+      rgba(255, 255, 255, 0.01) 8px,
+      rgba(255, 255, 255, 0.01) 16px
+    );
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  pointer-events: none;
 }
 
 .prompt-actions {

@@ -171,6 +171,9 @@ class PopupManager {
     if (this.prompts.length > 0) {
       void this.renderCategories();
     }
+    if (this.modalPromptData) {
+      void this.renderCategoryReviewPanel(this.modalPromptData);
+    }
   }
 
   async detectSidePanelAndTrackTab() {
@@ -726,6 +729,56 @@ class PopupManager {
     `;
   }
 
+  getCurrentCategoryReviewTarget(prompt = this.modalPromptData) {
+    const categoryKey = String(prompt?.category_key || '').trim();
+    if (!categoryKey) return null;
+
+    return {
+      type: prompt?.category_type === CATEGORY_TYPES.CUSTOM
+        ? CATEGORY_TYPES.CUSTOM
+        : CATEGORY_TYPES.SYSTEM,
+      key: categoryKey,
+    };
+  }
+
+  getAiCategoryReviewTarget(prompt = this.modalPromptData) {
+    const aiType = String(prompt?.ai_category_type || '').trim();
+    const aiKey = String(prompt?.ai_category_key || '').trim();
+    if (!aiType || !aiKey) return null;
+
+    return {
+      type: aiType === CATEGORY_TYPES.CUSTOM ? CATEGORY_TYPES.CUSTOM : CATEGORY_TYPES.SYSTEM,
+      key: aiKey,
+    };
+  }
+
+  isCategoryReviewTargetSelected(target) {
+    if (!target?.type || !target?.key) return false;
+    const payload = this.getCategoryFormPayload();
+    return payload.category_type === target.type && payload.category_key === target.key;
+  }
+
+  updateCategoryReviewApplyButton(button, { active = false, disabled = false } = {}) {
+    if (!button) return;
+    button.disabled = disabled;
+    button.classList.toggle('active', active);
+    button.textContent = active
+      ? i18n.t('categoryReviewSelected')
+      : i18n.t('useCategoryReviewOption');
+  }
+
+  refreshCategoryReviewPanelIfNeeded() {
+    if (!this.isCategoryReviewLocked()) return;
+    void this.renderCategoryReviewPanel(this.modalPromptData);
+  }
+
+  async applyCurrentCategoryToCategoryForm(prompt = this.modalPromptData) {
+    if (!prompt?.category_key) return false;
+    await this.setCategoryFormValue(prompt);
+    await this.renderCategoryReviewPanel(prompt);
+    return true;
+  }
+
   async applyAiRecommendationToCategoryForm(prompt = this.modalPromptData) {
     const aiType = prompt?.ai_category_type || '';
     const aiKey = prompt?.ai_category_key || '';
@@ -739,6 +792,7 @@ class PopupManager {
         selectedKey: hasExistingCustomCategory ? aiKey : '',
         selectedLabel: aiKey,
       });
+      await this.renderCategoryReviewPanel(prompt);
       return true;
     }
 
@@ -752,35 +806,49 @@ class PopupManager {
       selectedKey: aiKey,
       selectedLabel: displayCategory,
     });
+    await this.renderCategoryReviewPanel(prompt);
     return true;
   }
 
   async renderCategoryReviewPanel(prompt = this.modalPromptData) {
     const panel = document.getElementById('categoryReviewPanel');
-    const statusEl = document.getElementById('categoryReviewStatus');
+    const aiLabelEl = document.getElementById('aiCategoryReviewLabel');
     const currentPreviewEl = document.getElementById('currentCategoryReviewPreview');
     const aiPreviewEl = document.getElementById('aiCategoryReviewPreview');
+    const useCurrentBtn = document.getElementById('useCurrentCategoryBtn');
     const applyBtn = document.getElementById('applyRecommendedCategoryBtn');
 
-    if (!panel || !statusEl || !currentPreviewEl || !aiPreviewEl || !applyBtn) return;
+    if (!panel || !aiLabelEl || !currentPreviewEl || !aiPreviewEl || !useCurrentBtn || !applyBtn) return;
 
     if (!prompt?.needs_category_review) {
       panel.classList.add('hidden');
-      statusEl.textContent = '';
+      aiLabelEl.textContent = i18n.t('aiRecommendedCategory');
       currentPreviewEl.innerHTML = '';
       aiPreviewEl.innerHTML = '';
-      applyBtn.disabled = false;
+      currentPreviewEl.classList.remove('selected');
+      aiPreviewEl.classList.remove('selected');
+      this.updateCategoryReviewApplyButton(useCurrentBtn);
+      this.updateCategoryReviewApplyButton(applyBtn);
       return;
     }
 
     const currentPreview = await this.buildCategoryPreview(prompt.category_type, prompt.category_key);
     const aiPreview = await this.getAiCategoryPreview(prompt);
     const aiConfidence = Number(prompt?.ai_category_confidence);
+    const currentTarget = this.getCurrentCategoryReviewTarget(prompt);
+    const aiTarget = this.getAiCategoryReviewTarget(prompt);
+    const currentSelected = this.isCategoryReviewTargetSelected(currentTarget);
+    const aiSelected = this.isCategoryReviewTargetSelected(aiTarget);
+    const confidenceText = Number.isFinite(aiConfidence)
+      ? `${Math.round(aiConfidence * 100)}%`
+      : '';
 
     panel.classList.remove('hidden');
-    statusEl.textContent = Number.isFinite(aiConfidence)
-      ? `${Math.round(aiConfidence * 100)}%`
-      : i18n.t('categoryReviewWaiting');
+    aiLabelEl.textContent = confidenceText
+      ? i18n.t('aiRecommendedCategoryConfidence', { percent: confidenceText })
+      : i18n.t('aiRecommendedCategory');
+    currentPreviewEl.classList.toggle('selected', currentSelected);
+    aiPreviewEl.classList.toggle('selected', aiSelected);
     currentPreviewEl.innerHTML = this.renderCategoryReviewPreview(
       currentPreview,
       i18n.t('categoryReviewWaiting')
@@ -789,7 +857,14 @@ class PopupManager {
       aiPreview,
       i18n.t('categoryReviewWaiting')
     );
-    applyBtn.disabled = !aiPreview;
+    this.updateCategoryReviewApplyButton(useCurrentBtn, {
+      active: currentSelected,
+      disabled: !currentPreview,
+    });
+    this.updateCategoryReviewApplyButton(applyBtn, {
+      active: aiSelected,
+      disabled: !aiPreview,
+    });
   }
 
   getCategoryFilterToken(prompt) {
@@ -1119,6 +1194,8 @@ class PopupManager {
         input.select();
       }
     }
+
+    this.refreshCategoryReviewPanelIfNeeded();
   }
 
   selectCategoryFormOption(optionKey, optionLabel) {
@@ -1131,6 +1208,7 @@ class PopupManager {
 
     this.syncCategoryFormState();
     this.closeCategoryDropdown();
+    this.refreshCategoryReviewPanelIfNeeded();
   }
 
   syncCategoryFormState() {
@@ -1229,12 +1307,16 @@ class PopupManager {
   updateCategoryReviewModeUI() {
     const locked = this.isCategoryReviewLocked();
     const modalTitle = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('submitPromptBtn');
     if (modalTitle) {
       if (locked) {
         modalTitle.textContent = i18n.t('confirmPromptCategory');
       } else {
         modalTitle.textContent = this.editingId ? i18n.t('editPrompt') : i18n.t('newPrompt');
       }
+    }
+    if (submitBtn) {
+      submitBtn.textContent = locked ? i18n.t('confirm') : i18n.t('save');
     }
 
     ['titleInput', 'shortcutInput', 'contentInput'].forEach((id) => {
@@ -1250,6 +1332,10 @@ class PopupManager {
         if (!el) return;
         el.disabled = locked;
       });
+
+    document.querySelectorAll('[data-review-lock-region]').forEach((el) => {
+      el.classList.toggle('review-locked', locked);
+    });
   }
 
   getCategoryFormPayload() {
@@ -1749,6 +1835,7 @@ ${p.sourceContext ? `
         this.categoryFormState.selectedKey = '';
         this.categoryFormState.selectedLabel = value.trim();
         this.syncCategoryFormState();
+        this.refreshCategoryReviewPanelIfNeeded();
         return;
       }
 
@@ -1757,6 +1844,7 @@ ${p.sourceContext ? `
         this.categoryFormState.selectedLabel = '';
       }
       this.syncCategoryFormState();
+      this.refreshCategoryReviewPanelIfNeeded();
       this.openCategoryDropdown();
     });
 
@@ -1888,11 +1976,14 @@ ${p.sourceContext ? `
       e.preventDefault();
       this.savePrompt();
     });
-    document.getElementById('confirmCurrentCategoryBtn')?.addEventListener('click', () => {
-      this.savePrompt({ confirmCategoryReview: true });
+    document.getElementById('useCurrentCategoryBtn')?.addEventListener('click', async () => {
+      await this.applyCurrentCategoryToCategoryForm(this.modalPromptData);
     });
-    document.getElementById('applyRecommendedCategoryBtn')?.addEventListener('click', () => {
-      this.savePrompt({ confirmCategoryReview: true, applyAiRecommendation: true });
+    document.getElementById('applyRecommendedCategoryBtn')?.addEventListener('click', async () => {
+      const applied = await this.applyAiRecommendationToCategoryForm(this.modalPromptData);
+      if (!applied) {
+        this.showToast(i18n.t('categoryReviewWaiting'));
+      }
     });
 
     // Translate Prompt
