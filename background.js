@@ -7,6 +7,7 @@ import { callQwenWeb, isQwenWebAvailable } from './lib/qwen-web.js';
 import { callGrokWeb, isGrokWebAvailable } from './lib/grok-web.js';
 import { callGlmWeb, isGlmWebAvailable } from './lib/glm-web.js';
 import { callGlmIntlWeb, isGlmIntlWebAvailable } from './lib/glm-intl-web.js';
+import { callChatGPTWeb, isChatGPTWebAvailable } from './lib/chatgpt-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
 import { translations } from './locales.js';
@@ -406,6 +407,8 @@ async function callProvider(provider, prompt) {
     return await callGlmIntlWeb(prompt, provider.model);
   } else if (provider.type === 'glm-web') {
     return await callGlmWeb(prompt, provider.model);
+  } else if (provider.type === 'chatgpt-web') {
+    return await callChatGPTWeb(prompt, provider.model);
   }
   return null;
 }

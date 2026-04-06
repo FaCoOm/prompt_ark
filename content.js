@@ -534,8 +534,6 @@ class AIPromptManager {
     return resolved;
   }
 
-  // Context Grabber: auto-fill magic variables with live webpage data
-  // These are resolved BEFORE showing the variable form, so users never see them.
   static CONTEXT_VARS = new Set(['@page_text', '@selection', '@page_url', '@page_title', '@date']);
   static GENERIC_PAGE_ALLOWED_CONTEXT_VARS = new Set(['@page_text', '@selection', '@page_url', '@page_title', '@date']);
 
@@ -1475,6 +1473,29 @@ class AIPromptManager {
           sendResponse({ success: true, xsrfToken });
         } catch (e) {
           console.error('[Prompt Ark] Failed to get Qwen CN XSRF:', e);
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+      case 'GET_DOUBAO_TOKENS': {
+        try {
+          const tokens = window.__DOUBAO_DYNAMIC_TOKENS || {};
+          sendResponse({
+            success: true,
+            msToken: tokens.msToken || null,
+            a_bogus: tokens.a_bogus || null,
+            fp: tokens.fp || null,
+            tea_uuid: tokens.tea_uuid || null,
+            device_id: tokens.device_id || null,
+            web_tab_id: tokens.web_tab_id || null,
+            aid: tokens.aid || null,
+            version_code: tokens.version_code || null,
+            pc_version: tokens.pc_version || null,
+            region: tokens.region || null,
+            language: tokens.language || null,
+          });
+        } catch (e) {
+          console.error('[Prompt Ark] Failed to get Doubao tokens:', e);
           sendResponse({ success: false, error: e.message });
         }
         break;
