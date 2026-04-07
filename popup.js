@@ -602,13 +602,14 @@ class PopupManager {
 
     const options = [
       { id: 'all', label: i18n.t('modalityAll') },
-      { id: 'text', label: i18n.t('modalityText') },
-      { id: 'image', label: i18n.t('modalityImage') },
-      { id: 'video', label: i18n.t('modalityVideo') },
+      { id: 'text', ...this.getModalityMeta('text') },
+      { id: 'image', ...this.getModalityMeta('image') },
+      { id: 'video', ...this.getModalityMeta('video') },
     ];
 
     container.innerHTML = options.map((option) => `
       <button class="smart-view-btn filter-chip-btn ${this.currentModality === option.id ? 'active' : ''}" data-modality="${option.id}">
+        ${option.icon ? `<span class="chip-icon" aria-hidden="true">${option.icon}</span>` : ''}
         <span class="chip-text">${this.escapeHtml(option.label)}</span>
       </button>
     `).join('');
