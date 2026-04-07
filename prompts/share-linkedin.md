@@ -54,7 +54,7 @@ Never open with: "Excited to share", "Thrilled to announce", "AI is transforming
 ## Output Format
 ```json
 {
-  "text": "📊 Concrete number or finding.\n\nThe design trick: **specific technique from prompt**.\n\nBefore: one-liner → generic output.\nAfter: this template → specific result.\n\nMy takeaway: honest sentence.\n\nWhat's your experience with structured vs free-form prompts?\n\nTemplate: https://example.com\n\n#PromptEngineering #AI #Productivity"
+  "text": "📊 Concrete number or finding.\n\nThe design trick: **specific technique from prompt**.\n\nBefore: one-liner → generic output.\nAfter: this template → specific result.\n\nMy takeaway: honest sentence.\n\nWhat's your experience with structured vs free-form prompts?\n\nTemplate: [url]\n\n#PromptEngineering #AI #Productivity"
 }
 ```
 
