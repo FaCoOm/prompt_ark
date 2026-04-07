@@ -207,10 +207,10 @@
     "message": "Sync Successful"
   },
   "hubPublishSuccessTitle": {
-    "message": "🎉 Published to Hub!"
+    "message": "✅ Submitted for Hub review!"
   },
   "hubPublishSuccessMessage": {
-    "message": "Your prompt \"$TITLE\" is now live on Hub.",
+    "message": "Your prompt \"$TITLE\" is waiting for Hub review.",
     "placeholders": {
       "TITLE": {
         "content": "$1",
@@ -219,13 +219,13 @@
     }
   },
   "hubPublishBatchSuccessTitle": {
-    "message": "🎉 Prompts Published!"
+    "message": "✅ Prompts Submitted!"
   },
   "hubPublishBatchSuccessMessageSingular": {
-    "message": "Your prompt is now live on Hub."
+    "message": "Your prompt is waiting for Hub review."
   },
   "hubPublishBatchSuccessMessagePlural": {
-    "message": "$COUNT prompts are now live on Hub.",
+    "message": "$COUNT prompts are waiting for Hub review.",
     "placeholders": {
       "COUNT": {
         "content": "$1",

@@ -127,8 +127,8 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: chrome.i18n.getMessage('hubPublishSuccessTitle') || '🎉 Published to Hub!',
-        message: chrome.i18n.getMessage('hubPublishSuccessMessage', [intent.promptData.title]) || `Your prompt "${intent.promptData.title}" is now live on Hub.`
+        title: chrome.i18n.getMessage('hubPublishSuccessTitle') || '✅ Submitted for Hub review!',
+        message: chrome.i18n.getMessage('hubPublishSuccessMessage', [intent.promptData.title]) || `Your prompt "${intent.promptData.title}" is waiting for Hub review.`
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -143,10 +143,10 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: chrome.i18n.getMessage('hubPublishBatchSuccessTitle') || '🎉 Prompts Published!',
+        title: chrome.i18n.getMessage('hubPublishBatchSuccessTitle') || '✅ Prompts Submitted!',
         message: count > 1
-          ? (chrome.i18n.getMessage('hubPublishBatchSuccessMessagePlural', [String(count)]) || `${count} prompts are now live on Hub.`)
-          : (chrome.i18n.getMessage('hubPublishBatchSuccessMessageSingular') || 'Your prompt is now live on Hub.')
+          ? (chrome.i18n.getMessage('hubPublishBatchSuccessMessagePlural', [String(count)]) || `${count} prompts are waiting for Hub review.`)
+          : (chrome.i18n.getMessage('hubPublishBatchSuccessMessageSingular') || 'Your prompt is waiting for Hub review.')
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });

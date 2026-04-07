@@ -207,10 +207,10 @@
     "message": "Chrome 同步成功"
   },
   "hubPublishSuccessTitle": {
-    "message": "🎉 已发布到 Hub！"
+    "message": "✅ 已提交 Hub 审核！"
   },
   "hubPublishSuccessMessage": {
-    "message": "您的 Prompt「$TITLE」已在 Hub 上线。",
+    "message": "您的 Prompt「$TITLE」已进入 Hub 待审核队列。",
     "placeholders": {
       "TITLE": {
         "content": "$1",
@@ -219,13 +219,13 @@
     }
   },
   "hubPublishBatchSuccessTitle": {
-    "message": "🎉 已发布到 Hub！"
+    "message": "✅ 已提交 Hub 审核！"
   },
   "hubPublishBatchSuccessMessageSingular": {
-    "message": "您的 Prompt 已在 Hub 上线。"
+    "message": "您的 Prompt 已进入 Hub 待审核队列。"
   },
   "hubPublishBatchSuccessMessagePlural": {
-    "message": "$COUNT 个 Prompt 已在 Hub 上线。",
+    "message": "$COUNT 个 Prompt 已进入 Hub 待审核队列。",
     "placeholders": {
       "COUNT": {
         "content": "$1",
