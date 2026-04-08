@@ -17,7 +17,6 @@ import {
 import {
   hydratePromptForDisplay,
   hydratePromptsForDisplay,
-  getTaxonomySyncStatus,
   syncHubTaxonomy
 } from './lib/taxonomy.js';
 import { optimizePromptWithAI } from './lib/ai/optimize.js';
@@ -1371,17 +1370,11 @@ async function handleMessage(message, sendResponse) {
         break;
       }
 
-      case 'GET_HUB_TAXONOMY_STATUS': {
-        sendResponse({ success: true, status: await getTaxonomySyncStatus() });
-        break;
-      }
-
       case 'FORCE_HUB_TAXONOMY_SYNC': {
         try {
           const taxonomy = await syncHubTaxonomy();
-          const status = await getTaxonomySyncStatus();
           broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
-          sendResponse({ success: true, status });
+          sendResponse({ success: true });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
         }
