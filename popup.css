@@ -497,6 +497,8 @@ body::before {
 
 .provider-list {
   margin: 8px 0;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .provider-item {
@@ -1946,20 +1948,28 @@ body::before {
 }
 
 /* ===================== SCROLLBAR ===================== */
-.prompt-list::-webkit-scrollbar {
+.prompt-list::-webkit-scrollbar,
+.settings-panel::-webkit-scrollbar,
+.provider-list::-webkit-scrollbar {
   width: 5px;
 }
 
-.prompt-list::-webkit-scrollbar-track {
+.prompt-list::-webkit-scrollbar-track,
+.settings-panel::-webkit-scrollbar-track,
+.provider-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.prompt-list::-webkit-scrollbar-thumb {
+.prompt-list::-webkit-scrollbar-thumb,
+.settings-panel::-webkit-scrollbar-thumb,
+.provider-list::-webkit-scrollbar-thumb {
   background: var(--text-muted);
   border-radius: 3px;
 }
 
-.prompt-list::-webkit-scrollbar-thumb:hover {
+.prompt-list::-webkit-scrollbar-thumb:hover,
+.settings-panel::-webkit-scrollbar-thumb:hover,
+.provider-list::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
 
