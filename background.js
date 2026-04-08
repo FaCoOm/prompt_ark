@@ -739,8 +739,10 @@ async function handleMessage(message, sendResponse) {
           break;
         }
         const now = Date.now();
+        console.log('[SMART_CONVERT_SELECTION] Starting');
         try {
           const result = await smartConvertWithAI(selectedText);
+          console.log('[SMART_CONVERT_SELECTION] Completed');
           if (!result?.prompt) throw new Error('Empty result');
           const metadata = buildSavedPromptMetadata(result.prompt, {
             title: result.title,
@@ -780,6 +782,7 @@ async function handleMessage(message, sendResponse) {
           await markPendingPromptReveal(newId);
           broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
           sendResponse({ success: true, title: newPrompt.title });
+          console.log('[SMART_CONVERT_SELECTION] Starting enrich, shouldEnrich:', shouldEnrichPromptMetadata(newPrompt));
           if (shouldEnrichPromptMetadata(newPrompt)) {
             await asyncEnrichPrompt(newId, newPrompt.content);
           }

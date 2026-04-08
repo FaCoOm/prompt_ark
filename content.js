@@ -2,7 +2,6 @@
 // Unified deep traversal strategy for all platforms
 
 // --- Doubao Token Interception ---
-// Capture dynamic anti-bot tokens from doubao.com requests
 if (window.location.hostname.includes('doubao.com')) {
   window.__DOUBAO_DYNAMIC_TOKENS = window.__DOUBAO_DYNAMIC_TOKENS || {};
 
@@ -20,6 +19,7 @@ if (window.location.hostname.includes('doubao.com')) {
       
       return tokens;
     } catch (e) {
+      console.error('[Prompt Ark] Error extracting tokens:', e);
       return {};
     }
   }
@@ -31,31 +31,197 @@ if (window.location.hostname.includes('doubao.com')) {
     }
   }
 
-  // Intercept fetch
+  console.log('[Prompt Ark] Installing fetch interceptor...');
+  console.log('[Prompt Ark] Current fetch:', window.fetch);
+  
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
     const url = args[0];
+    console.log('[Prompt Ark] Intercepted fetch:', typeof url === 'string' ? url.substring(0, 100) : url);
     if (typeof url === 'string' && url.includes('doubao.com')) {
+      console.log('[Prompt Ark] Processing doubao.com fetch URL');
       const tokens = extractTokensFromUrl(url);
+      console.log('[Prompt Ark] Extracted tokens from URL:', Object.keys(tokens));
       updateTokens(tokens);
     } else if (url instanceof Request && url.url.includes('doubao.com')) {
+      console.log('[Prompt Ark] Processing doubao.com Request object');
       const tokens = extractTokensFromUrl(url.url);
+      console.log('[Prompt Ark] Extracted tokens from Request:', Object.keys(tokens));
       updateTokens(tokens);
     }
     return originalFetch.apply(this, args);
   };
+  
+  console.log('[Prompt Ark] Fetch interceptor installed, new fetch:', window.fetch);
 
-  // Intercept XMLHttpRequest
+  console.log('[Prompt Ark] Installing XHR interceptor...');
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+    console.log('[Prompt Ark] Intercepted XHR:', typeof url === 'string' ? url.substring(0, 100) : url);
     if (typeof url === 'string' && url.includes('doubao.com')) {
+      console.log('[Prompt Ark] Processing doubao.com XHR URL');
       const tokens = extractTokensFromUrl(url);
+      console.log('[Prompt Ark] Extracted tokens from XHR:', Object.keys(tokens));
       updateTokens(tokens);
     }
     return originalOpen.call(this, method, url, ...rest);
   };
+  console.log('[Prompt Ark] XHR interceptor installed');
 
   console.log('[Prompt Ark] Doubao token interceptor installed');
+  
+  // Try to get msToken from localStorage on init
+  try {
+    const lsMsToken = localStorage.getItem('msToken');
+    if (lsMsToken) {
+      window.__DOUBAO_DYNAMIC_TOKENS.msToken = lsMsToken;
+      console.log('[Prompt Ark] Got msToken from localStorage on init');
+    }
+  } catch (e) {
+    console.log('[Prompt Ark] Cannot access localStorage:', e);
+  }
+
+  // Listen for token requests from background script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'GET_DOUBAO_TOKENS') {
+      console.log('[Prompt Ark] Received GET_DOUBAO_TOKENS request');
+      console.log('[Prompt Ark] Current tokens:', Object.keys(window.__DOUBAO_DYNAMIC_TOKENS || {}));
+      const interceptedTokens = window.__DOUBAO_DYNAMIC_TOKENS || {};
+      
+      if (!interceptedTokens.msToken) {
+        try {
+          const lsMsToken = localStorage.getItem('msToken');
+          if (lsMsToken) {
+            interceptedTokens.msToken = lsMsToken;
+            console.log('[Prompt Ark] Got msToken from localStorage');
+          }
+        } catch (e) {
+          console.log('[Prompt Ark] Cannot access localStorage:', e);
+        }
+      }
+      
+      // If a_bogus is missing, try to generate it using script injection
+      if (!interceptedTokens.a_bogus) {
+        console.log('[Prompt Ark] a_bogus not found, trying to generate via script injection...');
+        generateAbogusViaInjection(interceptedTokens).then(generatedTokens => {
+          if (generatedTokens.a_bogus) {
+            console.log('[Prompt Ark] Successfully generated a_bogus via injection');
+            Object.assign(interceptedTokens, generatedTokens);
+          } else {
+            console.log('[Prompt Ark] Failed to generate a_bogus, please send a message in doubao.com first');
+          }
+          sendResponse({
+            success: Object.keys(interceptedTokens).length > 0,
+            ...interceptedTokens
+          });
+        });
+        return true;
+      }
+      
+      sendResponse({
+        success: Object.keys(interceptedTokens).length > 0,
+        ...interceptedTokens
+      });
+    }
+    return true;
+  });
+}
+
+// Function to generate a_bogus via script injection
+async function generateAbogusViaInjection(tokens) {
+  return new Promise((resolve) => {
+    // Check if frontierSign is available
+    if (typeof window.byted_acrawler?.frontierSign !== 'function') {
+      console.log('[Prompt Ark] frontierSign not available');
+      resolve({});
+      return;
+    }
+
+    // Build params string (sorted alphabetically as per doubao-2api)
+    const params = {
+      aid: tokens.aid || '497858',
+      device_id: tokens.device_id || '',
+      device_platform: 'web',
+      fp: tokens.fp || '',
+      language: tokens.language || 'zh',
+      msToken: tokens.msToken || '',
+      pc_version: tokens.pc_version || '3.13.1',
+      pkg_type: 'release_version',
+      real_aid: tokens.aid || '497858',
+      region: tokens.region || '',
+      samantha_web: '1',
+      sys_region: tokens.sys_region || '',
+      tea_uuid: tokens.tea_uuid || '',
+      'use-olympus-account': '1',
+      version_code: tokens.version_code || '20800',
+      web_id: tokens.web_id || '',
+      web_tab_id: tokens.web_tab_id || ''
+    };
+    
+    // Sort params alphabetically
+    const sortedParams = Object.keys(params).sort().reduce((obj, key) => {
+      obj[key] = params[key];
+      return obj;
+    }, {});
+    
+    const queryString = Object.entries(sortedParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    
+    console.log('[Prompt Ark] Calling frontierSign with query string...');
+    
+    // Inject script to call frontierSign
+    const script = document.createElement('script');
+    script.textContent = `
+      (function() {
+        try {
+          if (typeof window.byted_acrawler?.frontierSign === 'function') {
+            const result = window.byted_acrawler.frontierSign("${queryString}");
+            window.postMessage({
+              type: 'PROMPT_ARK_ABOGUS_RESULT',
+              result: result
+            }, '*');
+          }
+        } catch (e) {
+          window.postMessage({
+            type: 'PROMPT_ARK_ABOGUS_ERROR',
+            error: e.message
+          }, '*');
+        }
+      })();
+    `;
+    
+    // Listen for result
+    const listener = (event) => {
+      if (event.data?.type === 'PROMPT_ARK_ABOGUS_RESULT') {
+        document.removeEventListener('message', listener);
+        script.remove();
+        const result = event.data.result;
+        if (result && (result.a_bogus || result['X-Bogus'])) {
+          resolve({
+            a_bogus: result.a_bogus || result['X-Bogus']
+          });
+        } else {
+          resolve({});
+        }
+      } else if (event.data?.type === 'PROMPT_ARK_ABOGUS_ERROR') {
+        document.removeEventListener('message', listener);
+        script.remove();
+        console.error('[Prompt Ark] Error generating a_bogus:', event.data.error);
+        resolve({});
+      }
+    };
+    
+    // Set timeout
+    setTimeout(() => {
+      document.removeEventListener('message', listener);
+      script.remove();
+      resolve({});
+    }, 5000);
+    
+    window.addEventListener('message', listener);
+    document.head.appendChild(script);
+  });
 }
 
 // --- Image Prompt Feature (Embedded) ---
@@ -92,6 +258,11 @@ class ImagePromptHandler {
   }
   startDetection() {
     if (this.observer) return;
+    if (!document.body) {
+      console.log('[ImagePrompt] document.body not ready, deferring startDetection');
+      setTimeout(() => this.startDetection(), 100);
+      return;
+    }
     this.scanImages();
     let debounceTimer = null;
     this.observer = new MutationObserver(() => {
