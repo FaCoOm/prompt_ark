@@ -135,6 +135,82 @@ class ImagePromptHandler {
 const SMART_CONVERT_MIN_LENGTH = 10;
 const SHORTCUT_ACTION_DEDUPE_MS = 350;
 
+// Translation dictionary for content script - defined outside to allow synchronous initialization
+const CONTENT_TRANSLATIONS = {
+  zh_CN: {
+    insertSuccess: 'Prompt 已填入',
+    inputNotFound: '未找到输入框',
+    extensionReload: '扩展已更新，请刷新页面',
+    loadError: '无法加载Prompts',
+    contextMenuSaveSuccess: '已添加到 Prompt Ark ✓',
+    contextMenuConvertStart: '正在转化为 Prompt...',
+    contextMenuConvertSuccess: '成功保存智能 Prompt',
+    contextMenuConvertError: '智能转化失败，已保存原文',
+    contextMenuZhihu: '知乎',
+    contextMenuWechat: '微信公众号',
+    contextMenuXiaohongshu: '小红书',
+    noPageText: '未找到页面可读取的文本内容',
+    smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
+    smartConvertTooShort: `智能转换至少需要 ${SMART_CONVERT_MIN_LENGTH} 个字符`,
+    selectionToolbarAdd: '添加到 Prompt Ark',
+    selectionToolbarConvert: '智能转化为 Prompt',
+    qaExpandLabel: '展开',
+    qaExpandPrompt: '请展开以下内容',
+    qaExplainLabel: '解释',
+    qaExplainPrompt: '请解释以下内容',
+    qaRewriteLabel: '改写',
+    qaRewritePrompt: '请改写以下内容',
+    qaSummarizeLabel: '总结',
+    qaSummarizePrompt: '请总结以下内容',
+    qaTranslateLabel: '翻译',
+    qaTranslatePrompt: '请翻译以下内容',
+    toastIconError: '❌',
+    toastIconSuccess: '✨',
+    toastIconProcessing: '⏳',
+    toastIconInfo: '📋',
+    imagePromptButtonTitle: '生成图片提示词',
+    searchPrompts: '搜索 Prompt',
+    insertPrompt: '插入 Prompt',
+    doubaoImagePromptPrefix: '帮我生成图片：',
+  },
+  en: {
+    insertSuccess: 'Prompt inserted',
+    inputNotFound: 'Input box not found',
+    extensionReload: 'Extension updated, please refresh page',
+    loadError: 'Failed to load Prompts',
+    contextMenuSaveSuccess: 'Added to Prompt Ark ✓',
+    contextMenuConvertStart: 'Converting to prompt...',
+    contextMenuConvertSuccess: 'Smart prompt saved!',
+    contextMenuConvertError: 'Smart Convert failed, saved as raw text',
+    contextMenuZhihu: 'Zhihu',
+    contextMenuWechat: 'WeChat Official Account',
+    contextMenuXiaohongshu: 'Xiaohongshu',
+    noPageText: 'No readable text found on page',
+    smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
+    smartConvertTooShort: `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`,
+    selectionToolbarAdd: 'Add to Prompt Ark',
+    selectionToolbarConvert: 'Smart Convert',
+    qaExpandLabel: 'Expand',
+    qaExpandPrompt: 'Please expand on the following',
+    qaExplainLabel: 'Explain',
+    qaExplainPrompt: 'Please explain the following',
+    qaRewriteLabel: 'Rewrite',
+    qaRewritePrompt: 'Please rewrite the following',
+    qaSummarizeLabel: 'Summarize',
+    qaSummarizePrompt: 'Please summarize the following',
+    qaTranslateLabel: 'Translate',
+    qaTranslatePrompt: 'Please translate the following',
+    toastIconError: '❌',
+    toastIconSuccess: '✨',
+    toastIconProcessing: '⏳',
+    toastIconInfo: '📋',
+    imagePromptButtonTitle: 'Generate Image Prompt',
+    searchPrompts: 'Search Prompts',
+    insertPrompt: 'Insert Prompt',
+    doubaoImagePromptPrefix: 'Generate image: ',
+  }
+};
+
 class AIPromptManager {
   constructor() {
     this.platform = this.detectPlatform();
@@ -143,7 +219,11 @@ class AIPromptManager {
     this._savedSelection = null;
     this.injectedMarker = 'data-apm-injected';
     this.onSelectCallback = null;
-    this.i18nDict = {}; // Custom i18n dictionary (syncs with background.js)
+    // Synchronously set i18n dict based on browser UI language to avoid race condition
+    // Will be updated when _loadI18nDict async callback returns with user's extension language
+    this.i18nDict = chrome.i18n.getUILanguage().startsWith('zh')
+        ? CONTENT_TRANSLATIONS.zh_CN
+        : CONTENT_TRANSLATIONS.en;
     this.shortcutActionState = new Map();
 
     this.slashDropdown = null;
@@ -2148,84 +2228,7 @@ class AIPromptManager {
     }
   }
 
-  // Load translation dictionary directly from chrome.storage (no background.js needed)
   _loadI18nDict() {
-    // Inline translation map — only keys content.js actually uses
-    const CONTENT_TRANSLATIONS = {
-      zh_CN: {
-        insertSuccess: 'Prompt 已填入',
-        inputNotFound: '未找到输入框',
-        extensionReload: '扩展已更新，请刷新页面',
-        loadError: '无法加载Prompts',
-        contextMenuSaveSuccess: '已添加到 Prompt Ark ✓',
-        contextMenuConvertStart: '正在转化为 Prompt...',
-        contextMenuConvertSuccess: '成功保存智能 Prompt',
-        contextMenuConvertError: '智能转化失败，已保存原文',
-        contextMenuZhihu: '知乎',
-        contextMenuWechat: '微信公众号',
-        contextMenuXiaohongshu: '小红书',
-        noPageText: '未找到页面可读取的文本内容',
-        smartConvertNoProvider: '智能转换需要配置 AI 服务商，请在 Prompt Ark 设置中配置',
-        smartConvertTooShort: `智能转换至少需要 ${SMART_CONVERT_MIN_LENGTH} 个字符`,
-        selectionToolbarAdd: '添加到 Prompt Ark',
-        selectionToolbarConvert: '智能转化为 Prompt',
-        qaExpandLabel: '展开',
-        qaExpandPrompt: '请展开以下内容',
-        qaExplainLabel: '解释',
-        qaExplainPrompt: '请解释以下内容',
-        qaRewriteLabel: '改写',
-        qaRewritePrompt: '请改写以下内容',
-        qaSummarizeLabel: '总结',
-        qaSummarizePrompt: '请总结以下内容',
-        qaTranslateLabel: '翻译',
-        qaTranslatePrompt: '请翻译以下内容',
-        toastIconError: '❌',
-        toastIconSuccess: '✨',
-        toastIconProcessing: '⏳',
-        toastIconInfo: '📋',
-        imagePromptButtonTitle: '生成图片提示词',
-        searchPrompts: '搜索 Prompt',
-        insertPrompt: '插入 Prompt',
-        doubaoImagePromptPrefix: '帮我生成图片：',
-      },
-      en: {
-        insertSuccess: 'Prompt inserted',
-        inputNotFound: 'Input box not found',
-        extensionReload: 'Extension updated, please refresh page',
-        loadError: 'Failed to load Prompts',
-        contextMenuSaveSuccess: 'Added to Prompt Ark ✓',
-        contextMenuConvertStart: 'Converting to prompt...',
-        contextMenuConvertSuccess: 'Smart prompt saved!',
-        contextMenuConvertError: 'Smart Convert failed, saved as raw text',
-        contextMenuZhihu: 'Zhihu',
-        contextMenuWechat: 'WeChat Official Account',
-        contextMenuXiaohongshu: 'Xiaohongshu',
-        noPageText: 'No readable text found on page',
-        smartConvertNoProvider: 'Smart Convert requires an AI provider. Configure one in Prompt Ark settings.',
-        smartConvertTooShort: `Smart Convert requires at least ${SMART_CONVERT_MIN_LENGTH} characters.`,
-        selectionToolbarAdd: 'Add to Prompt Ark',
-        selectionToolbarConvert: 'Smart Convert',
-        qaExpandLabel: 'Expand',
-        qaExpandPrompt: 'Please expand on the following',
-        qaExplainLabel: 'Explain',
-        qaExplainPrompt: 'Please explain the following',
-        qaRewriteLabel: 'Rewrite',
-        qaRewritePrompt: 'Please rewrite the following',
-        qaSummarizeLabel: 'Summarize',
-        qaSummarizePrompt: 'Please summarize the following',
-        qaTranslateLabel: 'Translate',
-        qaTranslatePrompt: 'Please translate the following',
-        toastIconError: '❌',
-        toastIconSuccess: '✨',
-        toastIconProcessing: '⏳',
-        toastIconInfo: '📋',
-        imagePromptButtonTitle: 'Generate Image Prompt',
-        searchPrompts: 'Search Prompts',
-        insertPrompt: 'Insert Prompt',
-        doubaoImagePromptPrefix: 'Generate image: ',
-      }
-    };
-
     try {
       chrome.storage.local.get('language', ({ language }) => {
         if (chrome.runtime.lastError) return;
@@ -2234,7 +2237,6 @@ class AIPromptManager {
       });
     } catch (e) { /* context invalidated */ }
 
-    // Also listen for language changes in real-time
     try {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === 'sync' && changes.language) {
