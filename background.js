@@ -687,6 +687,7 @@ async function handleMessage(message, sendResponse) {
       case 'IMPORT_PROMPTS': {
         const imported = [];
         const existing = await getPrompts();
+        const importStartedAt = Date.now();
         for (const p of message.prompts) {
           const preparedPrompt = await ensureHubImportCategoryReady(p);
           const metadata = await buildSavedPromptMetadata(preparedPrompt.content, {
@@ -733,7 +734,7 @@ async function handleMessage(message, sendResponse) {
             needs_category_review: metadata.needs_category_review,
             needs_output_modality_review: metadata.needs_output_modality_review,
             skip_async_enrich: Boolean(preparedPrompt.skip_async_enrich),
-            createdAt: Date.now()
+            createdAt: importStartedAt + imported.length
           };
           markPromptEnriching(importedPrompt);
           imported.push(importedPrompt);
@@ -741,10 +742,16 @@ async function handleMessage(message, sendResponse) {
         // Append to existing (not overwrite!)
         await PromptStorage.bulkSet([...existing, ...imported]);
         await rebuildContextMenusForActiveTab();
+        const firstImportedPromptId = imported[0]?.id || null;
+        await markPendingPromptReveal(firstImportedPromptId);
         sendResponse({
           success: true,
           promptIds: imported.map(p => p.id),
-          firstPromptId: imported[0]?.id || null
+          firstPromptId: firstImportedPromptId
+        });
+        broadcastPromptsUpdated({
+          action: 'import',
+          promptId: firstImportedPromptId
         });
 
         // Async AI enrichment for imported prompts missing metadata
