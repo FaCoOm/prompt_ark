@@ -1462,15 +1462,52 @@ class AIPromptManager {
       case 'GET_QWEN_CN_XSRF': {
         try {
           let xsrfToken = '';
+          let ut = '';
+          
+          // Get XSRF from meta tag
           const metaTag = document.querySelector('meta[name="x-xsrf-token"]');
           if (metaTag) {
             xsrfToken = metaTag.getAttribute('content') || '';
           }
+          
+          // Fallback to cookie
           if (!xsrfToken) {
             const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
             if (match) xsrfToken = match[1];
           }
-          sendResponse({ success: true, xsrfToken });
+          
+          // Try to get ut from various sources
+          // 1. b-user-id cookie
+          const utMatch = document.cookie.match(/b-user-id=([^;]+)/);
+          if (utMatch) ut = utMatch[1];
+          
+          // 2. Try to extract from window.__INITIAL_STATE__ or similar
+          if (!ut && window.__INITIAL_STATE__) {
+            try {
+              const state = window.__INITIAL_STATE__;
+              ut = state.user?.id || state.userId || state.ut || '';
+            } catch (e) {}
+          }
+          
+          // 3. Try localStorage
+          if (!ut) {
+            try {
+              ut = localStorage.getItem('b-user-id') || 
+                   localStorage.getItem('ut') || 
+                   localStorage.getItem('userId') || '';
+            } catch (e) {}
+          }
+          
+          // 4. Try sessionStorage
+          if (!ut) {
+            try {
+              ut = sessionStorage.getItem('b-user-id') || 
+                   sessionStorage.getItem('ut') || 
+                   sessionStorage.getItem('userId') || '';
+            } catch (e) {}
+          }
+          
+          sendResponse({ success: true, xsrfToken, ut });
         } catch (e) {
           console.error('[Prompt Ark] Failed to get Qwen CN XSRF:', e);
           sendResponse({ success: false, error: e.message });
