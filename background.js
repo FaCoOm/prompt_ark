@@ -16,7 +16,9 @@ import {
 } from './lib/text-analysis.js';
 import {
   hydratePromptForDisplay,
-  hydratePromptsForDisplay
+  hydratePromptsForDisplay,
+  getTaxonomySyncStatus,
+  syncHubTaxonomy
 } from './lib/taxonomy.js';
 import { optimizePromptWithAI } from './lib/ai/optimize.js';
 import { translatePromptWithAI } from './lib/ai/translate.js';
@@ -269,6 +271,11 @@ function broadcastPromptsUpdated(payload = {}) {
       });
     });
   } catch (e) { /* ignore send errors */ }
+}
+
+function broadcastTaxonomyUpdated(payload = {}) {
+  const message = { type: 'TAXONOMY_UPDATED', ...payload };
+  try { chrome.runtime.sendMessage(message).catch(() => { }); } catch (e) { /* no listeners */ }
 }
 
 
@@ -1358,6 +1365,23 @@ async function handleMessage(message, sendResponse) {
         try {
           const result = await SyncManager[syncMethods[message.type]]();
           sendResponse({ success: true, message: result?.message });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
+      case 'GET_HUB_TAXONOMY_STATUS': {
+        sendResponse({ success: true, status: await getTaxonomySyncStatus() });
+        break;
+      }
+
+      case 'FORCE_HUB_TAXONOMY_SYNC': {
+        try {
+          const taxonomy = await syncHubTaxonomy();
+          const status = await getTaxonomySyncStatus();
+          broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
+          sendResponse({ success: true, status });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
         }

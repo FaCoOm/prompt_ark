@@ -354,13 +354,35 @@
 
         <!-- Sync Mode Dropdown -->
         <div class="settings-card">
-          <div class="settings-group">
+          <div class="settings-group settings-group-stacked">
             <label data-i18n="syncEngine">☁️ 数据同步</label>
+            <span class="settings-hint" data-i18n="syncEngineHint">选择如何跨设备同步你的 Prompt 数据</span>
             <select id="syncBackendSelect" class="settings-input">
               <option value="none" data-i18n="noSync">不同步（仅本地）</option>
               <option value="webdav" data-i18n="webdavSync">WebDAV</option>
               <option value="obsidian" data-i18n="obsidianSync">Obsidian Vault (WebDAV)</option>
             </select>
+          </div>
+        </div>
+
+        <div class="settings-card taxonomy-sync-card">
+          <div class="settings-group settings-group-stacked">
+            <label data-i18n="taxonomySyncTitle">🗂️ 分类同步</label>
+            <span class="settings-hint" data-i18n="taxonomySyncHint">从 Hub 拉取最新的系统分类和输出模态，并覆盖当前运行时分类快照。</span>
+          </div>
+          <div class="taxonomy-sync-status">
+            <div class="taxonomy-sync-row">
+              <span class="taxonomy-sync-label" data-i18n="taxonomySyncSourceLabel">当前来源</span>
+              <strong id="taxonomySyncSourceValue">内置分类</strong>
+            </div>
+            <div class="taxonomy-sync-row">
+              <span class="taxonomy-sync-label" data-i18n="taxonomySyncLastSyncLabel">上次同步</span>
+              <strong id="taxonomySyncLastSyncValue">从未同步</strong>
+            </div>
+          </div>
+          <div id="taxonomySyncError" class="taxonomy-sync-error hidden"></div>
+          <div class="settings-actions">
+            <button id="forceSyncTaxonomyBtn" class="btn btn-secondary btn-small" data-i18n="taxonomySyncNow">立即同步分类</button>
           </div>
         </div>
 

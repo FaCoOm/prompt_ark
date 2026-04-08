@@ -7,7 +7,7 @@ import { ContentAnalyzer } from './lib/analyzer.js';
 import { showToast, escapeHtml, debounce, renderMarkdown, formatRelativeTime, highlightVariables } from './lib/popup/utils.js';
 import { HistoryPanel } from './lib/popup/history-panel.js';
 import { ShareManager } from './lib/popup/share-manager.js';
-import { CATEGORY_TYPES, getSystemCategoryOptions, getCustomCategoryOptions, derivePromptCategory } from './lib/taxonomy.js';
+import { CATEGORY_TYPES, getSystemCategoryOptions, getCustomCategoryOptions, derivePromptCategory, invalidateTaxonomyCache } from './lib/taxonomy.js';
 
 const CONTEXT_VAR_PATTERN = /\{\{(@page_text|@selection|@page_url|@page_title|@date)\}\}/g;
 const CONTEXT_VAR_ITEMS = [
@@ -61,6 +61,7 @@ class PopupManager {
     // Track current tab for side panel context
     this.currentTab = null;
     this.isSidePanel = false;
+    this.taxonomyStatus = null;
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init());
@@ -149,6 +150,20 @@ class PopupManager {
         }
       }
     });
+
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type !== 'TAXONOMY_UPDATED') return;
+      invalidateTaxonomyCache();
+      this.loadTaxonomySyncStatus();
+      this.loadPrompts().then(() => {
+        this.renderModalityFilters();
+        void this.renderCategories();
+        this.renderPrompts();
+        if (this.editingId && this.modalPromptData) {
+          this.loadCategoryFormOptions().then(() => this.renderCategoryReviewPanel(this.modalPromptData));
+        }
+      });
+    });
   }
 
   async syncHubAuthState() {
@@ -163,6 +178,7 @@ class PopupManager {
     i18n.translatePage();
     this.updateControlStates();
     this.updateGithubTokenPanel();
+    this.renderTaxonomySyncStatus();
     this.renderContextVarPopover();
     this.updateCategorySourceButtons();
     this.updateCategoryInputMode();
@@ -350,6 +366,7 @@ class PopupManager {
     if (obsidianFolderInput) obsidianFolderInput.value = syncResp.obsidianFolder || 'prompts';
 
     this.toggleSyncUI(syncResp.syncBackend);
+    await this.loadTaxonomySyncStatus();
     
     // Load Image Prompt settings
     const imgResp = await chrome.runtime.sendMessage({ type: 'GET_IMAGE_PROMPT_SETTINGS' });
@@ -371,6 +388,46 @@ class PopupManager {
     document.querySelectorAll('.sync-config-panel').forEach(el => el.classList.add('hidden'));
     if (backend === 'webdav') document.getElementById('webdavContainer')?.classList.remove('hidden');
     if (backend === 'obsidian') document.getElementById('obsidianContainer')?.classList.remove('hidden');
+  }
+
+  async loadTaxonomySyncStatus() {
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'GET_HUB_TAXONOMY_STATUS' });
+      if (resp?.success) {
+        this.taxonomyStatus = resp.status || null;
+      }
+    } catch (e) {
+      console.warn('[Popup] Failed to load taxonomy sync status:', e);
+    }
+
+    this.renderTaxonomySyncStatus();
+  }
+
+  renderTaxonomySyncStatus() {
+    const sourceEl = document.getElementById('taxonomySyncSourceValue');
+    const lastSyncEl = document.getElementById('taxonomySyncLastSyncValue');
+    const errorEl = document.getElementById('taxonomySyncError');
+
+    if (!sourceEl || !lastSyncEl || !errorEl) return;
+
+    const status = this.taxonomyStatus || {
+      source: 'bundled',
+      lastSyncedAt: 0,
+      lastError: '',
+    };
+
+    sourceEl.textContent = i18n.t(
+      status.source === 'hub' ? 'taxonomySyncSourceHub' : 'taxonomySyncSourceBundled'
+    );
+    lastSyncEl.textContent = status.lastSyncedAt
+      ? formatRelativeTime(status.lastSyncedAt)
+      : i18n.t('taxonomySyncNever');
+
+    const hasError = Boolean(status.lastError);
+    errorEl.classList.toggle('hidden', !hasError);
+    errorEl.textContent = hasError
+      ? `${i18n.t('taxonomySyncFailed')}: ${status.lastError}`
+      : '';
   }
 
   async saveSettings() {
@@ -2394,6 +2451,42 @@ ${p.sourceContext ? `
         if (statusEl && !statusEl.classList.contains('hidden')) {
           statusEl.textContent = msg.message;
         }
+      }
+    });
+
+    document.getElementById('forceSyncTaxonomyBtn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const originalText = btn.textContent;
+      btn.textContent = i18n.t('taxonomySyncing');
+      btn.disabled = true;
+
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'FORCE_HUB_TAXONOMY_SYNC' });
+        if (!resp?.success) {
+          throw new Error(resp?.error || i18n.t('taxonomySyncFailed'));
+        }
+
+        invalidateTaxonomyCache();
+        this.taxonomyStatus = resp.status || this.taxonomyStatus;
+        this.renderTaxonomySyncStatus();
+
+        await this.loadPrompts();
+        this.currentPage = 1;
+        this.renderModalityFilters();
+        await this.renderCategories();
+        this.renderPrompts();
+        if (this.editingId && this.modalPromptData) {
+          await this.loadCategoryFormOptions();
+          await this.renderCategoryReviewPanel(this.modalPromptData);
+        }
+
+        this.showToast(i18n.t('taxonomySyncSuccess'));
+      } catch (error) {
+        await this.loadTaxonomySyncStatus();
+        this.showToast(`❌ ${error.message || i18n.t('taxonomySyncFailed')}`, 4000);
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
       }
     });
   }
