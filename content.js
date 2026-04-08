@@ -869,13 +869,13 @@ class AIPromptManager {
       });
     }
 
+    const verifiedDomains = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ];
+
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
     window.addEventListener('message', (event) => {
-      // Security Check 1: Accept only from the verified production Hub origin
-      const verifiedDomains = [
-        'https://promptark.oometa.ai',
-      ];
-
       if (!verifiedDomains.includes(event.origin)) {
         return; // Ignore messages from untrusted origins
       }
