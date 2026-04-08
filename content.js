@@ -789,13 +789,12 @@ class AIPromptManager {
       });
     }
 
+    const verifiedDomains = [
+      'https://promptark.oometa.ai',
+    ];
+
     // Global Event Listener: Catch One-Click Install Events from Prompt Hub
     window.addEventListener('message', (event) => {
-      // Security Check 1: Accept only from the verified production Hub origin
-      const verifiedDomains = [
-        'https://promptark.oometa.ai',
-      ];
-
       if (!verifiedDomains.includes(event.origin)) {
         return; // Ignore messages from untrusted origins
       }
@@ -862,13 +861,16 @@ class AIPromptManager {
   // Handle Hub auth sync - forward to background script
   async handleHubAuthSync(payload) {
     console.log('[Prompt Ark] Received auth sync from Hub:', payload);
+    if (!this.isContextValid()) return;
     try {
       await chrome.runtime.sendMessage({ 
         type: 'PROMPT_ARK_AUTH_SYNC', 
         payload: payload 
       });
     } catch (e) {
-      console.error('[Prompt Ark] Auth sync error:', e);
+      if (this.isContextValid()) {
+        console.error('[Prompt Ark] Auth sync error:', e);
+      }
     }
   }
 

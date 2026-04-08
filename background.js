@@ -86,6 +86,258 @@ async function t(key, params = {}) {
   return text;
 }
 
+async function injectRedditPrefillInTab(tabId, title, text) {
+  const redditTitle = String(title || 'AI Prompt');
+  const redditBody = String(text || '');
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      args: [redditTitle, redditBody],
+      func: (t, body) => {
+        // Diagnostic: log page state
+        console.log('[PromptArk Reddit] Injection running on:', window.location.href);
+        console.log('[PromptArk Reddit] Title:', document.title);
+        console.log('[PromptArk Reddit] Data to inject:', { titleLen: t.length, bodyLen: body.length });
+
+        // Deep shadow DOM traversal — choose visible/live element (not hidden template)
+        function isVisible(el) {
+          if (!el) return false;
+          const style = window.getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          return style.display !== 'none'
+            && style.visibility !== 'hidden'
+            && rect.width > 0
+            && rect.height > 0
+            && !el.closest('[hidden],[aria-hidden="true"]');
+        }
+
+        function queryDeep(selectors) {
+          const queue = [document];
+          const hits = [];
+          while (queue.length) {
+            const root = queue.shift();
+            for (const sel of selectors) {
+              root.querySelectorAll(sel).forEach((el) => hits.push({ sel, el }));
+            }
+            const all = root.querySelectorAll('*');
+            for (const el of all) {
+              if (el.shadowRoot) queue.push(el.shadowRoot);
+            }
+          }
+          if (!hits.length) return null;
+
+          const active = document.activeElement;
+          if (active && active.isContentEditable && isVisible(active)) {
+            const activeHit = hits.find((h) => h.el === active);
+            if (activeHit) {
+              console.log('[PromptArk Reddit] Found ACTIVE element:', activeHit.sel, active.tagName, active);
+              return active;
+            }
+          }
+
+          const visibleHits = hits.filter((h) => isVisible(h.el));
+          const pool = visibleHits.length ? visibleHits : hits;
+          const picked = pool[pool.length - 1];
+          console.log(
+            '[PromptArk Reddit] Found element:',
+            picked.sel,
+            picked.el.tagName,
+            picked.el,
+            'visible:',
+            isVisible(picked.el),
+            'total hits:',
+            hits.length,
+            'visible hits:',
+            visibleHits.length
+          );
+          return picked.el;
+        }
+
+        const setVal = (el, value) => {
+          if (!el) return false;
+          const str = String(value || '');
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            const proto = Object.getPrototypeOf(el);
+            const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+            if (setter) setter.call(el, str);
+            else el.value = str;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return String(el.value || '').length > 0;
+          }
+          if (el.isContentEditable) {
+            el.focus();
+            // Place cursor in the editor
+            const sel = window.getSelection();
+            sel.selectAllChildren(el);
+            sel.collapseToStart();
+
+            const dt = new DataTransfer();
+            dt.setData('text/plain', str);
+
+            // Strategy 1: beforeinput + insertFromPaste with dataTransfer override
+            // InputEvent constructor ignores dataTransfer (read-only), so we override the getter
+            try {
+              const beforeInput = new InputEvent('beforeinput', {
+                inputType: 'insertFromPaste',
+                bubbles: true,
+                cancelable: true,
+              });
+              Object.defineProperty(beforeInput, 'dataTransfer', { get: () => dt });
+              const handled = !el.dispatchEvent(beforeInput);
+              console.log('[PromptArk Reddit] beforeinput+dataTransfer override, handled:', handled, 'content:', (el.textContent||'').substring(0,30));
+              if ((el.textContent || '').trim().length > 0) return true;
+            } catch (e1) {
+              console.warn('[PromptArk Reddit] Strategy 1 failed:', e1);
+            }
+
+            // Strategy 2: paste event with clipboardData override
+            try {
+              const pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+              Object.defineProperty(pasteEvt, 'clipboardData', { get: () => dt });
+              const handled2 = !el.dispatchEvent(pasteEvt);
+              console.log('[PromptArk Reddit] paste+clipboardData override, handled:', handled2, 'content:', (el.textContent||'').substring(0,30));
+              if ((el.textContent || '').trim().length > 0) return true;
+            } catch (e2) {
+              console.warn('[PromptArk Reddit] Strategy 2 failed:', e2);
+            }
+
+            // Strategy 3: execCommand insertText
+            try {
+              sel.selectAllChildren(el);
+              sel.deleteFromDocument();
+              document.execCommand('insertText', false, str);
+              console.log('[PromptArk Reddit] execCommand, content:', (el.textContent||'').substring(0,30));
+              if ((el.textContent || '').trim().length > 0) return true;
+            } catch (e3) {
+              console.warn('[PromptArk Reddit] Strategy 3 failed:', e3);
+            }
+
+            console.log('[PromptArk Reddit] All strategies exhausted, content is still empty');
+            return false;
+          }
+          return false;
+        };
+
+        const titleSels = [
+          'textarea[name="title"]', 'input[name="title"]',
+          'textarea[aria-label*="Title"]', 'input[aria-label*="Title"]',
+          'textarea[aria-label*="title"]', 'input[placeholder*="Title"]',
+        ];
+        const bodySels = [
+          'textarea[name="text"]', 'textarea[name="body"]',
+          'textarea#submit_text',
+          'textarea[data-testid="post-content-input"]',
+          'div[contenteditable="true"][data-lexical-editor="true"]:not([aria-hidden="true"])',
+          'div[contenteditable="true"][role="textbox"]:not([aria-hidden="true"])',
+          'div[contenteditable="true"]:not([aria-hidden="true"])',
+        ];
+
+        let titleDone = false, bodyDone = false, bodyAttempted = false;
+        const tryFill = () => {
+          if (!titleDone) {
+            const titleEl = queryDeep(titleSels);
+            if (titleEl && setVal(titleEl, t)) {
+              titleDone = true;
+              console.log('[PromptArk Reddit] ✅ Title filled');
+            }
+          }
+          if (!bodyDone && !bodyAttempted) {
+            const bodyEl = queryDeep(bodySels);
+            if (bodyEl) {
+              bodyAttempted = true;
+              if (setVal(bodyEl, body)) {
+                bodyDone = true;
+                console.log('[PromptArk Reddit] ✅ Body filled');
+              } else {
+                console.log('[PromptArk Reddit] ⚠️ Body element found but setVal returned false');
+              }
+            } else {
+              // Dump all contenteditable and textarea elements for diagnostics
+              const allEditable = document.querySelectorAll('[contenteditable], textarea, input[type="text"]');
+              console.log('[PromptArk Reddit] No body editor found. Editable elements on page:', allEditable.length);
+              allEditable.forEach((el, i) => console.log(`  [${i}]`, el.tagName, el.className, el.getAttribute('name'), el.getAttribute('role')));
+            }
+          }
+          // Also check if body was filled asynchronously (Lexical may have processed)
+          if (bodyAttempted && !bodyDone) {
+            const bodyEl = queryDeep(bodySels);
+            if (bodyEl && (bodyEl.textContent || '').trim().length > 0) {
+              bodyDone = true;
+              console.log('[PromptArk Reddit] ✅ Body filled (async confirmation)');
+            }
+          }
+          return bodyDone || bodyAttempted;
+        };
+
+        if (tryFill()) return;
+
+        // MutationObserver for light DOM changes + polling for shadow DOM changes
+        let stopped = false;
+        const observer = new MutationObserver(() => {
+          if (tryFill()) { stopped = true; observer.disconnect(); }
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+
+        // Poll every 500ms to catch shadow DOM lazy renders (MutationObserver can't see them)
+        let polls = 0;
+        const poll = setInterval(() => {
+          if (stopped || tryFill() || ++polls > 60) {
+            stopped = true;
+            clearInterval(poll);
+            observer.disconnect();
+          }
+        }, 500);
+        setTimeout(() => { stopped = true; clearInterval(poll); observer.disconnect(); }, 60000);
+      }
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openRedditAndPrefill(title, text) {
+  const redditTitle = String(title || 'AI Prompt');
+  const redditBody = String(text || '');
+  const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(redditTitle)}&text=${encodeURIComponent(redditBody)}`;
+  const tab = await chrome.tabs.create({ url });
+  if (!tab?.id) return;
+
+  // Reddit has a verification/challenge page that redirects.
+  // The tab fires 'complete' multiple times — inject on EVERY complete,
+  // not just the first one. Stop after 60s or when tab is closed.
+  const tabId = tab.id;
+  let attempts = 0;
+  const maxAttempts = 10;
+  const doInject = () => {
+    attempts++;
+    console.log(`[Reddit] Injection attempt #${attempts} on tab ${tabId}`);
+    injectRedditPrefillInTab(tabId, redditTitle, redditBody).catch(() => {});
+  };
+
+  const onUpdated = (id, info) => {
+    if (id !== tabId || info.status !== 'complete') return;
+    doInject();
+    if (attempts >= maxAttempts) cleanup();
+  };
+  const onRemoved = (id) => { if (id === tabId) cleanup(); };
+  const cleanup = () => {
+    chrome.tabs.onUpdated.removeListener(onUpdated);
+    chrome.tabs.onRemoved.removeListener(onRemoved);
+  };
+
+  chrome.tabs.onUpdated.addListener(onUpdated);
+  chrome.tabs.onRemoved.addListener(onRemoved);
+  // Safety: also try at staggered intervals to cover slow loads
+  setTimeout(doInject, 3000);
+  setTimeout(doInject, 6000);
+  setTimeout(doInject, 10000);
+  // Cleanup after 60s regardless
+  setTimeout(cleanup, 60000);
+}
+
 async function handlePendingIntent() {
   if (_isPendingIntentRunning) {
     console.log('[PendingIntent] Already running, skipping');
@@ -171,26 +423,26 @@ async function handlePendingIntent() {
       } else if (platform === 'twitter' || platform === 'reddit' || platform === 'linkedin') {
         // URL-based platforms: generate AI share text, fallback to buildFallbackText if failed
         let shareText = null;
-        try {
-          const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
-          if (platform === 'reddit') {
-            shareText = aiResult?.body;
-          } else {
+        if (platform !== 'reddit') {
+          try {
+            const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
             shareText = aiResult?.text;
+          } catch (e) {
+            console.warn('[PendingIntent] AI share text generation failed:', e);
           }
-        } catch (e) {
-          console.warn('[PendingIntent] AI share text generation failed:', e);
         }
         
         // Fallback if AI generation failed
-        if (!shareText) {
+        if (platform === 'reddit') {
+          shareText = content || '';
+        } else if (!shareText) {
           shareText = buildFallbackText(platform, shareTitle, shareUrl, promptData);
         }
         
         if (platform === 'twitter') {
           await chrome.tabs.create({ url: `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}` });
         } else if (platform === 'reddit') {
-          await chrome.tabs.create({ url: `https://www.reddit.com/submit?type=TEXT&title=${encodeURIComponent(shareTitle)}` });
+          await openRedditAndPrefill(shareTitle, shareText);
           await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
             if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
           });
@@ -953,6 +1205,18 @@ async function handleMessage(message, sendResponse) {
         return true;
       }
 
+      case 'OPEN_REDDIT_PREFILL': {
+        (async () => {
+          try {
+            await openRedditAndPrefill(message.title || 'AI Prompt', message.text || '');
+            sendResponse({ success: true });
+          } catch (e) {
+            sendResponse({ success: false, error: e.message });
+          }
+        })();
+        return true;
+      }
+
       case 'ARTICLE_SHARE_TO_PLATFORM': {
         (async () => {
           try {
@@ -982,7 +1246,7 @@ async function handleMessage(message, sendResponse) {
               await chrome.tabs.create({ url: `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}` });
             } else if (platform === 'reddit') {
               const redditTitle = articleTitle || shareText.split('\n')[0].substring(0, 120);
-              await chrome.tabs.create({ url: `https://www.reddit.com/submit?type=TEXT&title=${encodeURIComponent(redditTitle)}` });
+              await openRedditAndPrefill(redditTitle, shareText);
               // Copy body to clipboard for pasting
               try {
                 await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
