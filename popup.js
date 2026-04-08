@@ -642,20 +642,17 @@ class PopupManager {
       case CATEGORY_TYPES.PENDING:
         return {
           className: 'pending',
-          icon: '⏳',
           label: i18n.t('categoryPending'),
         };
       case CATEGORY_TYPES.CUSTOM:
         return {
           className: 'custom',
-          icon: '✍️',
           label: i18n.t('categoryScopeCustom'),
         };
       case CATEGORY_TYPES.SYSTEM:
       default:
         return {
           className: 'system',
-          icon: '🛡️',
           label: i18n.t('categoryScopeSystem'),
         };
     }
@@ -684,7 +681,6 @@ class PopupManager {
     const source = this.getCategorySourceMeta(prompt.category_type);
     return `
       <span class="prompt-category-source ${source.className}">
-        <span class="prompt-category-source-icon" aria-hidden="true">${source.icon}</span>
         <span class="prompt-category-source-label">${this.escapeHtml(source.label)}</span>
       </span>
     `;
