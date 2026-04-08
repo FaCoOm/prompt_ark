@@ -1,6 +1,63 @@
 // content.js - Prompt Ark Content Script
 // Unified deep traversal strategy for all platforms
 
+// --- Doubao Token Interception ---
+// Capture dynamic anti-bot tokens from doubao.com requests
+if (window.location.hostname.includes('doubao.com')) {
+  window.__DOUBAO_DYNAMIC_TOKENS = window.__DOUBAO_DYNAMIC_TOKENS || {};
+
+  function extractTokensFromUrl(url) {
+    try {
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+      const tokens = {};
+      
+      const tokenFields = ['msToken', 'a_bogus', 'fp', 'tea_uuid', 'device_id', 'web_tab_id', 'aid', 'version_code', 'pc_version', 'region', 'language'];
+      tokenFields.forEach(field => {
+        const value = params.get(field);
+        if (value) tokens[field] = value;
+      });
+      
+      return tokens;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function updateTokens(tokens) {
+    if (Object.keys(tokens).length > 0) {
+      Object.assign(window.__DOUBAO_DYNAMIC_TOKENS, tokens);
+      console.log('[Prompt Ark] Captured Doubao tokens:', Object.keys(tokens).join(', '));
+    }
+  }
+
+  // Intercept fetch
+  const originalFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const url = args[0];
+    if (typeof url === 'string' && url.includes('doubao.com')) {
+      const tokens = extractTokensFromUrl(url);
+      updateTokens(tokens);
+    } else if (url instanceof Request && url.url.includes('doubao.com')) {
+      const tokens = extractTokensFromUrl(url.url);
+      updateTokens(tokens);
+    }
+    return originalFetch.apply(this, args);
+  };
+
+  // Intercept XMLHttpRequest
+  const originalOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+    if (typeof url === 'string' && url.includes('doubao.com')) {
+      const tokens = extractTokensFromUrl(url);
+      updateTokens(tokens);
+    }
+    return originalOpen.call(this, method, url, ...rest);
+  };
+
+  console.log('[Prompt Ark] Doubao token interceptor installed');
+}
+
 // --- Image Prompt Feature (Embedded) ---
 class ImagePromptHandler {
   constructor() {
