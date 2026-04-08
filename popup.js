@@ -2056,7 +2056,6 @@ ${p.sourceContext ? `
       const titleInput = document.getElementById('titleInput');
       const tagsInput = document.getElementById('tagsInput');
       const contentInput = document.getElementById('contentInput');
-      const categoryPayload = this.getCategoryFormPayload();
 
       if (!contentInput.value.trim()) {
         this.showToast(i18n.t('contentEmpty') || 'Content is empty', 3000);
@@ -2073,21 +2072,15 @@ ${p.sourceContext ? `
           targetLanguage: targetLang,
           promptData: {
             title: titleInput.value.trim(),
-            category: categoryPayload.category,
+            category: this.getCategoryFormPayload().category,
             tags: tagsInput?.value.trim() || '',
-            content: contentInput.value.trim()
+            content: contentInput.value.trim(),
+            output_modality: this.modalOutputModality || this.modalPromptData?.output_modality || '',
           }
         });
 
         if (resp && resp.success && resp.data) {
           if (resp.data.title) titleInput.value = resp.data.title;
-          if (resp.data.category && categoryPayload.category_type === CATEGORY_TYPES.CUSTOM) {
-            this.setCategoryFormSource(CATEGORY_FORM_SOURCES.CUSTOM, {
-              query: resp.data.category,
-              selectedKey: '',
-              selectedLabel: '',
-            });
-          }
           if (resp.data.tags && tagsInput) {
             tagsInput.value = Array.isArray(resp.data.tags)
               ? resp.data.tags.join(', ')
@@ -3460,6 +3453,7 @@ ${p.sourceContext ? `
           category: prompt.category || '',
           tags: (prompt.tags || []).join(', '),
           content: prompt.content,
+          output_modality: prompt.output_modality || 'text',
         }
       });
 
@@ -3470,10 +3464,6 @@ ${p.sourceContext ? `
       // Update in-memory prompt
       const d = resp.data;
       if (d.title) prompt.title = d.title;
-      if (d.category && prompt.category_type === CATEGORY_TYPES.CUSTOM) {
-        prompt.category_key = d.category;
-        prompt.category = d.category;
-      }
       if (d.content) prompt.content = d.content;
       if (d.tags) {
         prompt.tags = Array.isArray(d.tags) ? d.tags : d.tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -3489,6 +3479,7 @@ ${p.sourceContext ? `
           category: prompt.category,
           category_type: prompt.category_type,
           category_key: prompt.category_key,
+          output_modality: prompt.output_modality || 'text',
           tags: prompt.tags,
           shortcut: prompt.shortcut || '',
         }
