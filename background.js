@@ -322,6 +322,14 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 
   try {
+    try {
+      const taxonomy = await syncHubTaxonomy();
+      console.log('[DefaultPromptInit] Hub taxonomy synced:', taxonomy.revision || taxonomy.generated_at || 'ok');
+      broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
+    } catch (taxonomyError) {
+      console.warn('[DefaultPromptInit] Hub taxonomy sync failed before prompt init:', taxonomyError);
+    }
+
     const initialized = await initializeDefaultPrompts({ startedAt });
     const preparedPrompts = [];
 
@@ -330,6 +338,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     }
 
     await PromptStorage.bulkSet(preparedPrompts);
+    console.log(`[DefaultPromptInit] Default prompts initialized from ${initialized.source}: ${preparedPrompts.length}`);
     await setDefaultPromptInitState({
       status: DEFAULT_PROMPT_INIT_STATUS.READY,
       source: initialized.source,

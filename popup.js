@@ -1684,10 +1684,8 @@ class PopupManager {
     if (filtered.length === 0) {
       if (this.isDefaultPromptInitializationLoading()) {
         container.innerHTML = `
-          <div class="empty-state empty-state-loading">
-            <div class="empty-state-spinner" aria-hidden="true"></div>
-            <p>${i18n.t('defaultPromptInitLoadingTitle')}</p>
-            <p class="hint">${i18n.t('defaultPromptInitLoadingHint')}</p>
+          <div class="empty-state">
+            <p>${i18n.t('initializingConfig')}</p>
           </div>
         `;
         return;
@@ -1696,9 +1694,7 @@ class PopupManager {
       container.innerHTML = `
         <div class="empty-state">
           <p>${i18n.t('noPrompts')}</p>
-          <p class="hint">${this.defaultPromptInitState?.status === DEFAULT_PROMPT_INIT_STATUS.ERROR
-            ? this.escapeHtml(this.defaultPromptInitState?.error || i18n.t('defaultPromptInitErrorHint'))
-            : i18n.t('createFirst')}</p>
+          <p class="hint">${i18n.t('createFirst')}</p>
         </div>
       `;
       return;
@@ -2542,33 +2538,6 @@ ${p.sourceContext ? `
       }
     });
 
-    document.getElementById('forceSyncTaxonomyBtn')?.addEventListener('click', async (e) => {
-      const btn = e.currentTarget;
-      const originalText = btn.textContent;
-      btn.textContent = i18n.t('taxonomySyncing');
-      btn.disabled = true;
-
-      try {
-        const resp = await chrome.runtime.sendMessage({ type: 'FORCE_HUB_TAXONOMY_SYNC' });
-        if (!resp?.success) {
-          throw new Error(resp?.error || i18n.t('taxonomySyncFailed'));
-        }
-
-        invalidateTaxonomyCache();
-        await this.loadPrompts();
-        this.currentPage = 1;
-        this.renderModalityFilters();
-        await this.renderCategories();
-        this.renderPrompts();
-
-        this.showToast(i18n.t('taxonomySyncSuccess'));
-      } catch (error) {
-        this.showToast(`❌ ${error.message || i18n.t('taxonomySyncFailed')}`, 4000);
-      } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
-    });
   }
 
 
