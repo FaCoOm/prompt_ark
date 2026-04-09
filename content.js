@@ -945,9 +945,29 @@ class AIPromptManager {
       } else {
         console.error('[Prompt Ark] Import failed via Hub:', response.error);
         this.showPageToast(`❌ Import Failed: ${response.error || 'Unknown Error'}`);
+        if (sourceWindow) {
+          sourceWindow.postMessage({
+            type: 'PROMPT_ARK_IMPORT_FAILURE',
+            reason: response.error || 'unknown_error'
+          }, origin);
+        }
       }
     } catch (e) {
-      console.error('[Prompt Ark] Import Error:', e);
+      const message = e?.message || String(e || '');
+      const isContextInvalidated = message.includes('Extension context invalidated');
+      if (isContextInvalidated) {
+        this.showPageToast('⚠️ Prompt Ark was updated. Please refresh this page and try again.');
+      } else {
+        console.error('[Prompt Ark] Import Error:', e);
+        this.showPageToast(`❌ Import Failed: ${message || 'Unknown Error'}`);
+      }
+
+      if (sourceWindow) {
+        sourceWindow.postMessage({
+          type: 'PROMPT_ARK_IMPORT_FAILURE',
+          reason: isContextInvalidated ? 'extension_context_invalidated' : (message || 'unknown_error')
+        }, origin);
+      }
     }
   }
 
