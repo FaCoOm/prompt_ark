@@ -95,11 +95,6 @@ async function injectRedditPrefillInTab(tabId, title, text) {
       world: 'MAIN',
       args: [redditTitle, redditBody],
       func: (t, body) => {
-        // Diagnostic: log page state
-        console.log('[PromptArk Reddit] Injection running on:', window.location.href);
-        console.log('[PromptArk Reddit] Title:', document.title);
-        console.log('[PromptArk Reddit] Data to inject:', { titleLen: t.length, bodyLen: body.length });
-
         // Deep shadow DOM traversal — choose visible/live element (not hidden template)
         function isVisible(el) {
           if (!el) return false;
@@ -131,27 +126,13 @@ async function injectRedditPrefillInTab(tabId, title, text) {
           if (active && active.isContentEditable && isVisible(active)) {
             const activeHit = hits.find((h) => h.el === active);
             if (activeHit) {
-              console.log('[PromptArk Reddit] Found ACTIVE element:', activeHit.sel, active.tagName, active);
               return active;
             }
           }
 
           const visibleHits = hits.filter((h) => isVisible(h.el));
           const pool = visibleHits.length ? visibleHits : hits;
-          const picked = pool[pool.length - 1];
-          console.log(
-            '[PromptArk Reddit] Found element:',
-            picked.sel,
-            picked.el.tagName,
-            picked.el,
-            'visible:',
-            isVisible(picked.el),
-            'total hits:',
-            hits.length,
-            'visible hits:',
-            visibleHits.length
-          );
-          return picked.el;
+          return pool[pool.length - 1].el;
         }
 
         const setVal = (el, value) => {
@@ -168,7 +149,6 @@ async function injectRedditPrefillInTab(tabId, title, text) {
           }
           if (el.isContentEditable) {
             el.focus();
-            // Place cursor in the editor
             const sel = window.getSelection();
             sel.selectAllChildren(el);
             sel.collapseToStart();
@@ -176,8 +156,6 @@ async function injectRedditPrefillInTab(tabId, title, text) {
             const dt = new DataTransfer();
             dt.setData('text/plain', str);
 
-            // Strategy 1: beforeinput + insertFromPaste with dataTransfer override
-            // InputEvent constructor ignores dataTransfer (read-only), so we override the getter
             try {
               const beforeInput = new InputEvent('beforeinput', {
                 inputType: 'insertFromPaste',
@@ -185,36 +163,20 @@ async function injectRedditPrefillInTab(tabId, title, text) {
                 cancelable: true,
               });
               Object.defineProperty(beforeInput, 'dataTransfer', { get: () => dt });
-              const handled = !el.dispatchEvent(beforeInput);
-              console.log('[PromptArk Reddit] beforeinput+dataTransfer override, handled:', handled, 'content:', (el.textContent||'').substring(0,30));
+              el.dispatchEvent(beforeInput);
               if ((el.textContent || '').trim().length > 0) return true;
             } catch (e1) {
-              console.warn('[PromptArk Reddit] Strategy 1 failed:', e1);
+              // fall back below
             }
 
-            // Strategy 2: paste event with clipboardData override
-            try {
-              const pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
-              Object.defineProperty(pasteEvt, 'clipboardData', { get: () => dt });
-              const handled2 = !el.dispatchEvent(pasteEvt);
-              console.log('[PromptArk Reddit] paste+clipboardData override, handled:', handled2, 'content:', (el.textContent||'').substring(0,30));
-              if ((el.textContent || '').trim().length > 0) return true;
-            } catch (e2) {
-              console.warn('[PromptArk Reddit] Strategy 2 failed:', e2);
-            }
-
-            // Strategy 3: execCommand insertText
             try {
               sel.selectAllChildren(el);
               sel.deleteFromDocument();
               document.execCommand('insertText', false, str);
-              console.log('[PromptArk Reddit] execCommand, content:', (el.textContent||'').substring(0,30));
               if ((el.textContent || '').trim().length > 0) return true;
-            } catch (e3) {
-              console.warn('[PromptArk Reddit] Strategy 3 failed:', e3);
+            } catch (e2) {
+              // give up quietly
             }
-
-            console.log('[PromptArk Reddit] All strategies exhausted, content is still empty');
             return false;
           }
           return false;
@@ -240,7 +202,6 @@ async function injectRedditPrefillInTab(tabId, title, text) {
             const titleEl = queryDeep(titleSels);
             if (titleEl && setVal(titleEl, t)) {
               titleDone = true;
-              console.log('[PromptArk Reddit] ✅ Title filled');
             }
           }
           if (!bodyDone && !bodyAttempted) {
@@ -249,23 +210,13 @@ async function injectRedditPrefillInTab(tabId, title, text) {
               bodyAttempted = true;
               if (setVal(bodyEl, body)) {
                 bodyDone = true;
-                console.log('[PromptArk Reddit] ✅ Body filled');
-              } else {
-                console.log('[PromptArk Reddit] ⚠️ Body element found but setVal returned false');
               }
-            } else {
-              // Dump all contenteditable and textarea elements for diagnostics
-              const allEditable = document.querySelectorAll('[contenteditable], textarea, input[type="text"]');
-              console.log('[PromptArk Reddit] No body editor found. Editable elements on page:', allEditable.length);
-              allEditable.forEach((el, i) => console.log(`  [${i}]`, el.tagName, el.className, el.getAttribute('name'), el.getAttribute('role')));
             }
           }
-          // Also check if body was filled asynchronously (Lexical may have processed)
           if (bodyAttempted && !bodyDone) {
             const bodyEl = queryDeep(bodySels);
             if (bodyEl && (bodyEl.textContent || '').trim().length > 0) {
               bodyDone = true;
-              console.log('[PromptArk Reddit] ✅ Body filled (async confirmation)');
             }
           }
           return bodyDone || bodyAttempted;
@@ -313,7 +264,6 @@ async function openRedditAndPrefill(title, text) {
   const maxAttempts = 10;
   const doInject = () => {
     attempts++;
-    console.log(`[Reddit] Injection attempt #${attempts} on tab ${tabId}`);
     injectRedditPrefillInTab(tabId, redditTitle, redditBody).catch(() => {});
   };
 
@@ -336,6 +286,26 @@ async function openRedditAndPrefill(title, text) {
   setTimeout(doInject, 10000);
   // Cleanup after 60s regardless
   setTimeout(cleanup, 60000);
+}
+
+function normalizeRedditBody(body, shareUrl = '') {
+  let text = String(body || '').replace(/\r/g, '');
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  text = text.replace(/(^|\n)(##[^\n]*)(?!\n\n)/g, '$1$2\n\n');
+  text = text.replace(/\n(> [^\n]*)(?!\n\n)/g, '\n$1\n\n');
+
+  if (shareUrl) {
+    const canonicalLine = `Full prompt: ${shareUrl}`;
+    // Drop any pre-existing Full prompt or promptark hub URL lines, then append one canonical line.
+    text = text
+      .split('\n')
+      .filter(line => !/Full prompt\s*:/i.test(line) && !/https?:\/\/promptark\.oometa\.ai\/hub\?id=/i.test(line))
+      .join('\n');
+
+    text = `${text}\n\n${canonicalLine}`;
+  }
+
+  return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 async function handlePendingIntent() {
@@ -423,43 +393,58 @@ async function handlePendingIntent() {
       } else if (platform === 'twitter' || platform === 'reddit' || platform === 'linkedin') {
         // URL-based platforms: generate AI share text, fallback to buildFallbackText if failed
         let shareText = null;
-        if (platform !== 'reddit') {
-          try {
-            const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
+        let redditPrefillTitle = shareTitle;
+        let redditPrefillBody = content || '';
+
+        try {
+          const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
+          if (platform === 'reddit') {
+            redditPrefillTitle = aiResult?.title || redditPrefillTitle;
+            redditPrefillBody = aiResult?.body || redditPrefillBody;
+          } else {
             shareText = aiResult?.text;
-          } catch (e) {
-            console.warn('[PendingIntent] AI share text generation failed:', e);
           }
+        } catch (e) {
+          console.warn('[PendingIntent] AI share text generation failed:', e);
         }
-        
+
         // Fallback if AI generation failed
-        if (platform === 'reddit') {
-          shareText = content || '';
-        } else if (!shareText) {
+        if (platform !== 'reddit' && !shareText) {
           shareText = buildFallbackText(platform, shareTitle, shareUrl, promptData);
         }
-        
+        if (platform === 'reddit') {
+          redditPrefillBody = normalizeRedditBody(redditPrefillBody, shareUrl);
+        }
+
         if (platform === 'twitter') {
           await chrome.tabs.create({ url: `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}` });
         } else if (platform === 'reddit') {
-          await openRedditAndPrefill(shareTitle, shareText);
+          await openRedditAndPrefill(redditPrefillTitle, redditPrefillBody);
           await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-            if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
+            if (tabs[0]) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: redditPrefillBody }).catch(() => {});
+            }
           });
         } else if (platform === 'linkedin') {
           await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/?shareActive=true' });
           await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-            if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
+            if (tabs[0]) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText }).catch(() => {});
+            }
           });
         }
       } else if (platform === 'copy') {
         await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareUrl });
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareUrl }).catch(() => {});
+          }
         });
       } else if (platform === 'json') {
         const json = JSON.stringify({ title: shareTitle, content: promptData.content, category: promptData.category, tags: promptData.tags }, null, 2);
         await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: json });
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: json }).catch(() => {});
+          }
         });
       }
       
@@ -486,6 +471,9 @@ async function handlePendingIntent() {
 initSupabaseFromStorage().then(success => {
   if (success) {
     console.log('[Supabase] Session restored from storage');
+    handlePendingIntent().catch((e) => {
+      console.warn('[PendingIntent] Resume after storage restore failed:', e);
+    });
   }
 });
 
@@ -1250,7 +1238,9 @@ async function handleMessage(message, sendResponse) {
               // Copy body to clipboard for pasting
               try {
                 await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-                  if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText });
+                  if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: shareText }).catch(() => {});
+                  }
                 });
               } catch (e) { /* best effort */ }
             }
@@ -1421,6 +1411,7 @@ async function handleMessage(message, sendResponse) {
               avatar: user.user_metadata?.avatar_url || user.avatar || user.avatar_url || ''
             } : null
           });
+          await handlePendingIntent();
           sendResponse({ success: true, isLoggedIn: true, user });
         } catch (e) {
           await chrome.storage.local.set({ isLoggedIn: false, hubUser: null });
