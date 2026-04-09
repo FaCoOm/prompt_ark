@@ -3519,12 +3519,11 @@ ${p.sourceContext ? `
 
     if (metaEl) {
       metaEl.innerHTML = `
-        ${this.renderPromptScoreBadge(state)}
         ${this.renderPromptCategoryChip(state)}
         ${this.renderPromptSourceChip(state)}
         ${state.tags && state.tags.length > 0 ? state.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
         ${state.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(state.shortcut)}</span>` : ''}
-        ${variableNames.length > 0 ? `<span class="prompt-vars">${variableNames.length} ${i18n.t('variables')}</span>` : ''}
+        ${this.renderPromptScoreBadge(state)}
       `;
     }
 
