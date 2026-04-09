@@ -49,6 +49,7 @@ class PopupManager {
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
     this.modalReadOnly = false;
+    this.previewModalState = null;
     this.categoryReviewMode = false;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
@@ -2086,6 +2087,11 @@ ${p.sourceContext ? `
     // Edit modal
     document.getElementById('closeModal').addEventListener('click', () => this.hideEditModal());
     document.getElementById('cancelBtn').addEventListener('click', () => this.hideEditModal());
+    document.getElementById('closePreviewModal')?.addEventListener('click', () => this.hidePreviewModal());
+    document.getElementById('closePreviewBtn')?.addEventListener('click', () => this.hidePreviewModal());
+    document.getElementById('previewModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'previewModal') this.hidePreviewModal();
+    });
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
       if (this.modalReadOnly) {
@@ -2149,6 +2155,49 @@ ${p.sourceContext ? `
               mdPreview.innerHTML = this.renderMarkdown(contentInput.value);
             }
           }
+          this.showToast(i18n.t('translateSuccess'));
+        } else {
+          this.showToast('❌ ' + (resp?.error || i18n.t('translateFailed')), 4000);
+        }
+      } catch (err) {
+        this.showToast('❌ ' + i18n.t('translateError'), 4000);
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('previewTranslateBtn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const targetLang = document.getElementById('previewTranslateTargetLang')?.value;
+      const state = this.previewModalState;
+      if (!state?.content?.trim()) {
+        this.showToast(i18n.t('contentEmpty') || 'Content is empty', 3000);
+        return;
+      }
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = i18n.t('loadingIndicator') || '⏳';
+      btn.disabled = true;
+
+      try {
+        const resp = await this.requestPromptTranslation(targetLang, {
+          title: state.title,
+          category: state.category,
+          tags: state.tags,
+          content: state.content,
+          output_modality: state.output_modality || '',
+        });
+
+        if (resp && resp.success && resp.data) {
+          if (resp.data.title) state.title = resp.data.title;
+          if (resp.data.tags) {
+            state.tags = Array.isArray(resp.data.tags)
+              ? resp.data.tags
+              : String(resp.data.tags || '').split(/[,\n，、]/).map(tag => tag.trim()).filter(Boolean);
+          }
+          if (resp.data.content) state.content = resp.data.content;
+          this.renderPreviewModal();
           this.showToast(i18n.t('translateSuccess'));
         } else {
           this.showToast('❌ ' + (resp?.error || i18n.t('translateFailed')), 4000);
@@ -3473,10 +3522,68 @@ ${p.sourceContext ? `
     this.showEditModal(prompt, options);
   }
 
+  async requestPromptTranslation(targetLanguage, promptData) {
+    return chrome.runtime.sendMessage({
+      type: 'TRANSLATE_PROMPT',
+      targetLanguage,
+      promptData,
+    });
+  }
+
+  renderPreviewModal() {
+    const state = this.previewModalState;
+    if (!state) return;
+
+    const titleEl = document.getElementById('previewModalTitle');
+    const metaEl = document.getElementById('previewPromptMeta');
+    const contentEl = document.getElementById('previewPromptContent');
+
+    if (titleEl) {
+      titleEl.textContent = state.title || i18n.t('preview');
+    }
+
+    if (metaEl) {
+      metaEl.innerHTML = `
+        ${this.renderPromptCategoryChip(state)}
+        ${this.renderPromptSourceChip(state)}
+        ${state.tags && state.tags.length > 0 ? state.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
+        ${state.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(state.shortcut)}</span>` : ''}
+        ${state.variables && state.variables.length > 0 ? `<span class="prompt-vars">${state.variables.length} ${i18n.t('variables')}</span>` : ''}
+      `;
+    }
+
+    if (contentEl) {
+      contentEl.innerHTML = highlightVariables(this.renderMarkdown(state.content || ''));
+    }
+  }
+
+  showPreviewModal(prompt) {
+    if (!prompt) return;
+
+    this.previewModalState = {
+      ...prompt,
+      tags: Array.isArray(prompt.tags) ? [...prompt.tags] : [],
+      variables: Array.isArray(prompt.variables) ? [...prompt.variables] : [],
+      title: prompt.title || '',
+      category: prompt.category || '',
+      shortcut: prompt.shortcut || '',
+      content: prompt.content || '',
+      output_modality: prompt.output_modality || 'text',
+    };
+
+    this.renderPreviewModal();
+    document.getElementById('previewModal')?.classList.remove('hidden');
+  }
+
+  hidePreviewModal() {
+    this.previewModalState = null;
+    document.getElementById('previewModal')?.classList.add('hidden');
+  }
+
   previewPrompt(id) {
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
-    this.showEditModal(prompt, { readOnly: true });
+    this.showPreviewModal(prompt);
   }
 
   // --- Inline Translate (Prompt List) ---

@@ -1234,6 +1234,16 @@ body::before {
   pointer-events: auto;
 }
 
+.modal-content.preview-mode .form-group input[readonly] {
+  opacity: 1;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.modal-content.preview-mode .btn-preview-toggle {
+  display: none;
+}
+
 .prompt-actions {
   display: flex;
   gap: 2px;
@@ -1438,6 +1448,61 @@ body::before {
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+}
+
+.preview-modal-content {
+  max-width: 760px;
+}
+
+.preview-modal-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.preview-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.preview-modal-rendered {
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.preview-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.preview-modal-translate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-modal-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.preview-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .modal-header {
