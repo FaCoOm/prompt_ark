@@ -724,6 +724,39 @@
     </div>
   </div>
 
+  <div id="previewModal" class="modal hidden preview-modal">
+    <div class="modal-content preview-modal-content">
+      <div class="modal-header">
+        <h2 id="previewModalTitle" data-i18n="preview">预览</h2>
+        <button class="modal-close" id="closePreviewModal">&times;</button>
+      </div>
+      <div class="preview-modal-body">
+        <div id="previewPromptMeta" class="preview-modal-meta"></div>
+        <div id="previewPromptVariables" class="preview-modal-variables hidden"></div>
+        <div id="previewPromptContent" class="preview-modal-rendered md-preview"></div>
+      </div>
+      <div class="preview-modal-footer">
+        <div class="preview-modal-translate">
+          <select id="previewTranslateTargetLang" class="settings-input" style="width: 120px; padding: 4px 8px; height: 32px;">
+            <option value="English">English</option>
+            <option value="Chinese" selected>中文</option>
+            <option value="Japanese">日本語</option>
+            <option value="Korean">한국어</option>
+            <option value="Spanish">Español</option>
+            <option value="French">Français</option>
+            <option value="German">Deutsch</option>
+          </select>
+          <button type="button" id="previewTranslateBtn" class="btn btn-secondary btn-small" data-i18n-title="translatePrompt">
+            🌐 <span data-i18n="translate">Translate</span>
+          </button>
+        </div>
+        <div class="preview-modal-actions">
+          <button type="button" class="btn btn-secondary" id="closePreviewBtn" data-i18n="cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Import Modal -->
   <div id="importModal" class="modal hidden">
     <div class="modal-content">

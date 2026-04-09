@@ -48,7 +48,7 @@ class PopupManager {
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
-    this.modalReadOnly = false;
+    this.previewModalState = null;
     this.categoryReviewMode = false;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
@@ -1380,60 +1380,39 @@ class PopupManager {
 
   updateCategoryReviewModeUI() {
     const locked = this.isCategoryReviewLocked();
-    const readOnly = Boolean(this.modalReadOnly);
     const modalTitle = document.getElementById('modalTitle');
     const submitBtn = document.getElementById('submitPromptBtn');
-    const historyBtn = document.getElementById('historyBtn');
-    const contextVarBtn = document.getElementById('contextVarBtn');
-    const optimizeBtn = document.getElementById('optimizeBtn');
-    const optimizeProviderBtn = document.getElementById('optimizeProviderBtn');
-    const enhanceBtn = document.getElementById('enhanceBtn');
-    const categorySearchInput = document.getElementById('categorySearchInput');
-    const categoryDropdownToggle = document.getElementById('categoryDropdownToggle');
     if (modalTitle) {
       if (locked) {
         modalTitle.textContent = i18n.t('confirmPromptCategory');
-      } else if (readOnly) {
-        modalTitle.textContent = i18n.t('preview');
       } else {
         modalTitle.textContent = this.editingId ? i18n.t('editPrompt') : i18n.t('newPrompt');
       }
     }
     if (submitBtn) {
       submitBtn.textContent = locked ? i18n.t('confirm') : i18n.t('save');
-      submitBtn.classList.toggle('hidden', readOnly);
     }
 
-    ['titleInput', 'shortcutInput', 'contentInput', 'categorySearchInput'].forEach((id) => {
+    ['titleInput', 'shortcutInput', 'contentInput'].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      const shouldReadOnly = locked || readOnly;
-      el.readOnly = shouldReadOnly;
-      el.setAttribute('aria-readonly', shouldReadOnly ? 'true' : 'false');
+      el.readOnly = locked;
+      el.setAttribute('aria-readonly', locked ? 'true' : 'false');
     });
 
     ['historyBtn', 'contextVarBtn', 'previewToggle', 'optimizeBtn', 'optimizeProviderBtn', 'enhanceBtn', 'translateTargetLang', 'translateBtn']
       .forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
-        const shouldDisable = locked || (readOnly && !['previewToggle', 'translateTargetLang', 'translateBtn'].includes(id));
-        el.disabled = shouldDisable;
+        el.disabled = locked;
       });
 
-    if (historyBtn) historyBtn.classList.toggle('hidden', readOnly || !this.editingId);
-    if (contextVarBtn) contextVarBtn.classList.toggle('hidden', readOnly);
-    if (optimizeBtn) optimizeBtn.classList.toggle('hidden', readOnly);
-    if (optimizeProviderBtn) optimizeProviderBtn.classList.toggle('hidden', readOnly);
-    if (enhanceBtn) enhanceBtn.classList.toggle('hidden', readOnly);
-    if (categorySearchInput) categorySearchInput.disabled = locked || readOnly;
-    if (categoryDropdownToggle) categoryDropdownToggle.disabled = locked || readOnly;
-
     document.querySelectorAll('.category-source-btn, #useCurrentCategoryBtn, #applyRecommendedCategoryBtn').forEach((el) => {
-      el.disabled = locked || readOnly;
+      el.disabled = locked;
     });
 
     document.querySelectorAll('[data-review-lock-region]').forEach((el) => {
-      el.classList.toggle('review-locked', locked || readOnly);
+      el.classList.toggle('review-locked', locked);
     });
   }
 
@@ -2086,12 +2065,13 @@ ${p.sourceContext ? `
     // Edit modal
     document.getElementById('closeModal').addEventListener('click', () => this.hideEditModal());
     document.getElementById('cancelBtn').addEventListener('click', () => this.hideEditModal());
+    document.getElementById('closePreviewModal')?.addEventListener('click', () => this.hidePreviewModal());
+    document.getElementById('closePreviewBtn')?.addEventListener('click', () => this.hidePreviewModal());
+    document.getElementById('previewModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'previewModal') this.hidePreviewModal();
+    });
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (this.modalReadOnly) {
-        this.hideEditModal();
-        return;
-      }
       this.savePrompt();
     });
     document.getElementById('useCurrentCategoryBtn')?.addEventListener('click', async () => {
@@ -2149,6 +2129,49 @@ ${p.sourceContext ? `
               mdPreview.innerHTML = this.renderMarkdown(contentInput.value);
             }
           }
+          this.showToast(i18n.t('translateSuccess'));
+        } else {
+          this.showToast('❌ ' + (resp?.error || i18n.t('translateFailed')), 4000);
+        }
+      } catch (err) {
+        this.showToast('❌ ' + i18n.t('translateError'), 4000);
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('previewTranslateBtn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const targetLang = document.getElementById('previewTranslateTargetLang')?.value;
+      const state = this.previewModalState;
+      if (!state?.content?.trim()) {
+        this.showToast(i18n.t('contentEmpty') || 'Content is empty', 3000);
+        return;
+      }
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = i18n.t('loadingIndicator') || '⏳';
+      btn.disabled = true;
+
+      try {
+        const resp = await this.requestPromptTranslation(targetLang, {
+          title: state.title,
+          category: state.category,
+          tags: state.tags,
+          content: state.content,
+          output_modality: state.output_modality || '',
+        });
+
+        if (resp && resp.success && resp.data) {
+          if (resp.data.title) state.title = resp.data.title;
+          if (resp.data.tags) {
+            state.tags = Array.isArray(resp.data.tags)
+              ? resp.data.tags
+              : String(resp.data.tags || '').split(/[,\n，、]/).map(tag => tag.trim()).filter(Boolean);
+          }
+          if (resp.data.content) state.content = resp.data.content;
+          this.renderPreviewModal();
           this.showToast(i18n.t('translateSuccess'));
         } else {
           this.showToast('❌ ' + (resp?.error || i18n.t('translateFailed')), 4000);
@@ -2906,18 +2929,17 @@ ${p.sourceContext ? `
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
     this.modalPromptData = prompt ? { ...prompt } : null;
-    this.modalReadOnly = Boolean(options.readOnly);
-    this.categoryReviewMode = !this.modalReadOnly && Boolean(options.categoryReviewMode);
+    this.categoryReviewMode = Boolean(options.categoryReviewMode);
 
     if (prompt) {
-      title.textContent = this.modalReadOnly ? i18n.t('preview') : i18n.t('editPrompt');
+      title.textContent = i18n.t('editPrompt');
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
       document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
-      this.editingId = this.modalReadOnly ? null : prompt.id;
-      document.getElementById('historyBtn').classList.toggle('hidden', this.modalReadOnly);
+      this.editingId = prompt.id;
+      document.getElementById('historyBtn').classList.remove('hidden');
 
       // [DISABLED] Skill mode fields
       // const isSkill = !!prompt.skillMode;
@@ -2977,7 +2999,6 @@ ${p.sourceContext ? `
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
-    this.modalReadOnly = false;
     this.categoryReviewMode = false;
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
@@ -3380,11 +3401,6 @@ ${p.sourceContext ? `
       applyAiRecommendation = false,
     } = options;
 
-    if (this.modalReadOnly) {
-      this.hideEditModal();
-      return;
-    }
-
     if (applyAiRecommendation) {
       const applied = await this.applyAiRecommendationToCategoryForm(this.modalPromptData);
       if (!applied) {
@@ -3473,10 +3489,92 @@ ${p.sourceContext ? `
     this.showEditModal(prompt, options);
   }
 
+  async requestPromptTranslation(targetLanguage, promptData) {
+    return chrome.runtime.sendMessage({
+      type: 'TRANSLATE_PROMPT',
+      targetLanguage,
+      promptData,
+    });
+  }
+
+  renderPreviewModal() {
+    const state = this.previewModalState;
+    if (!state) return;
+
+    const titleEl = document.getElementById('previewModalTitle');
+    const metaEl = document.getElementById('previewPromptMeta');
+    const variablesEl = document.getElementById('previewPromptVariables');
+    const contentEl = document.getElementById('previewPromptContent');
+    const variableNames = (state.variables || [])
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (item?.name) return String(item.name).trim();
+        return '';
+      })
+      .filter(Boolean);
+
+    if (titleEl) {
+      titleEl.textContent = state.title || i18n.t('preview');
+    }
+
+    if (metaEl) {
+      metaEl.innerHTML = `
+        ${this.renderPromptScoreBadge(state)}
+        ${this.renderPromptCategoryChip(state)}
+        ${this.renderPromptSourceChip(state)}
+        ${state.tags && state.tags.length > 0 ? state.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
+        ${state.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(state.shortcut)}</span>` : ''}
+        ${variableNames.length > 0 ? `<span class="prompt-vars">${variableNames.length} ${i18n.t('variables')}</span>` : ''}
+      `;
+    }
+
+    if (variablesEl) {
+      if (variableNames.length > 0) {
+        variablesEl.classList.remove('hidden');
+        variablesEl.innerHTML = `
+          <div class="preview-modal-variables-title">${this.escapeHtml(i18n.t('variables'))} (${variableNames.length})</div>
+          <div class="preview-modal-variables-list">
+            ${variableNames.map((name) => `<span class="preview-modal-variable-chip">${this.escapeHtml(`{{${name}}}`)}</span>`).join('')}
+          </div>
+        `;
+      } else {
+        variablesEl.classList.add('hidden');
+        variablesEl.innerHTML = '';
+      }
+    }
+
+    if (contentEl) {
+      contentEl.innerHTML = highlightVariables(this.renderMarkdown(state.content || ''));
+    }
+  }
+
+  showPreviewModal(prompt) {
+    if (!prompt) return;
+
+    this.previewModalState = {
+      ...prompt,
+      tags: Array.isArray(prompt.tags) ? [...prompt.tags] : [],
+      variables: Array.isArray(prompt.variables) ? [...prompt.variables] : [],
+      title: prompt.title || '',
+      category: prompt.category || '',
+      shortcut: prompt.shortcut || '',
+      content: prompt.content || '',
+      output_modality: prompt.output_modality || 'text',
+    };
+
+    this.renderPreviewModal();
+    document.getElementById('previewModal')?.classList.remove('hidden');
+  }
+
+  hidePreviewModal() {
+    this.previewModalState = null;
+    document.getElementById('previewModal')?.classList.add('hidden');
+  }
+
   previewPrompt(id) {
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
-    this.showEditModal(prompt, { readOnly: true });
+    this.showPreviewModal(prompt);
   }
 
   // --- Inline Translate (Prompt List) ---
