@@ -48,6 +48,7 @@ class PopupManager {
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
+    this.modalReadOnly = false;
     this.categoryReviewMode = false;
     this.importedPromptsCache = []; // Full list of scanned prompts
     this.filteredImportCache = []; // List after applying score filter
@@ -716,6 +717,10 @@ class PopupManager {
     `;
   }
 
+  isHubReadOnlyPrompt(prompt) {
+    return String(prompt?.origin_action || '') === 'hub_add';
+  }
+
   async buildCategoryPreview(categoryType = '', categoryKey = '') {
     if (!categoryType || !categoryKey) return null;
 
@@ -1375,35 +1380,60 @@ class PopupManager {
 
   updateCategoryReviewModeUI() {
     const locked = this.isCategoryReviewLocked();
+    const readOnly = Boolean(this.modalReadOnly);
     const modalTitle = document.getElementById('modalTitle');
     const submitBtn = document.getElementById('submitPromptBtn');
+    const historyBtn = document.getElementById('historyBtn');
+    const contextVarBtn = document.getElementById('contextVarBtn');
+    const optimizeBtn = document.getElementById('optimizeBtn');
+    const optimizeProviderBtn = document.getElementById('optimizeProviderBtn');
+    const enhanceBtn = document.getElementById('enhanceBtn');
+    const categorySearchInput = document.getElementById('categorySearchInput');
+    const categoryDropdownToggle = document.getElementById('categoryDropdownToggle');
     if (modalTitle) {
       if (locked) {
         modalTitle.textContent = i18n.t('confirmPromptCategory');
+      } else if (readOnly) {
+        modalTitle.textContent = i18n.t('preview');
       } else {
         modalTitle.textContent = this.editingId ? i18n.t('editPrompt') : i18n.t('newPrompt');
       }
     }
     if (submitBtn) {
       submitBtn.textContent = locked ? i18n.t('confirm') : i18n.t('save');
+      submitBtn.classList.toggle('hidden', readOnly);
     }
 
-    ['titleInput', 'shortcutInput', 'contentInput'].forEach((id) => {
+    ['titleInput', 'shortcutInput', 'contentInput', 'categorySearchInput'].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.readOnly = locked;
-      el.setAttribute('aria-readonly', locked ? 'true' : 'false');
+      const shouldReadOnly = locked || readOnly;
+      el.readOnly = shouldReadOnly;
+      el.setAttribute('aria-readonly', shouldReadOnly ? 'true' : 'false');
     });
 
     ['historyBtn', 'contextVarBtn', 'previewToggle', 'optimizeBtn', 'optimizeProviderBtn', 'enhanceBtn', 'translateTargetLang', 'translateBtn']
       .forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.disabled = locked;
+        const shouldDisable = locked || (readOnly && !['previewToggle', 'translateTargetLang', 'translateBtn'].includes(id));
+        el.disabled = shouldDisable;
       });
 
+    if (historyBtn) historyBtn.classList.toggle('hidden', readOnly || !this.editingId);
+    if (contextVarBtn) contextVarBtn.classList.toggle('hidden', readOnly);
+    if (optimizeBtn) optimizeBtn.classList.toggle('hidden', readOnly);
+    if (optimizeProviderBtn) optimizeProviderBtn.classList.toggle('hidden', readOnly);
+    if (enhanceBtn) enhanceBtn.classList.toggle('hidden', readOnly);
+    if (categorySearchInput) categorySearchInput.disabled = locked || readOnly;
+    if (categoryDropdownToggle) categoryDropdownToggle.disabled = locked || readOnly;
+
+    document.querySelectorAll('.category-source-btn, #useCurrentCategoryBtn, #applyRecommendedCategoryBtn').forEach((el) => {
+      el.disabled = locked || readOnly;
+    });
+
     document.querySelectorAll('[data-review-lock-region]').forEach((el) => {
-      el.classList.toggle('review-locked', locked);
+      el.classList.toggle('review-locked', locked || readOnly);
     });
   }
 
@@ -1636,6 +1666,7 @@ class PopupManager {
 
     container.innerHTML = pageItems.map(p => {
       const actionDisabled = (p.needs_category_review || p.ai_enriching) ? 'disabled' : '';
+      const readOnlyHubPrompt = this.isHubReadOnlyPrompt(p);
       return `
       <div class="prompt-item ${this.shareManager.isPackMode ? 'selectable' : ''}" data-id="${p.id}">
         <div class="prompt-main">
@@ -1648,36 +1679,49 @@ class PopupManager {
               <button class="action-btn fav-btn ${p.favorite ? 'active' : ''}" title="${i18n.t('favorite')}" ${actionDisabled}>
                 ${p.favorite ? '⭐' : '☆'}
               </button>
+              ${readOnlyHubPrompt ? `
+              <button class="action-btn preview-btn" title="${i18n.t('preview')}" ${actionDisabled}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+              ` : `
               <button class="action-btn share-btn" title="${i18n.t('share')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                 </svg>
               </button>
+              `}
               <!-- [DISABLED] <button class="action-btn p2s-btn" title="${i18n.t('promptToSkill')}">🧩</button> -->
               <button class="action-btn insert-btn" title="${i18n.t('insert')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 5v14M5 12h14"/>
                 </svg>
               </button>
+              ${readOnlyHubPrompt ? '' : `
               <button class="action-btn edit-btn" title="${i18n.t('editPrompt')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
+              `}
               <button class="action-btn copy-btn" title="${i18n.t('copySuccess')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
               </button>
+              ${readOnlyHubPrompt ? '' : `
               <button class="action-btn translate-list-btn" title="${i18n.t('translate')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
                 </svg>
               </button>
+              `}
               <button class="action-btn delete-btn" title="${i18n.t('deleteConfirm')}" ${actionDisabled}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -2013,6 +2057,7 @@ ${p.sourceContext ? `
 
       if (e.target.closest('.insert-btn')) this.insertPrompt(id);
       else if (e.target.closest('.fav-btn')) this.toggleFavorite(id);
+      else if (e.target.closest('.preview-btn')) this.previewPrompt(id);
       else if (e.target.closest('.share-btn')) this.sharePrompt(id);
       // [DISABLED] else if (e.target.closest('.p2s-btn')) this.pushToSkill(id, e.target.closest('.p2s-btn'));
       else if (e.target.closest('.edit-btn')) this.editPrompt(id);
@@ -2043,6 +2088,10 @@ ${p.sourceContext ? `
     document.getElementById('cancelBtn').addEventListener('click', () => this.hideEditModal());
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
+      if (this.modalReadOnly) {
+        this.hideEditModal();
+        return;
+      }
       this.savePrompt();
     });
     document.getElementById('useCurrentCategoryBtn')?.addEventListener('click', async () => {
@@ -2857,17 +2906,18 @@ ${p.sourceContext ? `
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
     this.modalPromptData = prompt ? { ...prompt } : null;
-    this.categoryReviewMode = Boolean(options.categoryReviewMode);
+    this.modalReadOnly = Boolean(options.readOnly);
+    this.categoryReviewMode = !this.modalReadOnly && Boolean(options.categoryReviewMode);
 
     if (prompt) {
-      title.textContent = i18n.t('editPrompt');
+      title.textContent = this.modalReadOnly ? i18n.t('preview') : i18n.t('editPrompt');
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
       document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
-      this.editingId = prompt.id;
-      document.getElementById('historyBtn').classList.remove('hidden');
+      this.editingId = this.modalReadOnly ? null : prompt.id;
+      document.getElementById('historyBtn').classList.toggle('hidden', this.modalReadOnly);
 
       // [DISABLED] Skill mode fields
       // const isSkill = !!prompt.skillMode;
@@ -2927,6 +2977,7 @@ ${p.sourceContext ? `
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
+    this.modalReadOnly = false;
     this.categoryReviewMode = false;
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
@@ -3329,6 +3380,11 @@ ${p.sourceContext ? `
       applyAiRecommendation = false,
     } = options;
 
+    if (this.modalReadOnly) {
+      this.hideEditModal();
+      return;
+    }
+
     if (applyAiRecommendation) {
       const applied = await this.applyAiRecommendationToCategoryForm(this.modalPromptData);
       if (!applied) {
@@ -3415,6 +3471,12 @@ ${p.sourceContext ? `
     const prompt = this.prompts.find(p => p.id === id);
     if (!prompt) return;
     this.showEditModal(prompt, options);
+  }
+
+  previewPrompt(id) {
+    const prompt = this.prompts.find(p => p.id === id);
+    if (!prompt) return;
+    this.showEditModal(prompt, { readOnly: true });
   }
 
   // --- Inline Translate (Prompt List) ---
@@ -4300,6 +4362,8 @@ ${p.sourceContext ? `
         : (!p.tags || p.tags.length === 0),
       shortcut: p.shortcut || '',
       favorite: p.favorite || false,
+      hub_prompt_id: p.hub_prompt_id || '',
+      origin_action: p.origin_action || 'import',
       variables: p.variables || [],
       usageCount: 0,
       lastUsedAt: null,

@@ -922,6 +922,8 @@ class AIPromptManager {
       confirm_category_review: Boolean(p.confirm_category_review),
       skip_async_enrich: Boolean(p.skip_async_enrich),
       sync_hub_taxonomy: Boolean(p.sync_hub_taxonomy),
+      hub_prompt_id: p.hub_prompt_id || '',
+      origin_action: p.origin_action || '',
       tags: p.tags || [],
       variables: p.variables || [],
       shortcut: p.shortcut || '',
