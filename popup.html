@@ -715,9 +715,6 @@
               🌐 <span data-i18n="translate">Translate</span>
             </button>
           </div>
-          <div id="previewReadonlyHint" class="preview-readonly-hint hidden" data-i18n="previewReadOnlyHint">
-            只读预览，可临时翻译查看，关闭后不保存
-          </div>
           <div class="form-actions" style="margin-top: 0;">
             <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
             <button type="submit" id="submitPromptBtn" class="btn btn-primary" data-i18n="save">保存</button>
@@ -735,6 +732,7 @@
       </div>
       <div class="preview-modal-body">
         <div id="previewPromptMeta" class="preview-modal-meta"></div>
+        <div id="previewPromptVariables" class="preview-modal-variables hidden"></div>
         <div id="previewPromptContent" class="preview-modal-rendered md-preview"></div>
       </div>
       <div class="preview-modal-footer">
@@ -751,10 +749,9 @@
           <button type="button" id="previewTranslateBtn" class="btn btn-secondary btn-small" data-i18n-title="translatePrompt">
             🌐 <span data-i18n="translate">Translate</span>
           </button>
-          <span id="previewTranslateHint" class="preview-modal-hint" data-i18n="previewReadOnlyHint">只读预览，可临时翻译查看，关闭后不保存</span>
         </div>
         <div class="preview-modal-actions">
-          <button type="button" class="btn btn-secondary" id="closePreviewBtn" data-i18n="close">关闭</button>
+          <button type="button" class="btn btn-secondary" id="closePreviewBtn" data-i18n="cancel">取消</button>
         </div>
       </div>
     </div>

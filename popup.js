@@ -48,7 +48,6 @@ class PopupManager {
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
-    this.modalReadOnly = false;
     this.previewModalState = null;
     this.categoryReviewMode = false;
     this.importedPromptsCache = []; // Full list of scanned prompts
@@ -1381,60 +1380,39 @@ class PopupManager {
 
   updateCategoryReviewModeUI() {
     const locked = this.isCategoryReviewLocked();
-    const readOnly = Boolean(this.modalReadOnly);
     const modalTitle = document.getElementById('modalTitle');
     const submitBtn = document.getElementById('submitPromptBtn');
-    const historyBtn = document.getElementById('historyBtn');
-    const contextVarBtn = document.getElementById('contextVarBtn');
-    const optimizeBtn = document.getElementById('optimizeBtn');
-    const optimizeProviderBtn = document.getElementById('optimizeProviderBtn');
-    const enhanceBtn = document.getElementById('enhanceBtn');
-    const categorySearchInput = document.getElementById('categorySearchInput');
-    const categoryDropdownToggle = document.getElementById('categoryDropdownToggle');
     if (modalTitle) {
       if (locked) {
         modalTitle.textContent = i18n.t('confirmPromptCategory');
-      } else if (readOnly) {
-        modalTitle.textContent = i18n.t('preview');
       } else {
         modalTitle.textContent = this.editingId ? i18n.t('editPrompt') : i18n.t('newPrompt');
       }
     }
     if (submitBtn) {
       submitBtn.textContent = locked ? i18n.t('confirm') : i18n.t('save');
-      submitBtn.classList.toggle('hidden', readOnly);
     }
 
-    ['titleInput', 'shortcutInput', 'contentInput', 'categorySearchInput'].forEach((id) => {
+    ['titleInput', 'shortcutInput', 'contentInput'].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      const shouldReadOnly = locked || readOnly;
-      el.readOnly = shouldReadOnly;
-      el.setAttribute('aria-readonly', shouldReadOnly ? 'true' : 'false');
+      el.readOnly = locked;
+      el.setAttribute('aria-readonly', locked ? 'true' : 'false');
     });
 
     ['historyBtn', 'contextVarBtn', 'previewToggle', 'optimizeBtn', 'optimizeProviderBtn', 'enhanceBtn', 'translateTargetLang', 'translateBtn']
       .forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
-        const shouldDisable = locked || (readOnly && !['previewToggle', 'translateTargetLang', 'translateBtn'].includes(id));
-        el.disabled = shouldDisable;
+        el.disabled = locked;
       });
 
-    if (historyBtn) historyBtn.classList.toggle('hidden', readOnly || !this.editingId);
-    if (contextVarBtn) contextVarBtn.classList.toggle('hidden', readOnly);
-    if (optimizeBtn) optimizeBtn.classList.toggle('hidden', readOnly);
-    if (optimizeProviderBtn) optimizeProviderBtn.classList.toggle('hidden', readOnly);
-    if (enhanceBtn) enhanceBtn.classList.toggle('hidden', readOnly);
-    if (categorySearchInput) categorySearchInput.disabled = locked || readOnly;
-    if (categoryDropdownToggle) categoryDropdownToggle.disabled = locked || readOnly;
-
     document.querySelectorAll('.category-source-btn, #useCurrentCategoryBtn, #applyRecommendedCategoryBtn').forEach((el) => {
-      el.disabled = locked || readOnly;
+      el.disabled = locked;
     });
 
     document.querySelectorAll('[data-review-lock-region]').forEach((el) => {
-      el.classList.toggle('review-locked', locked || readOnly);
+      el.classList.toggle('review-locked', locked);
     });
   }
 
@@ -2094,10 +2072,6 @@ ${p.sourceContext ? `
     });
     document.getElementById('promptForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (this.modalReadOnly) {
-        this.hideEditModal();
-        return;
-      }
       this.savePrompt();
     });
     document.getElementById('useCurrentCategoryBtn')?.addEventListener('click', async () => {
@@ -2955,18 +2929,17 @@ ${p.sourceContext ? `
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
     this.modalPromptData = prompt ? { ...prompt } : null;
-    this.modalReadOnly = Boolean(options.readOnly);
-    this.categoryReviewMode = !this.modalReadOnly && Boolean(options.categoryReviewMode);
+    this.categoryReviewMode = Boolean(options.categoryReviewMode);
 
     if (prompt) {
-      title.textContent = this.modalReadOnly ? i18n.t('preview') : i18n.t('editPrompt');
+      title.textContent = i18n.t('editPrompt');
       document.getElementById('promptId').value = prompt.id;
       document.getElementById('titleInput').value = prompt.title;
       document.getElementById('tagsInput').value = Array.isArray(prompt.tags) ? prompt.tags.join(', ') : '';
       document.getElementById('shortcutInput').value = prompt.shortcut || '';
       document.getElementById('contentInput').value = prompt.content;
-      this.editingId = this.modalReadOnly ? null : prompt.id;
-      document.getElementById('historyBtn').classList.toggle('hidden', this.modalReadOnly);
+      this.editingId = prompt.id;
+      document.getElementById('historyBtn').classList.remove('hidden');
 
       // [DISABLED] Skill mode fields
       // const isSkill = !!prompt.skillMode;
@@ -3026,7 +2999,6 @@ ${p.sourceContext ? `
     this.modalOutputModality = '';
     this.modalForceOutputModality = '';
     this.modalPromptData = null;
-    this.modalReadOnly = false;
     this.categoryReviewMode = false;
     this.toggleContextVarPopover(false);
     this.toggleContractBuilder(false);
@@ -3429,11 +3401,6 @@ ${p.sourceContext ? `
       applyAiRecommendation = false,
     } = options;
 
-    if (this.modalReadOnly) {
-      this.hideEditModal();
-      return;
-    }
-
     if (applyAiRecommendation) {
       const applied = await this.applyAiRecommendationToCategoryForm(this.modalPromptData);
       if (!applied) {
@@ -3536,7 +3503,15 @@ ${p.sourceContext ? `
 
     const titleEl = document.getElementById('previewModalTitle');
     const metaEl = document.getElementById('previewPromptMeta');
+    const variablesEl = document.getElementById('previewPromptVariables');
     const contentEl = document.getElementById('previewPromptContent');
+    const variableNames = (state.variables || [])
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (item?.name) return String(item.name).trim();
+        return '';
+      })
+      .filter(Boolean);
 
     if (titleEl) {
       titleEl.textContent = state.title || i18n.t('preview');
@@ -3544,12 +3519,28 @@ ${p.sourceContext ? `
 
     if (metaEl) {
       metaEl.innerHTML = `
+        ${this.renderPromptScoreBadge(state)}
         ${this.renderPromptCategoryChip(state)}
         ${this.renderPromptSourceChip(state)}
         ${state.tags && state.tags.length > 0 ? state.tags.map(t => `<span class="prompt-tag">${this.escapeHtml(t)}</span>`).join('') : ''}
         ${state.shortcut ? `<span class="prompt-shortcut">/${this.escapeHtml(state.shortcut)}</span>` : ''}
-        ${state.variables && state.variables.length > 0 ? `<span class="prompt-vars">${state.variables.length} ${i18n.t('variables')}</span>` : ''}
+        ${variableNames.length > 0 ? `<span class="prompt-vars">${variableNames.length} ${i18n.t('variables')}</span>` : ''}
       `;
+    }
+
+    if (variablesEl) {
+      if (variableNames.length > 0) {
+        variablesEl.classList.remove('hidden');
+        variablesEl.innerHTML = `
+          <div class="preview-modal-variables-title">${this.escapeHtml(i18n.t('variables'))} (${variableNames.length})</div>
+          <div class="preview-modal-variables-list">
+            ${variableNames.map((name) => `<span class="preview-modal-variable-chip">${this.escapeHtml(`{{${name}}}`)}</span>`).join('')}
+          </div>
+        `;
+      } else {
+        variablesEl.classList.add('hidden');
+        variablesEl.innerHTML = '';
+      }
     }
 
     if (contentEl) {
