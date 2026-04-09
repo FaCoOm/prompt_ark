@@ -3,6 +3,11 @@ console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loade
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
+import {
+  DEFAULT_PROMPT_INIT_STATE_KEY,
+  DEFAULT_PROMPT_INIT_STATUS,
+  initializeDefaultPrompts,
+} from './lib/default-prompt-sync.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
 import { HubClient } from './lib/supabase/client.js';
@@ -278,6 +283,23 @@ function broadcastTaxonomyUpdated(payload = {}) {
   try { chrome.runtime.sendMessage(message).catch(() => { }); } catch (e) { /* no listeners */ }
 }
 
+async function setDefaultPromptInitState(state = {}) {
+  const previous = (await chrome.storage.local.get(DEFAULT_PROMPT_INIT_STATE_KEY))?.[DEFAULT_PROMPT_INIT_STATE_KEY] || {};
+  const nextState = {
+    status: state.status || previous.status || DEFAULT_PROMPT_INIT_STATUS.IDLE,
+    source: state.source ?? previous.source ?? null,
+    startedAt: state.startedAt ?? previous.startedAt ?? null,
+    finishedAt: state.finishedAt ?? previous.finishedAt ?? null,
+    error: state.error ?? null,
+  };
+
+  await chrome.storage.local.set({
+    [DEFAULT_PROMPT_INIT_STATE_KEY]: nextState,
+  });
+
+  return nextState;
+}
+
 
 // Wrapper: delegate to text-analysis module with DI
 async function extractTitleAndCategory(text, options = {}) {
@@ -290,31 +312,42 @@ chrome.runtime.onInstalled.addListener(async () => {
   await migrateLocalToSync();
   const prompts = await getPrompts();
   if (prompts.length > 0) return;
-
-  // Seed from curated 100-prompt library (lib/default-prompts.js)
-  const defaults = DEFAULT_PROMPTS.map((p, i) => {
-    // Extract variables from content ({{var}} patterns)
-    const vars = [...(p.content.matchAll(/\{\{(\w+)\}\}/g))].map(m => m[1]);
-    const uniqueVars = [...new Set(vars)];
-    return {
-      id: crypto.randomUUID(),
-      title: p.title,
-      content: p.content,
-      output_modality: p.output_modality || 'text',
-      category_type: p.category_key ? 'system' : '',
-      category_key: p.category_key || '',
-      tags: p.tags || [],
-      variables: uniqueVars,
-      shortcut: p.shortcut || '',
-      createdAt: Date.now() + i, // Preserve order
-      usageCount: 0,
-      lastUsed: null,
-      lastUsedAt: null,
-      builtIn: true
-    };
+  const startedAt = Date.now();
+  await setDefaultPromptInitState({
+    status: DEFAULT_PROMPT_INIT_STATUS.LOADING,
+    source: null,
+    startedAt,
+    finishedAt: null,
+    error: null,
   });
 
-  await PromptStorage.bulkSet(defaults);
+  try {
+    const initialized = await initializeDefaultPrompts({ startedAt });
+    const preparedPrompts = [];
+
+    for (const prompt of initialized.prompts) {
+      preparedPrompts.push(await ensureHubImportCategoryReady(prompt));
+    }
+
+    await PromptStorage.bulkSet(preparedPrompts);
+    await setDefaultPromptInitState({
+      status: DEFAULT_PROMPT_INIT_STATUS.READY,
+      source: initialized.source,
+      startedAt,
+      finishedAt: Date.now(),
+      error: null,
+    });
+    broadcastPromptsUpdated({ action: 'init-default-prompts' });
+  } catch (error) {
+    console.error('[DefaultPromptInit] Failed to initialize default prompts:', error);
+    await setDefaultPromptInitState({
+      status: DEFAULT_PROMPT_INIT_STATUS.ERROR,
+      source: null,
+      startedAt,
+      finishedAt: Date.now(),
+      error: error?.message || 'Default prompt init failed',
+    });
+  }
 });
 
 // --- Async AI Enrichment (wrapper with DI) ---

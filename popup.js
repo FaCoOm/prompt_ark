@@ -10,6 +10,13 @@ import { ShareManager } from './lib/popup/share-manager.js';
 import { CATEGORY_TYPES, getSystemCategoryOptions, getCustomCategoryOptions, derivePromptCategory, invalidateTaxonomyCache } from './lib/taxonomy.js';
 
 const CONTEXT_VAR_PATTERN = /\{\{(@page_text|@selection|@page_url|@page_title|@date)\}\}/g;
+const DEFAULT_PROMPT_INIT_STATE_KEY = 'default_prompt_init_state';
+const DEFAULT_PROMPT_INIT_STATUS = {
+  IDLE: 'idle',
+  LOADING: 'loading',
+  READY: 'ready',
+  ERROR: 'error',
+};
 const CONTEXT_VAR_ITEMS = [
   { token: '{{@page_title}}', labelKey: 'contextVarPageTitle', descKey: 'contextVarPageTitleDesc' },
   { token: '{{@page_url}}', labelKey: 'contextVarPageUrl', descKey: 'contextVarPageUrlDesc' },
@@ -58,6 +65,13 @@ class PopupManager {
     this.contentAnalyzer = new ContentAnalyzer();
     this.history = new HistoryPanel();
     this.shareManager = new ShareManager({ getPrompts: () => this.prompts });
+    this.defaultPromptInitState = {
+      status: DEFAULT_PROMPT_INIT_STATUS.IDLE,
+      source: null,
+      startedAt: null,
+      finishedAt: null,
+      error: null,
+    };
     
     // Track current tab for side panel context
     this.currentTab = null;
@@ -77,7 +91,10 @@ class PopupManager {
     const langSelect = document.getElementById('languageSelect');
     if (langSelect) langSelect.value = i18n.getLanguage();
 
-    await this.loadPrompts();
+    await Promise.all([
+      this.loadPrompts(),
+      this.loadDefaultPromptInitState(),
+    ]);
     await this.loadSettings();
     await this.loadGithubToken();
     this.renderModalityFilters();
@@ -97,6 +114,24 @@ class PopupManager {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && (changes.hubUser || changes.isLoggedIn)) {
         this.renderHubUserInfo();
+      }
+      if (area === 'local' && changes[DEFAULT_PROMPT_INIT_STATE_KEY]) {
+        this.defaultPromptInitState = changes[DEFAULT_PROMPT_INIT_STATE_KEY].newValue || {
+          status: DEFAULT_PROMPT_INIT_STATUS.IDLE,
+          source: null,
+          startedAt: null,
+          finishedAt: null,
+          error: null,
+        };
+        if (this.defaultPromptInitState.status === DEFAULT_PROMPT_INIT_STATUS.READY) {
+          this.loadPrompts().then(() => {
+            this.renderModalityFilters();
+            void this.renderCategories();
+            this.renderPrompts();
+          });
+        } else {
+          this.renderPrompts();
+        }
       }
     });
 
@@ -316,6 +351,17 @@ class PopupManager {
     if (response.success) {
       this.prompts = response.prompts;
     }
+  }
+
+  async loadDefaultPromptInitState() {
+    const result = await chrome.storage.local.get(DEFAULT_PROMPT_INIT_STATE_KEY);
+    this.defaultPromptInitState = result?.[DEFAULT_PROMPT_INIT_STATE_KEY] || {
+      status: DEFAULT_PROMPT_INIT_STATUS.IDLE,
+      source: null,
+      startedAt: null,
+      finishedAt: null,
+      error: null,
+    };
   }
 
   async loadSettings() {
@@ -718,7 +764,15 @@ class PopupManager {
   }
 
   isHubReadOnlyPrompt(prompt) {
-    return String(prompt?.origin_action || '') === 'hub_add';
+    const originAction = String(prompt?.origin_action || '');
+    return originAction === 'hub_add'
+      || originAction === 'hub_default_init'
+      || originAction === 'bundled_default_init';
+  }
+
+  isDefaultPromptInitializationLoading() {
+    return this.prompts.length === 0
+      && this.defaultPromptInitState?.status === DEFAULT_PROMPT_INIT_STATUS.LOADING;
   }
 
   async buildCategoryPreview(categoryType = '', categoryKey = '') {
@@ -1628,10 +1682,23 @@ class PopupManager {
     this.updateControlStates();
 
     if (filtered.length === 0) {
+      if (this.isDefaultPromptInitializationLoading()) {
+        container.innerHTML = `
+          <div class="empty-state empty-state-loading">
+            <div class="empty-state-spinner" aria-hidden="true"></div>
+            <p>${i18n.t('defaultPromptInitLoadingTitle')}</p>
+            <p class="hint">${i18n.t('defaultPromptInitLoadingHint')}</p>
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = `
         <div class="empty-state">
           <p>${i18n.t('noPrompts')}</p>
-          <p class="hint">${i18n.t('createFirst')}</p>
+          <p class="hint">${this.defaultPromptInitState?.status === DEFAULT_PROMPT_INIT_STATUS.ERROR
+            ? this.escapeHtml(this.defaultPromptInitState?.error || i18n.t('defaultPromptInitErrorHint'))
+            : i18n.t('createFirst')}</p>
         </div>
       `;
       return;
