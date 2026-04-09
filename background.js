@@ -3,6 +3,11 @@ console.log(`🔥 [background.js] v${chrome.runtime.getManifest().version} loade
 import { callGeminiWeb, isGeminiWebAvailable } from './lib/gemini-web.js';
 import { SyncStorage, LocalStorage, PromptStorage, migrateLocalToSync, SyncManager } from './lib/storage.js';
 import { DEFAULT_PROMPTS } from './lib/default-prompts.js';
+import {
+  DEFAULT_PROMPT_INIT_STATE_KEY,
+  DEFAULT_PROMPT_INIT_STATUS,
+  initializeDefaultPrompts,
+} from './lib/default-prompt-sync.js';
 import { translations } from './locales.js';
 import { loadPrompt, preloadAllPrompts } from './lib/prompt-loader.js';
 import { HubClient } from './lib/supabase/client.js';
@@ -10,18 +15,22 @@ import { safeParseJSON, fetchWithTimeout, getProviders, setProviders, getActiveP
 import { encrypt, decrypt } from './lib/crypto.js';
 import { extractVariables, classifyVariables, resolveContextVariables, composePrompt } from './lib/variables.js';
 import {
-  detectLanguageHeuristic,
   extractTitleHeuristic,
-  matchCategory,
   extractTitleAndCategory as _extractTitleAndCategory,
-  buildDeferredMetadata,
   shouldEnrichPromptMetadata
 } from './lib/text-analysis.js';
+import {
+  hydratePromptForDisplay,
+  hydratePromptsForDisplay,
+  resolveSystemCategoryKey,
+  syncHubTaxonomy
+} from './lib/taxonomy.js';
 import { optimizePromptWithAI } from './lib/ai/optimize.js';
 import { translatePromptWithAI } from './lib/ai/translate.js';
 import { smartConvertWithAI, isSmartConvertInputValid } from './lib/ai/smart-convert.js';
 import { asyncEnrichPrompt as _asyncEnrichPrompt } from './lib/ai/enrich.js';
 import { generateVideoPromptWithAI } from './lib/ai/video-prompt.js';
+import { buildSavedPromptMetadata, getCustomCategoriesForClassification } from './lib/prompt-metadata.js';
 // [DISABLED] import { generateSkillWithAI, pushSkillToOpenClaw } from './lib/ai/p2s-forge.js';
 import { generateShareText, shareToSocialPlatform, generateArticleShareText, ARTICLE_SHARE_PLATFORMS, SOCIAL_EDITORS, buildFallbackText } from './lib/ai/share.js';
 import { buildContextMenus, handleContextMenuClick, openPromptInDefaultAI } from './lib/context-menu.js';
@@ -125,8 +134,8 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🎉 Published to Hub!',
-        message: `Your prompt "${intent.promptData.title}" is now live on Hub.`
+        title: chrome.i18n.getMessage('hubPublishSuccessTitle') || '✅ Submitted for Hub review!',
+        message: chrome.i18n.getMessage('hubPublishSuccessMessage', [intent.promptData.title]) || `Your prompt "${intent.promptData.title}" is waiting for Hub review.`
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -141,10 +150,10 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🎉 Prompts Published!',
+        title: chrome.i18n.getMessage('hubPublishBatchSuccessTitle') || '✅ Prompts Submitted!',
         message: count > 1
-          ? `${count} prompts are now live on Hub.`
-          : 'Your prompt is now live on Hub.'
+          ? (chrome.i18n.getMessage('hubPublishBatchSuccessMessagePlural', [String(count)]) || `${count} prompts are waiting for Hub review.`)
+          : (chrome.i18n.getMessage('hubPublishBatchSuccessMessageSingular') || 'Your prompt is waiting for Hub review.')
       });
       if (resp?.url) {
         await chrome.tabs.create({ url: resp.url });
@@ -214,8 +223,12 @@ async function handlePendingIntent() {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: '🔗 ' + (platform === 'copy' || platform === 'json' ? 'Copied!' : 'Opening ' + platform + '...'),
-        message: platform === 'copy' || platform === 'json' ? 'Check your clipboard' : 'Check the new tab to finish sharing.'
+        title: (platform === 'copy' || platform === 'json'
+          ? (chrome.i18n.getMessage('hubShareCopiedTitle') || '🔗 Copied!')
+          : (chrome.i18n.getMessage('hubShareOpeningTitle') || '🔗 Opening...')),
+        message: (platform === 'copy' || platform === 'json'
+          ? (chrome.i18n.getMessage('hubShareCopiedMessage') || 'Check your clipboard')
+          : (chrome.i18n.getMessage('hubShareOpeningMessage') || 'Check the new tab to finish sharing.'))
       });
     }
   } catch (e) {
@@ -223,8 +236,8 @@ async function handlePendingIntent() {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: '❌ Publish Failed',
-      message: `Failed to publish: ${e.message || 'Unknown error'}. Please try again.`
+      title: chrome.i18n.getMessage('hubPublishFailedTitle') || '❌ Publish Failed',
+      message: chrome.i18n.getMessage('hubPublishFailedMessage', [e.message || 'Unknown error']) || `Failed to publish: ${e.message || 'Unknown error'}. Please try again.`
     });
   } finally {
     _isPendingIntentRunning = false;
@@ -241,6 +254,12 @@ initSupabaseFromStorage().then(success => {
 // User content → Dual-layer: sync (slim) + local (full)
 async function getPrompts() { return await PromptStorage.get(); }
 async function setPrompts(prompts) { return await PromptStorage.set(prompts); }
+async function getDisplayPrompts() {
+  return await hydratePromptsForDisplay(await getPrompts(), { locale: await getCurrentLocale() });
+}
+async function getDisplayPrompt(prompt) {
+  return await hydratePromptForDisplay(prompt, { locale: await getCurrentLocale() });
+}
 
 function broadcastPromptsUpdated(payload = {}) {
   const message = { type: 'PROMPTS_UPDATED', ...payload };
@@ -259,10 +278,32 @@ function broadcastPromptsUpdated(payload = {}) {
   } catch (e) { /* ignore send errors */ }
 }
 
+function broadcastTaxonomyUpdated(payload = {}) {
+  const message = { type: 'TAXONOMY_UPDATED', ...payload };
+  try { chrome.runtime.sendMessage(message).catch(() => { }); } catch (e) { /* no listeners */ }
+}
+
+async function setDefaultPromptInitState(state = {}) {
+  const previous = (await chrome.storage.local.get(DEFAULT_PROMPT_INIT_STATE_KEY))?.[DEFAULT_PROMPT_INIT_STATE_KEY] || {};
+  const nextState = {
+    status: state.status || previous.status || DEFAULT_PROMPT_INIT_STATUS.IDLE,
+    source: state.source ?? previous.source ?? null,
+    startedAt: state.startedAt ?? previous.startedAt ?? null,
+    finishedAt: state.finishedAt ?? previous.finishedAt ?? null,
+    error: state.error ?? null,
+  };
+
+  await chrome.storage.local.set({
+    [DEFAULT_PROMPT_INIT_STATE_KEY]: nextState,
+  });
+
+  return nextState;
+}
+
 
 // Wrapper: delegate to text-analysis module with DI
-async function extractTitleAndCategory(text) {
-  return _extractTitleAndCategory(text, getActiveProvider, callCloudAPI);
+async function extractTitleAndCategory(text, options = {}) {
+  return _extractTitleAndCategory(text, getActiveProvider, callCloudAPI, options);
 }
 
 // --- Install: seed default prompts + migrate settings ---
@@ -271,44 +312,73 @@ chrome.runtime.onInstalled.addListener(async () => {
   await migrateLocalToSync();
   const prompts = await getPrompts();
   if (prompts.length > 0) return;
-
-  // Seed from curated 100-prompt library (lib/default-prompts.js)
-  const defaults = DEFAULT_PROMPTS.map((p, i) => {
-    // Extract variables from content ({{var}} patterns)
-    const vars = [...(p.content.matchAll(/\{\{(\w+)\}\}/g))].map(m => m[1]);
-    const uniqueVars = [...new Set(vars)];
-    return {
-      id: crypto.randomUUID(),
-      title: p.title,
-      content: p.content,
-      category: p.category || 'General',
-      tags: p.tags || [],
-      variables: uniqueVars,
-      shortcut: p.shortcut || '',
-      createdAt: Date.now() + i, // Preserve order
-      usageCount: 0,
-      lastUsed: null,
-      lastUsedAt: null,
-      builtIn: true
-    };
+  const startedAt = Date.now();
+  await setDefaultPromptInitState({
+    status: DEFAULT_PROMPT_INIT_STATUS.LOADING,
+    source: null,
+    startedAt,
+    finishedAt: null,
+    error: null,
   });
 
-  await PromptStorage.bulkSet(defaults);
+  try {
+    try {
+      const taxonomy = await syncHubTaxonomy();
+      console.log('[DefaultPromptInit] Hub taxonomy synced:', taxonomy.revision || taxonomy.generated_at || 'ok');
+      broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
+    } catch (taxonomyError) {
+      console.warn('[DefaultPromptInit] Hub taxonomy sync failed before prompt init:', taxonomyError);
+    }
+
+    const initialized = await initializeDefaultPrompts({ startedAt });
+    const preparedPrompts = [];
+
+    for (const prompt of initialized.prompts) {
+      preparedPrompts.push(await ensureHubImportCategoryReady(prompt));
+    }
+
+    await PromptStorage.bulkSet(preparedPrompts);
+    console.log(`[DefaultPromptInit] Default prompts initialized from ${initialized.source}: ${preparedPrompts.length}`);
+    await setDefaultPromptInitState({
+      status: DEFAULT_PROMPT_INIT_STATUS.READY,
+      source: initialized.source,
+      startedAt,
+      finishedAt: Date.now(),
+      error: null,
+    });
+    broadcastPromptsUpdated({ action: 'init-default-prompts' });
+  } catch (error) {
+    console.error('[DefaultPromptInit] Failed to initialize default prompts:', error);
+    await setDefaultPromptInitState({
+      status: DEFAULT_PROMPT_INIT_STATUS.ERROR,
+      source: null,
+      startedAt,
+      finishedAt: Date.now(),
+      error: error?.message || 'Default prompt init failed',
+    });
+  }
 });
 
 // --- Async AI Enrichment (wrapper with DI) ---
 async function asyncEnrichPrompt(promptId, content) {
-  return _asyncEnrichPrompt(promptId, content, extractTitleAndCategory, getPrompts, buildContextMenus);
+  return _asyncEnrichPrompt(
+    promptId,
+    content,
+    extractTitleAndCategory,
+    getPrompts,
+    rebuildContextMenusForActiveTab,
+    await getCurrentLocale()
+  );
 }
 
-function buildSavedPromptMetadata(content, metadata = {}) {
-  return buildDeferredMetadata(content, {
-    title: metadata.title,
-    category: metadata.category,
-    tags: metadata.tags,
-    titleAutoGenerated: metadata.titleAutoGenerated,
-    categoryAutoGenerated: metadata.categoryAutoGenerated,
-  });
+function markPromptEnriching(prompt) {
+  const willEnrich = shouldEnrichPromptMetadata(prompt);
+  if (willEnrich) {
+    prompt.ai_enriching = true;
+  } else {
+    delete prompt.ai_enriching;
+  }
+  return willEnrich;
 }
 
 function shouldPreserveAutoTitle(existing, nextTitle) {
@@ -317,10 +387,34 @@ function shouldPreserveAutoTitle(existing, nextTitle) {
   return !!(existing?.titleAutoGenerated && normalizedTitle === String(existing.title || '').trim());
 }
 
-function shouldPreserveAutoCategory(existing, nextCategory) {
-  const normalizedCategory = String(nextCategory || '').trim();
-  if (!normalizedCategory) return true;
-  return !!(existing?.categoryAutoGenerated && normalizedCategory === String(existing.category || '').trim());
+async function ensureHubImportCategoryReady(prompt) {
+  if (!prompt?.sync_hub_taxonomy) return prompt;
+  if (String(prompt.category_type || '') !== 'system') return prompt;
+
+  const rawCategoryKey = String(prompt.category_key || '').trim();
+  if (!rawCategoryKey) {
+    throw new Error('Hub import is missing category_key');
+  }
+
+  let resolvedCategoryKey = await resolveSystemCategoryKey(rawCategoryKey);
+  if (!resolvedCategoryKey) {
+    const taxonomy = await syncHubTaxonomy();
+    broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
+    resolvedCategoryKey = await resolveSystemCategoryKey(rawCategoryKey);
+  }
+
+  if (!resolvedCategoryKey) {
+    throw new Error(`Hub taxonomy is missing category_key: ${rawCategoryKey}`);
+  }
+
+  return {
+    ...prompt,
+    category_type: 'system',
+    category_key: resolvedCategoryKey,
+    category_source: 'system',
+    classification_confidence: 1,
+    confirm_category_review: true,
+  };
 }
 
 // --- Port-based handler for long-running video prompt generation ---
@@ -404,7 +498,7 @@ async function handleMessage(message, sendResponse) {
     switch (message.type) {
 
       case 'GET_PROMPTS':
-        sendResponse({ success: true, prompts: await getPrompts() });
+        sendResponse({ success: true, prompts: await getDisplayPrompts() });
         break;
 
       // [DISABLED] case 'GET_OPENCLAW_SETTINGS':
@@ -479,17 +573,43 @@ async function handleMessage(message, sendResponse) {
 
       case 'SAVE_PROMPT': {
         const newId = crypto.randomUUID();
-        const metadata = buildSavedPromptMetadata(message.prompt.content, {
+        const metadata = await buildSavedPromptMetadata(message.prompt.content, {
           title: message.prompt.title,
           category: message.prompt.category,
+          category_type: message.prompt.category_type,
+          category_key: message.prompt.category_key,
+          category_source: message.prompt.category_source,
           tags: message.prompt.tags,
+          output_modality: message.prompt.output_modality,
+          output_modality_source: message.prompt.output_modality_source,
+          classification_confidence: message.prompt.classification_confidence,
+          classification_source: message.prompt.classification_source,
+          manual_custom_category: message.prompt.manual_custom_category,
+          ai_category_type: message.prompt.ai_category_type,
+          ai_category_key: message.prompt.ai_category_key,
+          ai_category_confidence: message.prompt.ai_category_confidence,
+          confirm_category_review: message.prompt.confirm_category_review,
+        }, {
+          locale: await getCurrentLocale(),
+          forceOutputModality: message.prompt.force_output_modality,
         });
         const newPrompt = {
           id: newId,
           title: metadata.title,
           content: message.prompt.content,
           category: metadata.category,
+          category_type: metadata.category_type,
+          category_key: metadata.category_key,
+          output_modality: metadata.output_modality,
+          output_modality_locked: metadata.output_modality_locked,
+          classification_confidence: metadata.classification_confidence,
+          manual_custom_category: metadata.manual_custom_category,
+          ai_category_type: metadata.ai_category_type,
+          ai_category_key: metadata.ai_category_key,
+          ai_category_confidence: metadata.ai_category_confidence,
           tags: metadata.tags,
+          hub_prompt_id: message.prompt.hub_prompt_id || '',
+          origin_action: message.prompt.origin_action || 'manual_new',
           shortcut: message.prompt.shortcut || '',
           variables: extractVariables(message.prompt.content),
           versions: [],
@@ -497,19 +617,22 @@ async function handleMessage(message, sendResponse) {
           lastUsedAt: null,
           favorite: false,
           titleAutoGenerated: metadata.titleAutoGenerated,
-          categoryAutoGenerated: metadata.categoryAutoGenerated,
+          needs_category_review: metadata.needs_category_review,
+          needs_output_modality_review: metadata.needs_output_modality_review,
+          skip_async_enrich: Boolean(message.prompt.skip_async_enrich),
           createdAt: Date.now()
         };
         // Preserve structured video data for re-rendering in video modal
         if (message.prompt.videoData) newPrompt.videoData = message.prompt.videoData;
+        const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
         await PromptStorage.save(newPrompt);
         await markPendingPromptReveal(newId);
         sendResponse({ success: true, promptId: newId });
-        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
+        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: await getDisplayPrompt(newPrompt) });
 
         // Async AI enrichment — MUST be awaited (not fire-and-forget)
         // to keep MV3 Service Worker alive until completion
-        if (shouldEnrichPromptMetadata(newPrompt)) {
+        if (shouldEnrichNewPrompt) {
           await asyncEnrichPrompt(newId, message.prompt.content);
         }
         break;
@@ -518,12 +641,34 @@ async function handleMessage(message, sendResponse) {
       case 'UPDATE_PROMPT': {
         const prompts = await getPrompts();
         const existing = prompts.find(p => p.id === message.prompt.id);
-        const metadata = buildSavedPromptMetadata(message.prompt.content, {
+        const confirmCategoryReview = Boolean(message.prompt.confirm_category_review) || (
+          Boolean(existing?.needs_category_review) && (
+            String(message.prompt.category_type || '') !== String(existing?.category_type || '') ||
+            String(message.prompt.category_key || '') !== String(existing?.category_key || '')
+          )
+        );
+        const metadata = await buildSavedPromptMetadata(message.prompt.content, {
           title: message.prompt.title,
           category: message.prompt.category,
+          category_type: message.prompt.category_type,
+          category_key: message.prompt.category_key,
+          category_source: message.prompt.category_source,
           tags: message.prompt.tags,
           titleAutoGenerated: shouldPreserveAutoTitle(existing, message.prompt.title),
-          categoryAutoGenerated: shouldPreserveAutoCategory(existing, message.prompt.category),
+          output_modality: message.prompt.output_modality || existing?.output_modality,
+          output_modality_source: message.prompt.output_modality_source,
+          classification_confidence: message.prompt.classification_confidence ?? existing?.classification_confidence,
+          classification_source: message.prompt.classification_source,
+          manual_custom_category: message.prompt.manual_custom_category ?? existing?.manual_custom_category,
+          ai_category_type: message.prompt.ai_category_type ?? existing?.ai_category_type,
+          ai_category_key: message.prompt.ai_category_key ?? existing?.ai_category_key,
+          ai_category_confidence: message.prompt.ai_category_confidence ?? existing?.ai_category_confidence,
+          confirm_category_review: confirmCategoryReview,
+        }, {
+          locale: await getCurrentLocale(),
+          existingPrompt: existing,
+          mode: 'update',
+          forceOutputModality: message.prompt.force_output_modality,
         });
 
         // Push current state to versions before updating
@@ -539,22 +684,34 @@ async function handleMessage(message, sendResponse) {
           ...(existing || {}),
           title: metadata.title,
           content: message.prompt.content,
-          category: metadata.category,
+          category: metadata.category || existing?.category || '',
+          category_type: metadata.category_type || existing?.category_type,
+          category_key: metadata.category_key || existing?.category_key,
+          output_modality: metadata.output_modality || existing?.output_modality,
+          output_modality_locked: metadata.output_modality_locked,
+          classification_confidence: metadata.classification_confidence ?? existing?.classification_confidence,
+          manual_custom_category: metadata.manual_custom_category,
+          ai_category_type: metadata.ai_category_type || existing?.ai_category_type || '',
+          ai_category_key: metadata.ai_category_key || existing?.ai_category_key || '',
+          ai_category_confidence: metadata.ai_category_confidence ?? existing?.ai_category_confidence,
           tags: metadata.tags,
           shortcut: message.prompt.shortcut || '',
           variables: extractVariables(message.prompt.content),
           versions: updatedVersions,
           titleAutoGenerated: metadata.titleAutoGenerated,
-          categoryAutoGenerated: metadata.categoryAutoGenerated,
+          needs_category_review: metadata.needs_category_review,
+          needs_output_modality_review: metadata.needs_output_modality_review,
+          skip_async_enrich: Boolean(message.prompt.skip_async_enrich),
           updatedAt: Date.now()
         };
 
+        const shouldEnrichUpdatedPrompt = markPromptEnriching(updatedPrompt);
         await PromptStorage.update(updatedPrompt);
-        sendResponse({ success: true, prompt: updatedPrompt });
-        broadcastPromptsUpdated({ action: 'update', promptId: updatedPrompt.id });
+        sendResponse({ success: true, prompt: await getDisplayPrompt(updatedPrompt) });
+        broadcastPromptsUpdated({ action: 'update', promptId: updatedPrompt.id, prompt: await getDisplayPrompt(updatedPrompt) });
 
         // Async AI enrichment — awaited to keep MV3 worker alive
-        if (shouldEnrichPromptMetadata(updatedPrompt)) {
+        if (shouldEnrichUpdatedPrompt) {
           await asyncEnrichPrompt(message.prompt.id, message.prompt.content);
         }
         break;
@@ -568,46 +725,84 @@ async function handleMessage(message, sendResponse) {
       }
 
       case 'EXPORT_PROMPTS':
-        sendResponse({ success: true, data: await getPrompts() });
+        sendResponse({ success: true, data: await getDisplayPrompts() });
         break;
 
       case 'IMPORT_PROMPTS': {
-        const imported = message.prompts.map(p => {
-          const metadata = buildSavedPromptMetadata(p.content, {
-            title: p.title,
-            category: p.category,
-            tags: p.tags,
-            titleAutoGenerated: p.titleAutoGenerated,
-            categoryAutoGenerated: p.categoryAutoGenerated,
+        const imported = [];
+        const existing = await getPrompts();
+        const importStartedAt = Date.now();
+        for (const p of message.prompts) {
+          const preparedPrompt = await ensureHubImportCategoryReady(p);
+          const metadata = await buildSavedPromptMetadata(preparedPrompt.content, {
+            title: preparedPrompt.title,
+            category: preparedPrompt.category,
+            category_type: preparedPrompt.category_type,
+            category_key: preparedPrompt.category_key,
+            category_source: preparedPrompt.category_source,
+            tags: preparedPrompt.tags,
+            titleAutoGenerated: preparedPrompt.titleAutoGenerated,
+            output_modality: preparedPrompt.output_modality,
+            output_modality_source: preparedPrompt.output_modality_source,
+            classification_confidence: preparedPrompt.classification_confidence,
+            classification_source: preparedPrompt.classification_source,
+            manual_custom_category: preparedPrompt.manual_custom_category,
+            ai_category_type: preparedPrompt.ai_category_type,
+            ai_category_key: preparedPrompt.ai_category_key,
+            ai_category_confidence: preparedPrompt.ai_category_confidence,
+            confirm_category_review: preparedPrompt.confirm_category_review,
+          }, {
+            locale: await getCurrentLocale(),
+            forceOutputModality: preparedPrompt.force_output_modality,
           });
 
-          return {
+          const importedPrompt = {
             id: crypto.randomUUID(),
             title: metadata.title,
-            content: p.content,
+            content: preparedPrompt.content,
             category: metadata.category,
+            category_type: metadata.category_type,
+            category_key: metadata.category_key,
+            output_modality: metadata.output_modality,
+            output_modality_locked: metadata.output_modality_locked,
+            classification_confidence: metadata.classification_confidence,
+            manual_custom_category: metadata.manual_custom_category,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
-            shortcut: p.shortcut || '',
-            favorite: p.favorite || false,
-            variables: p.variables || extractVariables(p.content),
+            hub_prompt_id: preparedPrompt.hub_prompt_id || '',
+            origin_action: preparedPrompt.origin_action || 'import',
+            shortcut: preparedPrompt.shortcut || '',
+            favorite: preparedPrompt.favorite || false,
+            variables: preparedPrompt.variables || extractVariables(preparedPrompt.content),
             titleAutoGenerated: metadata.titleAutoGenerated,
-            categoryAutoGenerated: metadata.categoryAutoGenerated,
-            createdAt: Date.now()
+            needs_category_review: metadata.needs_category_review,
+            needs_output_modality_review: metadata.needs_output_modality_review,
+            skip_async_enrich: Boolean(preparedPrompt.skip_async_enrich),
+            createdAt: importStartedAt + imported.length
           };
-        });
+          markPromptEnriching(importedPrompt);
+          imported.push(importedPrompt);
+        }
         // Append to existing (not overwrite!)
-        const existing = await getPrompts();
         await PromptStorage.bulkSet([...existing, ...imported]);
         await rebuildContextMenusForActiveTab();
+        const firstImportedPromptId = imported[0]?.id || null;
+        await markPendingPromptReveal(firstImportedPromptId);
         sendResponse({
           success: true,
           promptIds: imported.map(p => p.id),
-          firstPromptId: imported[0]?.id || null
+          firstPromptId: firstImportedPromptId
+        });
+        broadcastPromptsUpdated({
+          action: 'import',
+          promptId: firstImportedPromptId
         });
 
         // Async AI enrichment for imported prompts missing metadata
         for (const p of imported) {
-          if (shouldEnrichPromptMetadata(p)) {
+          if (p.ai_enriching) {
             await asyncEnrichPrompt(p.id, p.content);
           }
         }
@@ -663,13 +858,12 @@ async function handleMessage(message, sendResponse) {
         if (!selectedText) { sendResponse({ success: false }); break; }
 
         const hTitle = extractTitleHeuristic(selectedText);
-        const hLang = detectLanguageHeuristic(selectedText);
-        const metadata = buildSavedPromptMetadata(selectedText, {
+        const metadata = await buildSavedPromptMetadata(selectedText, {
           title: hTitle,
-          category: matchCategory(selectedText, hLang),
           tags: [],
           titleAutoGenerated: true,
-          categoryAutoGenerated: true,
+        }, {
+          locale: await getCurrentLocale(),
         });
         const newId = crypto.randomUUID();
         const now = Date.now();
@@ -678,7 +872,18 @@ async function handleMessage(message, sendResponse) {
           title: metadata.title,
           content: selectedText,
           category: metadata.category,
+          category_type: metadata.category_type,
+          category_key: metadata.category_key,
+          output_modality: metadata.output_modality,
+          output_modality_locked: metadata.output_modality_locked,
+          classification_confidence: metadata.classification_confidence,
+          manual_custom_category: metadata.manual_custom_category,
+          ai_category_type: metadata.ai_category_type,
+          ai_category_key: metadata.ai_category_key,
+          ai_category_confidence: metadata.ai_category_confidence,
           tags: metadata.tags,
+          hub_prompt_id: '',
+          origin_action: 'quick_add',
           shortcut: '',
           variables: extractVariables(selectedText),
           versions: [],
@@ -694,16 +899,18 @@ async function handleMessage(message, sendResponse) {
             convertMethod: 'quick_add',
           },
           titleAutoGenerated: metadata.titleAutoGenerated,
-          categoryAutoGenerated: metadata.categoryAutoGenerated,
+          needs_category_review: metadata.needs_category_review,
+          needs_output_modality_review: metadata.needs_output_modality_review,
           createdAt: now
         };
+        const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
         await PromptStorage.save(newPrompt);
         await rebuildContextMenusForActiveTab();
         await markPendingPromptReveal(newId);
-        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
+        broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: await getDisplayPrompt(newPrompt) });
         sendResponse({ success: true });
         // Async AI enrichment (non-blocking)
-        if (shouldEnrichPromptMetadata(newPrompt)) {
+        if (shouldEnrichNewPrompt) {
           await asyncEnrichPrompt(newId, selectedText);
         }
         break;
@@ -719,14 +926,23 @@ async function handleMessage(message, sendResponse) {
         }
         const now = Date.now();
         try {
-          const result = await smartConvertWithAI(selectedText);
+          const result = await smartConvertWithAI(selectedText, {
+            locale: await getCurrentLocale(),
+            customCategories: getCustomCategoriesForClassification(await getPrompts()),
+          });
           if (!result?.prompt) throw new Error('Empty result');
-          const metadata = buildSavedPromptMetadata(result.prompt, {
+          const metadata = await buildSavedPromptMetadata(result.prompt, {
             title: result.title,
-            category: result.category,
             tags: result.tags,
             titleAutoGenerated: !String(result.title || '').trim(),
-            categoryAutoGenerated: !String(result.category || '').trim(),
+            output_modality: result.output_modality,
+            output_modality_source: 'ai',
+            category_type: result.recommended_category_type === 'custom' ? 'custom' : 'system',
+            category_key: result.recommended_category_key,
+            classification_confidence: result.confidence,
+            classification_source: 'ai',
+          }, {
+            locale: await getCurrentLocale(),
           });
 
           const newId = crypto.randomUUID();
@@ -735,7 +951,18 @@ async function handleMessage(message, sendResponse) {
             title: metadata.title,
             content: result.prompt,
             category: metadata.category,
+            category_type: metadata.category_type,
+            category_key: metadata.category_key,
+            output_modality: metadata.output_modality,
+            output_modality_locked: metadata.output_modality_locked,
+            classification_confidence: metadata.classification_confidence,
+            manual_custom_category: metadata.manual_custom_category,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
+            hub_prompt_id: '',
+            origin_action: 'smart_convert',
             shortcut: '',
             variables: extractVariables(result.prompt),
             versions: [],
@@ -751,27 +978,29 @@ async function handleMessage(message, sendResponse) {
               convertMethod: 'smart_convert',
             },
             titleAutoGenerated: metadata.titleAutoGenerated,
-            categoryAutoGenerated: metadata.categoryAutoGenerated,
+            needs_category_review: metadata.needs_category_review,
+            needs_output_modality_review: metadata.needs_output_modality_review,
+            skip_async_enrich: true,
             createdAt: now
           };
+          const shouldEnrichNewPrompt = markPromptEnriching(newPrompt);
           await PromptStorage.save(newPrompt);
           await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(newId);
-          broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: newPrompt });
+          broadcastPromptsUpdated({ action: 'create', promptId: newId, prompt: await getDisplayPrompt(newPrompt) });
           sendResponse({ success: true, title: newPrompt.title });
-          if (shouldEnrichPromptMetadata(newPrompt)) {
+          if (shouldEnrichNewPrompt) {
             await asyncEnrichPrompt(newId, newPrompt.content);
           }
         } catch (e) {
           console.error('[SMART_CONVERT_SELECTION] Failed:', e);
           const heuristicTitle = extractTitleHeuristic(selectedText);
-          const lang = detectLanguageHeuristic(selectedText);
-          const metadata = buildSavedPromptMetadata(selectedText, {
+          const metadata = await buildSavedPromptMetadata(selectedText, {
             title: heuristicTitle,
-            category: matchCategory(selectedText, lang),
             tags: [],
             titleAutoGenerated: true,
-            categoryAutoGenerated: true,
+          }, {
+            locale: await getCurrentLocale(),
           });
           const fallbackId = crypto.randomUUID();
           const fallbackPrompt = {
@@ -779,7 +1008,18 @@ async function handleMessage(message, sendResponse) {
             title: metadata.title,
             content: selectedText,
             category: metadata.category,
+            category_type: metadata.category_type,
+            category_key: metadata.category_key,
+            output_modality: metadata.output_modality,
+            output_modality_locked: metadata.output_modality_locked,
+            classification_confidence: metadata.classification_confidence,
+            manual_custom_category: metadata.manual_custom_category,
+            ai_category_type: metadata.ai_category_type,
+            ai_category_key: metadata.ai_category_key,
+            ai_category_confidence: metadata.ai_category_confidence,
             tags: metadata.tags,
+            hub_prompt_id: '',
+            origin_action: 'smart_convert',
             shortcut: '',
             variables: extractVariables(selectedText),
             versions: [],
@@ -795,15 +1035,17 @@ async function handleMessage(message, sendResponse) {
               convertMethod: 'smart_convert',
             },
             titleAutoGenerated: metadata.titleAutoGenerated,
-            categoryAutoGenerated: metadata.categoryAutoGenerated,
+            needs_category_review: metadata.needs_category_review,
+            needs_output_modality_review: metadata.needs_output_modality_review,
             createdAt: now
           };
+          const shouldEnrichFallbackPrompt = markPromptEnriching(fallbackPrompt);
           await PromptStorage.save(fallbackPrompt);
           await rebuildContextMenusForActiveTab();
           await markPendingPromptReveal(fallbackId);
-          broadcastPromptsUpdated({ action: 'create', promptId: fallbackId, prompt: fallbackPrompt });
+          broadcastPromptsUpdated({ action: 'create', promptId: fallbackId, prompt: await getDisplayPrompt(fallbackPrompt) });
           sendResponse({ success: false, error: e.message, fallbackSaved: true, title: fallbackPrompt.title });
-          if (shouldEnrichPromptMetadata(fallbackPrompt)) {
+          if (shouldEnrichFallbackPrompt) {
             await asyncEnrichPrompt(fallbackId, fallbackPrompt.content);
           }
         }
@@ -1106,9 +1348,9 @@ async function handleMessage(message, sendResponse) {
 
       case 'BATCH_RENAME_CATEGORY': {
         const prompts = await getPrompts();
-        // Update each prompt in the old category individually
-        const toUpdate = prompts.filter(p => p.category === message.oldName);
+        const toUpdate = prompts.filter(p => p.category_type === 'custom' && p.category_key === message.oldName);
         for (const p of toUpdate) {
+          p.category_key = message.newName;
           p.category = message.newName;
           await PromptStorage.update(p);
         }
@@ -1219,6 +1461,17 @@ async function handleMessage(message, sendResponse) {
         try {
           const result = await SyncManager[syncMethods[message.type]]();
           sendResponse({ success: true, message: result?.message });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
+
+      case 'FORCE_HUB_TAXONOMY_SYNC': {
+        try {
+          const taxonomy = await syncHubTaxonomy();
+          broadcastTaxonomyUpdated({ revision: taxonomy.revision || taxonomy.generated_at || '' });
+          sendResponse({ success: true });
         } catch (e) {
           sendResponse({ success: false, error: e.message });
         }

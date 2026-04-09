@@ -144,7 +144,7 @@ class ImagePromptPage {
         document.getElementById("doubaoBtn").addEventListener("click", async () => {
             const promptText = this.analysisResult?.prompt || "";
             if (!promptText) {
-                this.showToast("No prompt to send to Doubao", "error");
+                this.showToast(i18n.t("imagePromptNoPromptForDoubao"), "error");
                 return;
             }
             await chrome.storage.session.set({
@@ -152,7 +152,7 @@ class ImagePromptPage {
                 pendingDoubaoTimestamp: Date.now()
             });
             window.open("https://www.doubao.com/chat", "_blank", "noopener,noreferrer");
-            this.showToast("豆包已打开，Prompt 将自动填入", "success");
+            this.showToast(i18n.t("imagePromptDoubaoOpened"), "success");
         });
     }
 
@@ -170,7 +170,11 @@ class ImagePromptPage {
                 title: "",
                 content: this.analysisResult.prompt,
                 category: "",
+                category_type: "",
+                category_key: "",
                 tags: ["image-prompt"],
+                output_modality: "image",
+                output_modality_source: "explicit",
                 shortcut: "",
                 usageCount: 0,
                 lastUsed: Date.now(),

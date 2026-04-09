@@ -354,8 +354,9 @@
 
         <!-- Sync Mode Dropdown -->
         <div class="settings-card">
-          <div class="settings-group">
+          <div class="settings-group settings-group-stacked">
             <label data-i18n="syncEngine">☁️ 数据同步</label>
+            <span class="settings-hint" data-i18n="syncEngineHint">选择如何跨设备同步你的 Prompt 数据</span>
             <select id="syncBackendSelect" class="settings-input">
               <option value="none" data-i18n="noSync">不同步（仅本地）</option>
               <option value="webdav" data-i18n="webdavSync">WebDAV</option>
@@ -433,9 +434,18 @@
       </div>
     </div>
 
+    <!-- 模态筛选 -->
+    <div class="categories modality-filters" id="modalityFilters">
+      <button class="smart-view-btn filter-chip-btn active" data-modality="all">
+        <span class="chip-text">全部</span>
+      </button>
+    </div>
+
     <!-- 分类标签 -->
     <div class="categories" id="categories">
-      <button class="category-tag active" data-category="all" data-i18n="categoryAll">全部</button>
+      <button class="smart-view-btn filter-chip-btn active" data-category="all">
+        <span class="chip-text" data-i18n="categoryAll">全部</span>
+      </button>
     </div>
 
     <!-- Prompt列表 -->
@@ -469,23 +479,65 @@
       <form id="promptForm">
         <input type="hidden" id="promptId">
 
-        <div class="form-group">
+        <div class="form-group" data-review-lock-region>
           <label for="titleInput" data-i18n="title">标题</label>
           <input type="text" id="titleInput" data-i18n-placeholder="titlePlaceholder" placeholder="留空则 AI 自动生成">
         </div>
 
-        <div class="form-group">
+        <div class="form-group category-form-group">
           <label for="categoryInput" data-i18n="category">分类</label>
-          <input type="text" id="categoryInput" list="categoryList">
-          <datalist id="categoryList"></datalist>
+          <input type="hidden" id="categoryInput">
+          <input type="hidden" id="categoryTypeInput">
+          <input type="hidden" id="categoryKeyInput">
+          <div class="category-editor">
+            <div class="category-editor-row">
+              <div class="category-combobox">
+                <div class="category-input-shell">
+                  <input type="text" id="categorySearchInput" data-i18n-placeholder="categorySearchPlaceholder"
+                    placeholder="搜索或选择分类" autocomplete="off" spellcheck="false">
+                  <button type="button" id="categoryDropdownToggle" class="category-dropdown-toggle"
+                    aria-label="Toggle category dropdown">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+                <div id="categoryDropdown" class="category-dropdown hidden"></div>
+              </div>
+              <div class="category-source-selector" role="tablist" aria-label="Category source">
+                <button type="button" class="category-source-btn active" data-category-source="system"
+                  data-i18n="systemCategories">系统分类</button>
+                <button type="button" class="category-source-btn" data-category-source="mine"
+                  data-i18n="customCategories">自定义分类</button>
+                <button type="button" class="category-source-btn" data-category-source="custom"
+                  data-i18n="customCategoryMode">新建</button>
+              </div>
+            </div>
+          </div>
+          <div id="categoryReviewPanel" class="category-review-panel hidden">
+            <div class="category-review-section">
+              <div class="category-review-section-header">
+                <div class="category-review-label" data-i18n="currentCategoryReview">当前分类</div>
+                <button type="button" id="useCurrentCategoryBtn" class="category-review-apply-btn">使用</button>
+              </div>
+              <div id="currentCategoryReviewPreview" class="category-review-preview"></div>
+            </div>
+            <div class="category-review-section">
+              <div class="category-review-section-header">
+                <div id="aiCategoryReviewLabel" class="category-review-label" data-i18n="aiRecommendedCategory">AI 推荐</div>
+                <button type="button" id="applyRecommendedCategoryBtn" class="category-review-apply-btn">使用</button>
+              </div>
+              <div id="aiCategoryReviewPreview" class="category-review-preview"></div>
+            </div>
+          </div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" data-review-lock-region>
           <label for="tagsInput" data-i18n="tags">标签</label>
           <input type="text" id="tagsInput" data-i18n-placeholder="tagsPlaceholder" placeholder="自动生成标签" readonly aria-readonly="true">
         </div>
 
-        <div id="shortcutFormGroup" class="form-group">
+        <div id="shortcutFormGroup" class="form-group" data-review-lock-region>
           <label for="shortcutInput">
             <span data-i18n="shortcut">快捷命令</span>
             <span class="hint" data-i18n="shortcutFieldHint">输入 /命令 即可快速插入</span>
@@ -528,7 +580,7 @@
         -->
 
 
-        <div class="form-group">
+        <div class="form-group" data-review-lock-region data-review-scroll-region>
           <label for="contentInput">
             <span data-i18n="content">Prompt 内容</span>
             <svg class="hint-icon md-hint-icon" width="20" height="12" viewBox="0 0 208 128" title="支持 Markdown 格式">
@@ -638,7 +690,7 @@
 
         <div class="form-bottom-row"
           style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
-          <div class="translate-actions" style="display: flex; gap: 8px;">
+          <div class="translate-actions" data-review-lock-region style="display: flex; gap: 8px;">
             <select id="translateTargetLang" class="settings-input"
               style="width: 120px; padding: 4px 8px; height: 32px;">
               <option value="English">English</option>
@@ -655,10 +707,43 @@
           </div>
           <div class="form-actions" style="margin-top: 0;">
             <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
-            <button type="submit" class="btn btn-primary" data-i18n="save">保存</button>
+            <button type="submit" id="submitPromptBtn" class="btn btn-primary" data-i18n="save">保存</button>
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="previewModal" class="modal hidden preview-modal">
+    <div class="modal-content preview-modal-content">
+      <div class="modal-header">
+        <h2 id="previewModalTitle" data-i18n="preview">预览</h2>
+        <button class="modal-close" id="closePreviewModal">&times;</button>
+      </div>
+      <div class="preview-modal-body">
+        <div id="previewPromptMeta" class="preview-modal-meta"></div>
+        <div id="previewPromptVariables" class="preview-modal-variables hidden"></div>
+        <div id="previewPromptContent" class="preview-modal-rendered md-preview"></div>
+      </div>
+      <div class="preview-modal-footer">
+        <div class="preview-modal-translate">
+          <select id="previewTranslateTargetLang" class="settings-input" style="width: 120px; padding: 4px 8px; height: 32px;">
+            <option value="English">English</option>
+            <option value="Chinese" selected>中文</option>
+            <option value="Japanese">日本語</option>
+            <option value="Korean">한국어</option>
+            <option value="Spanish">Español</option>
+            <option value="French">Français</option>
+            <option value="German">Deutsch</option>
+          </select>
+          <button type="button" id="previewTranslateBtn" class="btn btn-secondary btn-small" data-i18n-title="translatePrompt">
+            🌐 <span data-i18n="translate">Translate</span>
+          </button>
+        </div>
+        <div class="preview-modal-actions">
+          <button type="button" class="btn btn-secondary" id="closePreviewBtn" data-i18n="cancel">取消</button>
+        </div>
+      </div>
     </div>
   </div>
 
