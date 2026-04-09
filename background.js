@@ -252,7 +252,8 @@ async function injectRedditPrefillInTab(tabId, title, text) {
 async function openRedditAndPrefill(title, text) {
   const redditTitle = String(title || 'AI Prompt');
   const redditBody = String(text || '');
-  const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(redditTitle)}&text=${encodeURIComponent(redditBody)}`;
+  // Keep URL lightweight; fill title/body via in-page injection for better reliability.
+  const url = 'https://www.reddit.com/submit?selftext=true';
   const tab = await chrome.tabs.create({ url });
   if (!tab?.id) return;
 
@@ -333,8 +334,22 @@ async function handlePendingIntent() {
     await chrome.storage.local.remove('pendingIntent');
     
     console.log('[PendingIntent] Executing:', intent.action);
+    const updatePendingNotification = async (title, message, requireInteraction = false) => {
+      const options = {
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title,
+        message,
+      };
+      if (requireInteraction) options.requireInteraction = true;
+      try {
+        await chrome.notifications.create(options);
+      } catch (e) {
+        console.warn('[PendingIntent] Notification update failed:', e);
+      }
+    };
     if (intent.summary) {
-      chrome.notifications.create({
+      await chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
         title: await t('pendingResumeTitle'),
@@ -374,6 +389,13 @@ async function handlePendingIntent() {
     } else if (intent.action === 'SHARE_TO_PLATFORM') {
       const { promptData } = intent;
       const platform = promptData.platform;
+      if (platform === 'reddit') {
+        await updatePendingNotification(
+          '⏳ Preparing Reddit share...',
+          'Continuing your previous action · creating share link...',
+          false
+        );
+      }
       const resp = await HubClient.publishPrompt(promptData, 'unlisted');
       
       const shareUrl = resp.url;
@@ -395,13 +417,60 @@ async function handlePendingIntent() {
         let shareText = null;
         let redditPrefillTitle = shareTitle;
         let redditPrefillBody = content || '';
+        let redditAiApplied = false;
 
         try {
-          const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
           if (platform === 'reddit') {
-            redditPrefillTitle = aiResult?.title || redditPrefillTitle;
-            redditPrefillBody = aiResult?.body || redditPrefillBody;
+            const withTimeout = async (promise, timeoutMs) => {
+              return await new Promise((resolve) => {
+                let settled = false;
+                const timer = setTimeout(() => {
+                  if (settled) return;
+                  settled = true;
+                  resolve(null);
+                }, timeoutMs);
+                Promise.resolve(promise).then((value) => {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(value || null);
+                }).catch(() => {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(null);
+                });
+              });
+            };
+
+            // Login-resume settle: avoid racing immediately after auth redirect.
+            await new Promise((resolve) => setTimeout(resolve, 1800));
+
+            const attempts = [
+              { settleDelay: 1400, timeoutMs: 12000, hint: 'Finalizing login session...' },
+              { settleDelay: 500, timeoutMs: 8000, hint: 'Retrying polish once...' }
+            ];
+            for (let i = 0; i < attempts.length; i++) {
+              const attempt = attempts[i];
+              if (attempt.settleDelay > 0) {
+                await new Promise((resolve) => setTimeout(resolve, attempt.settleDelay));
+              }
+              await updatePendingNotification(
+                '✨ Generating...',
+                `Continuing your previous action · ${attempt.hint}`,
+                true
+              );
+              const aiResult = await withTimeout(
+                generateShareText(content, shareTitle, shareUrl, platform),
+                attempt.timeoutMs
+              );
+              redditPrefillTitle = aiResult?.title || redditPrefillTitle;
+              redditPrefillBody = aiResult?.body || redditPrefillBody;
+              redditAiApplied = !!(aiResult?.title || aiResult?.body);
+              if (redditAiApplied) break;
+            }
           } else {
+            const aiResult = await generateShareText(content, shareTitle, shareUrl, platform);
             shareText = aiResult?.text;
           }
         } catch (e) {
@@ -419,7 +488,32 @@ async function handlePendingIntent() {
         if (platform === 'twitter') {
           await chrome.tabs.create({ url: `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}` });
         } else if (platform === 'reddit') {
-          await openRedditAndPrefill(redditPrefillTitle, redditPrefillBody);
+          if (!redditAiApplied) {
+            try {
+              await chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'icons/icon128.png',
+                title: '⚠️ Reddit polish failed',
+                message: 'Opened with original prompt content this time.',
+                requireInteraction: true
+              });
+            } catch (e) {
+              console.warn('[PendingIntent] Reddit failure notification failed:', e);
+            }
+          }
+          await updatePendingNotification(
+            '🔗 Opening Reddit...',
+            redditAiApplied
+              ? 'Polish completed · opening Reddit editor now.'
+              : 'AI polish timed out · opening with original content.',
+            true
+          );
+          try {
+            await openRedditAndPrefill(redditPrefillTitle, redditPrefillBody);
+          } catch (e) {
+            console.warn('[PendingIntent] openRedditAndPrefill failed, fallback open submit page:', e);
+            await chrome.tabs.create({ url: 'https://www.reddit.com/submit?selftext=true' });
+          }
           await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
             if (tabs[0]) {
               chrome.tabs.sendMessage(tabs[0].id, { type: 'COPY_TO_CLIPBOARD', text: redditPrefillBody }).catch(() => {});
@@ -448,12 +542,14 @@ async function handlePendingIntent() {
         });
       }
       
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon128.png',
-        title: '🔗 ' + (platform === 'copy' || platform === 'json' ? 'Copied!' : 'Opening ' + platform + '...'),
-        message: platform === 'copy' || platform === 'json' ? 'Check your clipboard' : 'Check the new tab to finish sharing.'
-      });
+      if (platform !== 'reddit') {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: '🔗 ' + (platform === 'copy' || platform === 'json' ? 'Copied!' : 'Opening ' + platform + '...'),
+          message: platform === 'copy' || platform === 'json' ? 'Check your clipboard' : 'Check the new tab to finish sharing.'
+        });
+      }
     }
   } catch (e) {
     console.error('[PendingIntent] Failed:', e);
