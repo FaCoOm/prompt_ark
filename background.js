@@ -892,6 +892,7 @@ async function handleMessage(message, sendResponse) {
               else if (provider?.type === 'qwen-web') loginUrl = 'https://chat.qwen.ai/';
               else if (provider?.type === 'xiaomimo-web') loginUrl = 'https://aistudio.xiaomimimo.com/';
               else if (provider?.type === 'grok-web') loginUrl = 'https://grok.com/';
+              else if (provider?.type === 'deepseek-web') loginUrl = 'https://chat.deepseek.com/';
               chrome.tabs.create({ url: loginUrl, active: true });
             }
             sendResponse({
