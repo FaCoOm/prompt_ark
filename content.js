@@ -1687,6 +1687,30 @@ class AIPromptManager {
         }
         break;
       }
+      case 'GET_DEEPSEEK_TOKEN': {
+        try {
+          const userTokenRaw = localStorage.getItem('userToken');
+          let userToken = '';
+          if (userTokenRaw) {
+            try {
+              const parsed = JSON.parse(userTokenRaw);
+              userToken = parsed?.value || parsed || userTokenRaw;
+            } catch (e) {
+              userToken = userTokenRaw;
+            }
+          }
+          console.log('[Prompt Ark] GET_DEEPSEEK_TOKEN called, token exists:', !!userToken);
+          sendResponse({ 
+            success: true, 
+            userToken,
+            baseUrl: window.location.origin 
+          });
+        } catch (e) {
+          console.error('[Prompt Ark] Failed to get DeepSeek token:', e);
+          sendResponse({ success: false, error: e.message });
+        }
+        break;
+      }
       case 'GET_QWEN_CN_XSRF': {
         try {
           let xsrfToken = '';
