@@ -113,7 +113,7 @@ class ImagePromptPage {
     bindActions() {
         // Copy button
         document.getElementById("copyBtn").addEventListener("click", () => {
-            const promptText = this.analysisResult?.prompt || "";
+            const promptText = JSON.stringify(this.analysisResult) || "";
             navigator.clipboard
                 .writeText(promptText)
                 .then(() => {
@@ -142,12 +142,13 @@ class ImagePromptPage {
         });
 
         document.getElementById("doubaoBtn").addEventListener("click", async () => {
-            const promptText = this.analysisResult?.prompt || "";
+            const promptText = JSON.stringify(this.analysisResult) || "";
             if (!promptText) {
                 this.showToast("No prompt to send to Doubao", "error");
                 return;
             }
             await chrome.storage.session.set({
+                // pendingDoubaoPrompt: promptText,
                 pendingDoubaoPrompt: promptText,
                 pendingDoubaoTimestamp: Date.now()
             });
@@ -168,7 +169,7 @@ class ImagePromptPage {
                     Date.now().toString(36) +
                     Math.random().toString(36).substr(2, 5),
                 title: "",
-                content: this.analysisResult.prompt,
+                content: JSON.stringify(this.analysisResult),
                 category: "",
                 tags: ["image-prompt"],
                 shortcut: "",
