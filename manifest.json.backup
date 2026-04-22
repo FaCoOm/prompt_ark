@@ -20,13 +20,11 @@
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://www.claude.ai/*",
     "https://gemini.google.com/*",
     "https://notebooklm.google.com/*",
     "https://aistudio.google.com/*",
     "https://grok.com/*",
     "https://chat.deepseek.com/*",
-    "https://deepseek.com/*",
     "https://kimi.com/*",
     "https://www.kimi.com/*",
     "https://kimi.moonshot.cn/*",
@@ -36,16 +34,9 @@
     "https://yiyan.baidu.com/*",
     "https://tongyi.aliyun.com/*",
     "https://chat.qwen.ai/*",
-    "https://qwen.ai/*",
-    "https://chat2.qianwen.com/*",
-    "https://qianwen.com/*",
     "https://hailuoai.com/*",
     "https://www.hailuoai.com/*",
     "https://hunyuan.tencent.com/*",
-    "https://chat.z.ai/*",
-    "https://aistudio.xiaomimimo.com/*",
-    "https://*.openai.com/*",
-    "https://*.oaistatic.com/*",
     "<all_urls>"
   ],
   "web_accessible_resources": [
@@ -82,7 +73,7 @@
       "css": [
         "content.css"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ],
   "icons": {
@@ -112,8 +103,5 @@
       },
       "description": "__MSG_shareArticleDesc__"
     }
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }
