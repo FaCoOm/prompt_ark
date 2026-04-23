@@ -37,8 +37,8 @@ Prompt Ark supports three kinds of variables that turn into interactive fill-in 
 | `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Fixed set of options |
 | `{{style:formal}}` | Pre-filled text | Sensible default, user can change |
 
-### V2 Prompt Taxonomy
-Prompt Ark v2 rebuilds prompt organization around structured prompt-engineering metadata. Each prompt can now carry:
+### Prompt Taxonomy
+Prompt Ark uses structured prompt-engineering metadata to organize prompts. Each prompt can carry:
 
 | Metadata | What it does |
 |---|---|
@@ -86,7 +86,7 @@ Select any text on a webpage → Right-click → **"Smart Convert to Prompt"**.
 
 The AI (via your active provider) analyzes the text to infer intent, craft a full role + task description, extract entities as `{{variables}}`, and auto-save the result as a reusable prompt with title, category, and tags.
 
-> Works with Gemini Web by default (no API key). Best for turning articles, reports, or example outputs into templates. V2 also generates title, output modality, system/custom category recommendation, and tags.
+> Works with Gemini Web by default (no API key). Best for turning articles, reports, or example outputs into templates. The generated prompt also includes title, output modality, system/custom category recommendation, and tags.
 
 ### Right-Click Quick Save
 Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-generates a title, output modality, category, and tags.
