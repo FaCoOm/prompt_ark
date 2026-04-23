@@ -10,7 +10,7 @@
 
 Prompt Ark works **immediately after install**. No API key. No setup.
 
-1. Open [ChatGPT](https://chatgpt.com), [Claude](https://claude.ai), or any supported platform
+1. Open [ChatGPT](https://chatgpt.com), [Claude](https://claude.ai), [Gemini](https://gemini.google.com), [DeepSeek](https://chat.deepseek.com), or any supported platform
 2. You'll see a **✨** button next to the chat input
 3. Click it → Browse 100 built-in prompts → Select one → **Boom, it's in the chat box**
 
@@ -28,6 +28,7 @@ That's it. You're using Prompt Ark.
 |---|---|
 | Create my own prompt | Click **+ New** in the popup |
 | Use variables like `{{topic}}` | Just write them in your prompt content |
+| Organize system/custom categories | Use the **Category** field when creating or editing a prompt |
 | Optimize an existing prompt with AI | Edit → Click **✨ Optimize** |
 | Sync across devices | [Sync & Data Guide](04-sync-and-data.md) |
 | Use my own API key | [Model Configuration](02-model-configuration.md) |
@@ -43,4 +44,4 @@ Prompt Ark comes with **Gemini Web** as the default AI provider. As long as you'
 | 🔮 AI Optimization | ✅ Default | Just be logged into Gemini |
 | 🏷️ Auto title/category/tags | ✅ Default | Save a prompt without a title |
 
-> Want faster responses or a different model? See [Model Configuration](02-model-configuration.md).
+> Want DeepSeek Web, Kimi, Qwen, Grok, GLM, or your own API? See [Model Configuration](02-model-configuration.md).

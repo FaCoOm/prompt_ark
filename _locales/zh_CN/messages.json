@@ -3,7 +3,7 @@
     "message": "Prompt Ark"
   },
   "appDesc": {
-    "message": "管理并自动填入Prompt到AI平台"
+    "message": "管理、分类并自动填入 Prompt 到 AI 平台"
   },
   "contextMenuAddPrompt": {
     "message": "添加到 Prompt Ark"
