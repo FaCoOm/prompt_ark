@@ -2,7 +2,7 @@
 export const translations = {
     zh_CN: {
         appName: "Prompt Ark",
-        appDesc: "管理并自动填入Prompt到AI平台",
+        appDesc: "管理、分类并自动填入 Prompt 到 AI 平台",
         newPrompt: "新建 Prompt",
         editPrompt: "编辑 Prompt",
         searchPlaceholder: "搜索 Prompt...",
@@ -475,7 +475,7 @@ export const translations = {
     },
     en: {
         appName: "Prompt Ark",
-        appDesc: "Manage and auto-fill prompts into AI platforms",
+        appDesc: "Manage, classify, and auto-fill prompts into AI platforms",
         newPrompt: "New Prompt",
         editPrompt: "Edit Prompt",
         searchPlaceholder: "Search Prompts...",

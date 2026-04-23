@@ -578,7 +578,7 @@ class PopupManager {
     document.getElementById('providerModelInput').value = provider?.model || '';
 
     // Show/hide form fields based on type
-    const isWebProvider = typeSelect.value === 'gemini-web' || typeSelect.value === 'xiaomimo-web' || typeSelect.value === 'qwen-web' || typeSelect.value === 'grok-web' || typeSelect.value === 'glm-intl-web' || typeSelect.value === 'glm-web' || typeSelect.value === 'doubao-web' || typeSelect.value === 'chatgpt-web' || typeSelect.value === 'deepseek-web';
+    const isWebProvider = typeSelect.value === 'gemini-web' || typeSelect.value === 'kimi-web' || typeSelect.value === 'xiaomimo-web' || typeSelect.value === 'qwen-web' || typeSelect.value === 'grok-web' || typeSelect.value === 'glm-intl-web' || typeSelect.value === 'glm-web' || typeSelect.value === 'doubao-web' || typeSelect.value === 'chatgpt-web' || typeSelect.value === 'deepseek-web';
     apiUrlRow.classList.toggle('hidden', typeSelect.value !== 'openai');
     document.getElementById('providerApiKeyInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
     document.getElementById('providerModelInput').closest('.form-row').classList.toggle('hidden', isWebProvider);
@@ -2327,7 +2327,7 @@ ${p.sourceContext ? `
     document.getElementById('cancelProviderBtn')?.addEventListener('click', () => this.hideProviderForm());
     document.getElementById('saveProviderBtn')?.addEventListener('click', () => this.saveProviderForm());
     document.getElementById('providerTypeSelect')?.addEventListener('change', (e) => {
-      const isWebProvider = e.target.value === 'gemini-web' || e.target.value === 'xiaomimo-web' || e.target.value === 'qwen-web' || e.target.value === 'grok-web' || e.target.value === 'glm-intl-web' || e.target.value === 'glm-web' || e.target.value === 'doubao-web' || e.target.value === 'chatgpt-web' || e.target.value === 'deepseek-web';
+      const isWebProvider = e.target.value === 'gemini-web' || e.target.value === 'kimi-web' || e.target.value === 'xiaomimo-web' || e.target.value === 'qwen-web' || e.target.value === 'grok-web' || e.target.value === 'glm-intl-web' || e.target.value === 'glm-web' || e.target.value === 'doubao-web' || e.target.value === 'chatgpt-web' || e.target.value === 'deepseek-web';
       document.getElementById('providerApiUrlRow')?.classList.toggle('hidden', e.target.value !== 'openai');
       document.getElementById('providerApiKeyInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);
       document.getElementById('providerModelInput')?.closest('.form-row')?.classList.toggle('hidden', isWebProvider);

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/en/">📖 Docs</a> · <a href="docs/zh/">📖 中文文档</a> · <a href="#-30-second-quick-start">🚀 Quick Start</a>
+  <a href="docs/en/">📖 Docs</a> · <a href="docs/zh/">📖 中文文档</a> · <a href="RELEASE_NOTES.md">🆕 V2 Update</a> · <a href="#-30-second-quick-start">🚀 Quick Start</a>
 </p>
 
 ---
@@ -35,9 +35,18 @@ You've spent hours crafting the perfect prompt. It works beautifully. But then..
 | **Quick-transform text** | ⚡ One-click Rewrite / Summarize / Translate / Expand |
 | **Translate a prompt** | 🌐 Click translate on any card → Pick language → Auto-translated & saved |
 | **Grab page context** | `Ctrl+Shift+G` captures page title, URL & selection for use inside prompts |
-| **Find that prompt you saved** | 🔍 Search, filter by category, favorites, recent |
+| **Find that prompt you saved** | 🔍 Search, filter by system/custom category, favorites, recent |
+| **Keep prompts organized** | 🗂️ V2 taxonomy: system categories, custom categories, AI recommendations, review queue |
+| **Use your preferred AI model** | 🤖 Gemini Web by default; add DeepSeek Web, Kimi, Qwen, Grok, GLM, Gemini API, or OpenAI-compatible APIs |
 | **Share with others** | 📦 Publish as Prompt Pack **or** one-click share to Twitter/Reddit/Zhihu/WeChat/XHS |
 | **Use across devices** | ☁️ WebDAV or Obsidian Vault sync |
+
+## 🆕 What's New in V2
+
+- **Rebuilt prompt classification**: prompts now use a stable taxonomy with 10 system domains, custom categories, AI confidence, and a review state for uncertain matches.
+- **More model choices**: Gemini Web is still zero-config, and you can now connect more Web-session providers such as DeepSeek Web, Kimi, Qwen, Grok, GLM, Doubao, and ChatGPT Web, plus Gemini API and OpenAI-compatible APIs.
+- **Smarter prompt engineering workflow**: Smart Convert, metadata extraction, import, sharing, and Hub publishing now carry richer category and output-modality metadata.
+- **Cleaner prompt library**: built-in prompts and imported prompts are easier to browse, filter, review, and sync.
 
 ## 🔌 Works Everywhere You Chat with AI
 
@@ -65,7 +74,7 @@ Prompt Ark ships with **Gemini Web** as the default AI backend. As long as you'r
 
 > 💡 No API key. No setup wizard. Just install and use.
 >
-> Want faster responses or a specific model? Go to **Settings → Models → +** to add your own provider (Gemini API / OpenAI Compatible). See [Model Configuration](docs/en/02-model-configuration.md).
+> Want faster responses or a specific model? Go to **Settings → Models → +** to add a Web-session provider, Gemini API, or any OpenAI-compatible API. See [Model Configuration](docs/en/02-model-configuration.md).
 
 ### Step 3: Create Your First Prompt
 1. Click the **Prompt Ark icon** to open the Dashboard
@@ -73,6 +82,8 @@ Prompt Ark ships with **Gemini Web** as the default AI backend. As long as you'r
 3. Write your prompt content — use `{{topic}}` or `{{language}}` to create **dynamic variables**
 4. Click **Save**. Leave the title blank to let AI auto-generate a title, category, and tags!
 5. Click **Preview** to check the Markdown rendering
+
+V2 uses a structured category system. You can choose from system categories, reuse your own custom categories, or review AI recommendations when the match is uncertain.
 
 ### Step 4: Use It on AI Platforms
 Open [ChatGPT](https://chatgpt.com), [Claude](https://claude.ai), [Gemini](https://gemini.google.com) or any supported platform. You'll see two new buttons next to the chat input:
@@ -116,6 +127,16 @@ Write variables in your prompt content and they become fill-in forms at use time
 | `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Pick one option |
 | `{{style:formal}}` | Pre-filled default | Editable, pre-filled |
 
+### V2 prompt taxonomy
+Prompt Ark now separates prompt organization into:
+
+| Layer | What it means |
+|---|---|
+| **Output modality** | Text · Image · Video |
+| **System categories** | 10 stable domains such as Productivity, Writing, Marketing, Coding, Data, Design |
+| **Custom categories** | Your own reusable labels |
+| **AI review state** | Low-confidence AI classifications are marked for confirmation before sharing/publishing |
+
 ### Context variables (`{{@...}}`)
 Use `{{@page_title}}`, `{{@page_url}}`, `{{@selection}}`, `{{@date}}` to auto-fill live context from the current browser tab — no typing needed.
 
@@ -156,12 +177,16 @@ Don't start from zero. Prompt Ark ships with **100 curated prompts** (50 English
 
 | Category | Examples |
 |---|---|
-| 💼 Productivity | Meeting notes, email drafts, SWOT analysis |
-| ✍️ Writing | Blog outlines, copywriting, proofreading |
-| 💻 Coding | Code review, debugging, SQL generation |
-| 🎓 Education | Concept explainer, quiz generator, study plans |
-| 🎨 Creative | Storytelling, brainstorming, naming |
-| 📊 Analysis | Data interpretation, market research |
+| 💼 General & Productivity | Meeting notes, email drafts, planning |
+| ✍️ Writing & Editing | Blog outlines, copywriting, proofreading, translation |
+| 📣 Marketing & Brand | Ads, social posts, launch copy, growth ideas |
+| 🧑‍💼 Sales & Support | Sales scripts, FAQ, support replies |
+| 🧭 Business & Operations | SOPs, project plans, retrospectives |
+| 🎓 Research & Learning | Concept explainers, study plans, research briefs |
+| 💻 Coding & Development | Code review, debugging, SQL generation |
+| 📊 Data & Analytics | Metrics, reports, data interpretation |
+| 🎨 Design & Visual | Image prompts, posters, UI copy, logo ideas |
+| 🎬 Creative & Media | Storytelling, scripts, short-video concepts |
 
 ## ☁️ Your Data, Your Way
 
@@ -178,7 +203,8 @@ Full JSON export/import. URL import from GitHub repos with AI quality scoring.
 - **Manifest V3** — `storage`, `contextMenus`, `scripting`, `sidePanel`, `cookies`
 - **Deep DOM traversal** — Shadow DOM, React fiber bypass, per-platform injection
 - **Zero-config AI** — Gemini Web session reverse-engineered as default backend; auto-redirects to login on session expiry; explicit cookie handling for Edge
-- **Multi-provider AI** — Gemini API · OpenAI protocol · Gemini Web (free) — unified dispatch, hot-swap at runtime
+- **Multi-provider AI** — Gemini Web · DeepSeek Web · Kimi Web · Qwen Web · Grok Web · GLM Web · Gemini API · OpenAI-compatible APIs — unified dispatch, hot-swap at runtime
+- **Taxonomy v2** — system/custom categories, output modality metadata, AI confidence, and category review state
 - **Prompt files** — All LLM prompts live in `prompts/*.md`, editable without touching JS
 - **Context Grabber** — `Ctrl+Shift+G` turns the current page into a Smart Convert prompt card with traceable source context
 - **Smart Convert** — Meta-prompt that reverse-engineers selected text into a structured, variable-ized reusable prompt

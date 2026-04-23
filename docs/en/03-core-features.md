@@ -37,6 +37,19 @@ Prompt Ark supports three kinds of variables that turn into interactive fill-in 
 | `{{lang:EN\|ZH\|JP}}` | Dropdown (enum) | Fixed set of options |
 | `{{style:formal}}` | Pre-filled text | Sensible default, user can change |
 
+### V2 Prompt Taxonomy
+Prompt Ark v2 rebuilds prompt organization around structured prompt-engineering metadata. Each prompt can now carry:
+
+| Metadata | What it does |
+|---|---|
+| **Output modality** | Marks a prompt as text, image, or video |
+| **System category** | 10 stable domains: General & Productivity, Writing & Editing, Marketing & Brand, Sales & Support, Business & Operations, Research & Learning, Coding & Development, Data & Analytics, Design & Visual, Creative & Media |
+| **Custom category** | Your own reusable labels |
+| **AI recommendation** | Suggested when saving, importing, or using Smart Convert |
+| **Review state** | Low-confidence classifications are marked for confirmation |
+
+When editing a prompt, switch between **System Categories / Custom Categories / New**. Prompts that need review show a category review prompt; you can keep the current category, accept the AI recommendation, or choose your own.
+
 ### Context Variables (`{{@...}}`)
 Auto-resolve from the current browser tab — no copy-paste needed:
 
@@ -73,10 +86,10 @@ Select any text on a webpage → Right-click → **"Smart Convert to Prompt"**.
 
 The AI (via your active provider) analyzes the text to infer intent, craft a full role + task description, extract entities as `{{variables}}`, and auto-save the result as a reusable prompt with title, category, and tags.
 
-> Works with Gemini Web by default (no API key). Best for turning articles, reports, or example outputs into templates.
+> Works with Gemini Web by default (no API key). Best for turning articles, reports, or example outputs into templates. V2 also generates title, output modality, system/custom category recommendation, and tags.
 
 ### Right-Click Quick Save
-Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-generates a title, category, and tags.
+Select text on any webpage → Right-click → **"Add to Prompt Ark"**. AI auto-generates a title, output modality, category, and tags.
 
 ### Keyboard Shortcut
 `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) summons the Picker anywhere.
@@ -141,4 +154,4 @@ See the **Context Variables (`{{@...}}`)** section above for the full list of au
 Prompt Ark can run as a **Side Panel** docked to the browser edge. Click the toolbar icon to toggle.
 
 ### 100 Built-in Prompts
-50 English + 50 Chinese, covering: Productivity · Writing · Coding · Education · Creative · Analysis · AI & Prompting · Context Grabber
+50 English + 50 Chinese, covering: General & Productivity · Writing & Editing · Marketing & Brand · Sales & Support · Business & Operations · Research & Learning · Coding & Development · Data & Analytics · Design & Visual · Creative & Media
