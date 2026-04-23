@@ -60,7 +60,7 @@ If you prefer the DeepSeek website session, choose **DeepSeek Web (No Key)** and
 
 ## Which Model Handles Classification?
 
-Prompt Ark v2 uses the currently active AI provider for title, tags, output modality, and category recommendations. Classification includes confidence:
+Prompt Ark uses the currently active AI provider for title, tags, output modality, and category recommendations. Classification includes confidence:
 - High-confidence matches are assigned to a system category or one of your existing custom categories
 - Uncertain matches are marked for category review so you can confirm before sharing or publishing
 
