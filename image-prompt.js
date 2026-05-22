@@ -148,7 +148,6 @@ class ImagePromptPage {
                 return;
             }
             await chrome.storage.session.set({
-                // pendingDoubaoPrompt: promptText,
                 pendingDoubaoPrompt: promptText,
                 pendingDoubaoTimestamp: Date.now()
             });
@@ -165,9 +164,7 @@ class ImagePromptPage {
 
         try {
             const newPrompt = {
-                id:
-                    Date.now().toString(36) +
-                    Math.random().toString(36).substr(2, 5),
+                id: crypto.randomUUID(),
                 title: "",
                 content: JSON.stringify(this.analysisResult),
                 category: "",

@@ -48,7 +48,7 @@ export class I18nManager {
     
     // 替换参数 {count}
     Object.keys(params).forEach(param => {
-      text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), params[param]);
+      text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), () => params[param]);
     });
     
     return text;

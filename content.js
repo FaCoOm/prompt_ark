@@ -194,7 +194,7 @@ async function generateAbogusViaInjection(tokens) {
     // Listen for result
     const listener = (event) => {
       if (event.data?.type === 'PROMPT_ARK_ABOGUS_RESULT') {
-        document.removeEventListener('message', listener);
+        window.removeEventListener('message', listener);
         script.remove();
         const result = event.data.result;
         if (result && (result.a_bogus || result['X-Bogus'])) {
@@ -205,7 +205,7 @@ async function generateAbogusViaInjection(tokens) {
           resolve({});
         }
       } else if (event.data?.type === 'PROMPT_ARK_ABOGUS_ERROR') {
-        document.removeEventListener('message', listener);
+        window.removeEventListener('message', listener);
         script.remove();
         console.error('[Prompt Ark] Error generating a_bogus:', event.data.error);
         resolve({});
@@ -214,7 +214,7 @@ async function generateAbogusViaInjection(tokens) {
     
     // Set timeout
     setTimeout(() => {
-      document.removeEventListener('message', listener);
+      window.removeEventListener('message', listener);
       script.remove();
       resolve({});
     }, 5000);
@@ -356,9 +356,6 @@ class ImagePromptHandler {
     }
   }
 }
-
-// content.js - Prompt Ark Content Script
-// Unified deep traversal strategy for all platforms
 
 const SMART_CONVERT_MIN_LENGTH = 10;
 const SHORTCUT_ACTION_DEDUPE_MS = 350;
@@ -1136,7 +1133,7 @@ class AIPromptManager {
 
     // Standardize prompts array for import
     const newPrompts = payload.prompts.map(p => ({
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       title: p.title || p.act || 'Untitled',
       content: p.content || p.prompt || '',
       category: p.category || 'Downloaded',
@@ -1327,58 +1324,28 @@ class AIPromptManager {
     return document.body;
   }
 
+  static PLATFORM_UI_CONFIGS = {
+    chatgpt: { btnBottom: 55, btnRight: 50, slashLeft: 170 },
+    claude: { btnBottom: 0, btnRight: 154, slashLeft: 180 },
+    gemini: { btnBottom: -10, btnRight: 110, slashLeft: 0 },
+    notebooklm: { btnBottom: 10, btnRight: 55, slashLeft: 0 },
+    aistudio: { btnBottom: -2, btnRight: 185, slashLeft: 0 },
+    grok: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    deepseek: { btnBottom: 0, btnRight: 85, slashLeft: 0 },
+    kimi: { btnBottom: 0, btnRight: 130, slashLeft: 0 },
+    zhipu: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    doubao: { btnBottom: -25, btnRight: 55, slashLeft: 150 },
+    wenxin: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    qwen: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    minimax: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    hunyuan: { btnBottom: 0, btnRight: 55, slashLeft: 0 },
+    generic: { btnBottom: 0, btnRight: 55, slashLeft: 0 }
+  };
+
   getButtonPosition(rect, platform) {
-    const btnHeight = 32;
-    const offset = 10;
-    let bottom, right;
-
-    if (platform === 'chatgpt') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset + 55;
-      right = window.innerWidth - rect.right + 50;
-    } else if (platform === 'claude') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 154;
-    } else if (platform === 'gemini') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - (2 * offset);
-      right = window.innerWidth - rect.right + 110;
-    } else if (platform === 'notebooklm') {
-      bottom = window.innerHeight - rect.bottom - btnHeight;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'aistudio') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 2;
-      right = window.innerWidth - rect.right + 185;
-    } else if (platform === 'grok') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'deepseek') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 85;
-    } else if (platform === 'kimi') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 130;
-    } else if (platform === 'zhipu') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'doubao') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset - 25;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'wenxin') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'qwen') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'minimax') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else if (platform === 'hunyuan') {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    } else {
-      bottom = window.innerHeight - rect.bottom - btnHeight - offset;
-      right = window.innerWidth - rect.right + 55;
-    }
-
+    const config = AIPromptManager.PLATFORM_UI_CONFIGS[platform] || AIPromptManager.PLATFORM_UI_CONFIGS.generic;
+    const bottom = window.innerHeight - rect.bottom - 32 - 10 + config.btnBottom;
+    const right = window.innerWidth - rect.right + config.btnRight;
     return { bottom, right };
   }
 
@@ -1755,7 +1722,7 @@ class AIPromptManager {
         this.slashShortcuts = [];
         break;
       case 'UPDATE_I18N_DICT':
-        if (request.dict) this.i18nDict = request.dict;
+        if (message.dict) this.i18nDict = message.dict;
         break;
       case 'GET_SELECTION':
         sendResponse({ text: typeof this._savedSelection === 'string' ? this._savedSelection : window.getSelection().toString() });
@@ -2680,57 +2647,10 @@ class AIPromptManager {
   }
 
   getSlashDropdownPosition(rect, platform) {
-    let bottom, left, width;
-    width = Math.min(rect.width, 360);
-
-    if (platform === 'chatgpt') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left + 170;
-    } else if (platform === 'claude') {
-      bottom = window.innerHeight - rect.top + 4;
-      // bottom = 0;
-      left = rect.left + 180;
-    } else if (platform === 'gemini') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'notebooklm') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'aistudio') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'grok') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'deepseek') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'kimi') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'zhipu') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'doubao') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left + 150;
-    } else if (platform === 'wenxin') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'qwen') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'minimax') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else if (platform === 'hunyuan') {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    } else {
-      bottom = window.innerHeight - rect.top + 4;
-      left = rect.left;
-    }
-
+    const config = AIPromptManager.PLATFORM_UI_CONFIGS[platform] || AIPromptManager.PLATFORM_UI_CONFIGS.generic;
+    const bottom = window.innerHeight - rect.top + 4;
+    const left = rect.left + config.slashLeft;
+    const width = Math.min(rect.width, 360);
     return { bottom, left, width };
   }
 
