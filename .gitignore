@@ -33,6 +33,7 @@ openspec/
 CLAUDE.md
 .claude
 .codex
+.omo/run-continuation
 
 # Temp / Scripts
 scripts/
